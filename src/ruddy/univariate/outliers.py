@@ -1,0 +1,1 @@
+"""Univariate statistical outlier diagnostics."""

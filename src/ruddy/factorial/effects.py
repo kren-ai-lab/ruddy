@@ -1,0 +1,1 @@
+"""Factorial effect-size calculations."""
