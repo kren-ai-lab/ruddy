@@ -8,8 +8,10 @@ from typing import Any
 import pandas as pd
 from pandas.api.types import (
     is_bool_dtype,
+    is_complex_dtype,
     is_datetime64_any_dtype,
     is_numeric_dtype,
+    is_timedelta64_dtype,
 )
 
 from ruddy.core.enums import ColumnKind, ColumnRole
@@ -37,6 +39,8 @@ def infer_column_kind(series: pd.Series) -> ColumnKind:
     dtype = series.dtype
     if is_bool_dtype(dtype):
         return ColumnKind.BOOLEAN
+    if is_complex_dtype(dtype) or is_timedelta64_dtype(dtype):
+        return ColumnKind.UNKNOWN
     if is_datetime64_any_dtype(dtype):
         return ColumnKind.DATETIME
     if is_numeric_dtype(dtype):

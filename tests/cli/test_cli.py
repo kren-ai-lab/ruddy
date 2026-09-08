@@ -20,3 +20,9 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
 
     assert exc_info.value.code == 0
     assert capsys.readouterr().out.strip() == "ruddy 0.1.0.dev0"
+
+
+def test_phase2_cli_exposes_profile_and_univariate() -> None:
+    parser = build_parser()
+    assert parser.parse_args(["profile", "data.csv"]).command == "profile"
+    assert parser.parse_args(["univariate", "data.csv"]).command == "univariate"
