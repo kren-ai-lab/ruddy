@@ -18,7 +18,7 @@ from ruddy.univariate import UnivariateResult, analyze_univariate
 def _build_role_overrides(args) -> dict[str, ColumnRole]:
     overrides: dict[str, ColumnRole] = {}
     for attr, role in (
-        ("target", ColumnRole.TARGET),
+        ("response", ColumnRole.RESPONSE),
         ("factor", ColumnRole.FACTOR),
         ("covariate", ColumnRole.COVARIATE),
         ("annotation", ColumnRole.ANNOTATION),
@@ -59,12 +59,45 @@ def build_config(args) -> AnalysisConfig:
 
     return AnalysisConfig(
         id_column=args.id_column,
+        responses=tuple(getattr(args, "response", None) or ()),
+        groups=tuple(getattr(args, "group", None) or ()),
         role_overrides=_build_role_overrides(args),
         kind_overrides=_build_kind_overrides(args),
         min_numeric_n=args.min_numeric_n,
         max_category_levels=args.max_category_levels,
         max_missingness_patterns=args.max_missingness_patterns,
         max_pairwise_columns=args.max_pairwise_columns,
+        correlations=(
+            tuple(args.correlation)
+            if getattr(args, "correlation", None)
+            else ("pearson", "spearman", "kendall")
+        ),
+        comparison_tests=(
+            tuple(args.comparison_test)
+            if getattr(args, "comparison_test", None)
+            else (
+                "welch_t",
+                "mann_whitney",
+                "welch_anova",
+                "kruskal_wallis",
+                "chi_square",
+                "fisher_exact",
+            )
+        ),
+        p_adjust=getattr(args, "p_adjust", "fdr_bh"),
+        min_group_n=getattr(args, "min_group_n", 3),
+        min_correlation_pairs=getattr(args, "min_correlation_pairs", 3),
+        max_group_levels=getattr(args, "max_group_levels", 20),
+        max_correlation_columns=getattr(args, "max_correlation_columns", 100),
+        pairwise=getattr(args, "pairwise", False),
+        outlier_methods=(
+            tuple(args.outlier_method)
+            if getattr(args, "outlier_method", None)
+            else ("iqr", "robust_z")
+        ),
+        outlier_iqr_multiplier=getattr(args, "iqr_multiplier", 1.5),
+        outlier_robust_z_threshold=getattr(args, "robust_z_threshold", 3.5),
+        include_outlier_flags=getattr(args, "include_flags", False),
     )
 
 

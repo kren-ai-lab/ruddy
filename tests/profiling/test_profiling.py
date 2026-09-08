@@ -17,7 +17,7 @@ def _dataset() -> TabularDataset:
     frame = pd.DataFrame(
         {
             "id": ["a", "b", "c", "d"],
-            "target": [1.0, 2.0, 3.0, 4.0],
+            "response": [1.0, 2.0, 3.0, 4.0],
             "factor_code": [1, 1, 2, 2],
             "measurement": [1.0, np.nan, np.inf, 4.0],
             "flag": [True, False, True, False],
@@ -31,7 +31,7 @@ def _dataset() -> TabularDataset:
         frame,
         id_column="id",
         role_overrides={
-            "target": ColumnRole.TARGET,
+            "response": ColumnRole.RESPONSE,
             "factor_code": ColumnRole.FACTOR,
             "excluded": ColumnRole.EXCLUDED,
         },
@@ -47,8 +47,8 @@ def test_profile_columns_preserves_order_and_separates_role_from_kind() -> None:
     table = columns.set_index("column")
     assert table.loc["id", "role"] == "identifier"
     assert table.loc["id", "data_kind"] == "categorical"
-    assert table.loc["target", "role"] == "target"
-    assert table.loc["target", "data_kind"] == "numeric"
+    assert table.loc["response", "role"] == "response"
+    assert table.loc["response", "data_kind"] == "numeric"
     assert table.loc["factor_code", "role"] == "factor"
     assert table.loc["factor_code", "data_kind"] == "numeric"
     assert table.loc["flag", "data_kind"] == "boolean"

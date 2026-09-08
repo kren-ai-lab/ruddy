@@ -44,7 +44,7 @@ def test_default_quantile_names_are_stable() -> None:
     assert [quantile_column_name(q) for q in quantiles] == ["q01", "q05", "q25", "q50", "q75", "q95", "q99"]
 
 
-def test_numeric_statistics_match_puma_finite_value_policy_and_add_variance_range() -> None:
+def test_numeric_statistics_follow_finite_value_policy_and_add_variance_range() -> None:
     dataset = _dataset()
     stats = summarize_numeric_statistics(dataset, profile_columns(dataset)).set_index("column")
     row = stats.loc["measurement"]

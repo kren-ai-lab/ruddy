@@ -1,0 +1,49 @@
+"""CLI helpers for Phase 3 mixed-type bivariate analysis."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from ruddy.bivariate import BivariateResult, analyze_bivariate
+from ruddy.cli.commands.descriptive import build_config, load_dataset
+
+
+def write_bivariate_result(result: BivariateResult, output_dir: str | Path) -> Path:
+    """Persist structured Phase 3 artifacts."""
+
+    target = Path(output_dir)
+    target.mkdir(parents=True, exist_ok=True)
+    result.correlations.to_csv(target / "correlations.csv", index=False)
+    result.comparisons.to_csv(target / "comparisons.csv", index=False)
+    result.categorical_associations.to_csv(
+        target / "categorical_associations.csv", index=False
+    )
+    (target / "bivariate_provenance.json").write_text(
+        json.dumps(result.provenance.to_dict(), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return target
+
+
+def run_bivariate(args) -> int:
+    config = build_config(args)
+    dataset = load_dataset(args.input, config)
+    result = analyze_bivariate(dataset, **config.bivariate_kwargs())
+    if args.output_dir:
+        print(write_bivariate_result(result, args.output_dir))
+    else:
+        print(
+            json.dumps(
+                {
+                    "correlations": int(len(result.correlations)),
+                    "comparisons": int(len(result.comparisons)),
+                    "categorical_associations": int(
+                        len(result.categorical_associations)
+                    ),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    return 0

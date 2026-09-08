@@ -10,7 +10,7 @@ class ColumnRole(StrEnum):
 
     IDENTIFIER = "identifier"
     VARIABLE = "variable"
-    TARGET = "target"
+    RESPONSE = "response"
     FACTOR = "factor"
     COVARIATE = "covariate"
     ANNOTATION = "annotation"
@@ -34,6 +34,14 @@ class AlignmentMode(StrEnum):
     PARTIAL = "partial"
 
 
+class AnnotationCoverage(StrEnum):
+    """Observed coverage state for an external annotation source."""
+
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    ABSENT = "absent"
+
+
 class ResultStatus(StrEnum):
     """Scientific execution status for an analysis result."""
 
@@ -47,3 +55,36 @@ class AdvisoryLevel(StrEnum):
 
     INFO = "info"
     WARNING = "warning"
+
+
+class CorrelationMethod(StrEnum):
+    """Numeric correlation methods supported by Ruddy."""
+
+    PEARSON = "pearson"
+    SPEARMAN = "spearman"
+    KENDALL = "kendall"
+
+
+class ComparisonTest(StrEnum):
+    """Inferential tests supported by Ruddy bivariate analysis."""
+
+    WELCH_T = "welch_t"
+    MANN_WHITNEY = "mann_whitney"
+    WELCH_ANOVA = "welch_anova"
+    KRUSKAL_WALLIS = "kruskal_wallis"
+    CHI_SQUARE = "chi_square"
+    FISHER_EXACT = "fisher_exact"
+
+
+class OutlierMethod(StrEnum):
+    """Univariate statistical outlier rules supported by Ruddy."""
+
+    IQR = "iqr"
+    ROBUST_Z = "robust_z"
+
+
+class PAdjustMethod(StrEnum):
+    """Multiple-testing correction policies."""
+
+    NONE = "none"
+    FDR_BH = "fdr_bh"

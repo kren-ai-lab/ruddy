@@ -31,7 +31,7 @@ COLUMN_PROFILE_COLUMNS: tuple[str, ...] = (
 
 _ANALYSIS_ELIGIBLE_ROLES = {
     ColumnRole.VARIABLE,
-    ColumnRole.TARGET,
+    ColumnRole.RESPONSE,
     ColumnRole.FACTOR,
     ColumnRole.COVARIATE,
     ColumnRole.ANNOTATION,

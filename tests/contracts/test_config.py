@@ -20,7 +20,7 @@ def test_analysis_config_normalizes_and_freezes_overrides() -> None:
     assert config.dataset_kwargs()["id_column"] == "id"
 
     with pytest.raises(TypeError):
-        config.role_overrides["x"] = ColumnRole.TARGET  # type: ignore[index]
+        config.role_overrides["x"] = ColumnRole.RESPONSE  # type: ignore[index]
 
 
 def test_phase2_config_validates_descriptive_controls() -> None:
@@ -36,3 +36,17 @@ def test_phase2_config_validates_descriptive_controls() -> None:
 
     with pytest.raises(ValueError, match="include 0.25"):
         AnalysisConfig(quantiles=(0.1, 0.5, 0.9))
+
+
+def test_phase4_config_keeps_response_and_group_selection_separate_from_roles() -> None:
+    config = AnalysisConfig(
+        responses=("response_a", "response_b"),
+        groups=("group_a",),
+    )
+    assert config.responses == ("response_a", "response_b")
+    assert config.groups == ("group_a",)
+    assert config.grouped_kwargs()["responses"] == ("response_a", "response_b")
+    assert config.grouped_kwargs()["groups"] == ("group_a",)
+
+    with pytest.raises(ValueError, match="both response and group"):
+        AnalysisConfig(responses=("x",), groups=("x",))

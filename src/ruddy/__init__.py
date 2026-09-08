@@ -1,9 +1,41 @@
 """Ruddy: domain-agnostic statistical exploratory data analysis."""
 
 from ruddy._version import __version__
-from ruddy.analysis import AnalysisConfig
-from ruddy.core import AlignmentMode, ColumnKind, ColumnRole, ResultStatus
-from ruddy.data import FeatureMatrix, TabularDataset
+from ruddy.bivariate import (
+    BivariateResult,
+    GroupAnalysisResult,
+    analyze_grouped_responses,
+    resolve_groups,
+    resolve_responses,
+    summarize_annotation_coverage,
+    summarize_group_coverage,
+    summarize_grouped_categorical_responses,
+    summarize_grouped_numeric_responses,
+    summarize_response_catalog,
+    analyze_bivariate,
+    summarize_categorical_associations,
+    summarize_correlations,
+    summarize_numeric_categorical_comparisons,
+)
+from ruddy.analysis import AnalysisConfig, analyze_groups
+from ruddy.core import (
+    AlignmentMode,
+    AnnotationCoverage,
+    ColumnKind,
+    ColumnRole,
+    ComparisonTest,
+    CorrelationMethod,
+    OutlierMethod,
+    PAdjustMethod,
+    ResultStatus,
+)
+from ruddy.data import (
+    AlignedAnnotations,
+    FeatureMatrix,
+    TabularDataset,
+    align_annotation_source,
+    attach_annotations,
+)
 from ruddy.profiling import (
     ProfilingResult,
     pairwise_completeness,
@@ -15,39 +47,70 @@ from ruddy.profiling import (
 )
 from ruddy.results import Advisory, AnalysisProvenance, AnalysisResult
 from ruddy.univariate import (
+    OutlierResult,
     UnivariateResult,
     UnivariateTables,
+    analyze_outliers,
     analyze_univariate,
     summarize_categorical_statistics,
     summarize_datetime_statistics,
+    summarize_numeric_quality,
     summarize_numeric_statistics,
+    summarize_outliers,
     summarize_univariate,
 )
 
 __all__ = [
     "Advisory",
+    "AlignedAnnotations",
     "AlignmentMode",
+    "AnnotationCoverage",
     "AnalysisConfig",
     "AnalysisProvenance",
     "AnalysisResult",
     "ColumnKind",
     "ColumnRole",
+    "ComparisonTest",
+    "CorrelationMethod",
     "FeatureMatrix",
+    "BivariateResult",
+    "GroupAnalysisResult",
+    "OutlierMethod",
+    "PAdjustMethod",
     "ProfilingResult",
     "ResultStatus",
     "TabularDataset",
+    "OutlierResult",
     "UnivariateResult",
     "UnivariateTables",
+    "align_annotation_source",
+    "analyze_bivariate",
+    "analyze_grouped_responses",
+    "analyze_groups",
+    "attach_annotations",
+    "analyze_outliers",
     "analyze_univariate",
     "pairwise_completeness",
     "profile_columns",
+    "resolve_groups",
+    "resolve_responses",
     "profile_dataset",
+    "summarize_annotation_coverage",
+    "summarize_categorical_associations",
     "summarize_categorical_statistics",
+    "summarize_group_coverage",
+    "summarize_grouped_categorical_responses",
+    "summarize_grouped_numeric_responses",
+    "summarize_correlations",
     "summarize_datetime_statistics",
     "summarize_missingness",
     "summarize_missingness_patterns",
+    "summarize_numeric_categorical_comparisons",
+    "summarize_numeric_quality",
     "summarize_numeric_statistics",
+    "summarize_outliers",
     "summarize_overview",
+    "summarize_response_catalog",
     "summarize_univariate",
     "__version__",
 ]

@@ -2,9 +2,14 @@
 
 from ruddy.core.enums import (
     AdvisoryLevel,
+    AnnotationCoverage,
     AlignmentMode,
     ColumnKind,
     ColumnRole,
+    ComparisonTest,
+    CorrelationMethod,
+    OutlierMethod,
+    PAdjustMethod,
     ResultStatus,
 )
 from ruddy.core.exceptions import (
@@ -23,16 +28,21 @@ from ruddy.core.exceptions import (
 
 __all__ = [
     "AdvisoryLevel",
+    "AnnotationCoverage",
     "AlignmentError",
     "AlignmentMode",
     "ColumnKind",
     "ColumnRole",
+    "ComparisonTest",
+    "CorrelationMethod",
     "ContractError",
     "DataValidationError",
     "DuplicateObservationIDError",
     "FeatureMatrixValidationError",
     "KindConflictError",
     "MissingObservationIDError",
+    "OutlierMethod",
+    "PAdjustMethod",
     "ResultContractError",
     "ResultStatus",
     "RoleConflictError",

@@ -61,13 +61,13 @@ def test_roles_and_kinds_are_resolved_deterministically() -> None:
     dataset = TabularDataset(
         make_frame(),
         id_column="id",
-        role_overrides={"group": ColumnRole.FACTOR, "value": ColumnRole.TARGET},
+        role_overrides={"group": ColumnRole.FACTOR, "value": ColumnRole.RESPONSE},
         kind_overrides={"value": ColumnKind.NUMERIC},
     )
 
     assert dataset.role_of("id") is ColumnRole.IDENTIFIER
     assert dataset.role_of("group") is ColumnRole.FACTOR
-    assert dataset.role_of("value") is ColumnRole.TARGET
+    assert dataset.role_of("value") is ColumnRole.RESPONSE
     assert dataset.kind_of("value") is ColumnKind.NUMERIC
     assert dataset.kind_of("numeric_string") is ColumnKind.CATEGORICAL
     assert dataset.kind_of("flag") is ColumnKind.BOOLEAN
