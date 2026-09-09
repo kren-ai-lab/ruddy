@@ -43,5 +43,9 @@ class FeatureMatrixValidationError(DataValidationError):
     """Raised when a feature matrix violates shape or numeric-data requirements."""
 
 
+class OptionalDependencyError(RuddyError):
+    """Raised when an optional analysis dependency is unavailable."""
+
+
 class ResultContractError(ContractError):
     """Raised when an analysis result violates the global result contract."""

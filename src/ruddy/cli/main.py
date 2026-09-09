@@ -9,8 +9,12 @@ from ruddy._version import __version__
 from ruddy.cli.commands import (
     run_bivariate,
     run_groups,
+    run_factorial,
+    run_manova,
+    run_multivariate,
     run_outliers,
     run_profile,
+    run_project,
     run_univariate,
 )
 
@@ -155,6 +159,90 @@ def build_parser() -> argparse.ArgumentParser:
     groups_parser.add_argument("--annotation-numeric", action="append", default=[])
     groups_parser.add_argument("--annotation-categorical", action="append", default=[])
     groups_parser.set_defaults(handler=run_groups)
+
+    multivariate_parser = subparsers.add_parser(
+        "multivariate",
+        help="Run covariance, collinearity, and Mahalanobis diagnostics on a feature matrix.",
+    )
+    multivariate_parser.add_argument("input", help="Feature matrix: CSV/TSV/TXT, NPY, or sparse NPZ.")
+    multivariate_parser.add_argument("--id-column", default=None)
+    multivariate_parser.add_argument("--ids-file", default=None)
+    multivariate_parser.add_argument("--feature-column", action="append", default=[])
+    multivariate_parser.add_argument("--scaling", choices=("none", "standard", "robust", "minmax"), default="none")
+    multivariate_parser.add_argument("--no-spearman", action="store_true")
+    multivariate_parser.add_argument("--no-robust-mahalanobis", action="store_true")
+    multivariate_parser.add_argument("--mahalanobis-quantile", type=float, default=0.975)
+    multivariate_parser.add_argument("--robust-support-fraction", type=float, default=None)
+    multivariate_parser.add_argument("--random-state", type=int, default=0)
+    multivariate_parser.add_argument("--max-covariance-features", type=int, default=200)
+    multivariate_parser.add_argument("--max-collinearity-features", type=int, default=100)
+    multivariate_parser.add_argument("--max-mahalanobis-features", type=int, default=100)
+    multivariate_parser.add_argument("--output-dir", default=None)
+    multivariate_parser.set_defaults(handler=run_multivariate)
+
+    manova_parser = subparsers.add_parser(
+        "manova",
+        help="Run low/moderate-dimensional main-effects MANOVA on a tabular dataset.",
+    )
+    _add_descriptive_options(manova_parser)
+    manova_parser.add_argument("--max-responses", type=int, default=20)
+    manova_parser.add_argument("--max-factor-levels", type=int, default=20)
+    manova_parser.add_argument("--min-level-n", type=int, default=3)
+    manova_parser.set_defaults(handler=run_manova)
+
+    factorial_parser = subparsers.add_parser(
+        "factorial",
+        help="Run explicit factorial ANOVA/ANCOVA with interactions and model diagnostics.",
+    )
+    _add_descriptive_options(factorial_parser)
+    factorial_parser.add_argument(
+        "--formula",
+        default=None,
+        help="Compact formula using direct column names and +, :, *, e.g. y ~ A * B + x.",
+    )
+    factorial_parser.add_argument(
+        "--interaction",
+        action="append",
+        default=[],
+        help="Explicit interaction as colon-separated predictors; repeatable.",
+    )
+    factorial_parser.add_argument("--ss-type", choices=("2", "3"), default="2")
+    factorial_parser.add_argument(
+        "--p-adjust", choices=("none", "fdr_bh"), default="none"
+    )
+    factorial_parser.add_argument(
+        "--robust-covariance",
+        choices=("none", "hc0", "hc1", "hc2", "hc3"),
+        default="none",
+    )
+    factorial_parser.add_argument("--min-cell-n", type=int, default=2)
+    factorial_parser.add_argument("--max-factor-levels", type=int, default=20)
+    factorial_parser.add_argument("--max-design-cells", type=int, default=5000)
+    factorial_parser.add_argument("--max-design-columns", type=int, default=500)
+    factorial_parser.add_argument("--max-interaction-order", type=int, default=3)
+    factorial_parser.add_argument("--diagnostic-alpha", type=float, default=0.05)
+    factorial_parser.add_argument("--condition-number-threshold", type=float, default=30.0)
+    factorial_parser.set_defaults(handler=run_factorial)
+
+    project_parser = subparsers.add_parser(
+        "project",
+        help="Run PCA or an exploratory nonlinear projection on a feature matrix.",
+    )
+    project_parser.add_argument("input", help="Feature matrix: CSV/TSV/TXT, NPY, or sparse NPZ.")
+    project_parser.add_argument("--method", choices=("pca", "tsne", "umap"), default="pca")
+    project_parser.add_argument("--id-column", default=None)
+    project_parser.add_argument("--ids-file", default=None, help="One observation ID per line for NPY/NPZ inputs.")
+    project_parser.add_argument("--feature-column", action="append", default=[], help="Feature column for tabular inputs; repeatable.")
+    project_parser.add_argument("--n-components", type=int, default=2)
+    project_parser.add_argument("--scaling", choices=("none", "standard", "robust", "minmax"), default="none")
+    project_parser.add_argument("--metric", default="euclidean")
+    project_parser.add_argument("--random-state", type=int, default=0)
+    project_parser.add_argument("--perplexity", type=float, default=30.0)
+    project_parser.add_argument("--max-iter", type=int, default=1000)
+    project_parser.add_argument("--n-neighbors", type=int, default=15)
+    project_parser.add_argument("--min-dist", type=float, default=0.1)
+    project_parser.add_argument("--output-dir", default=None)
+    project_parser.set_defaults(handler=run_project)
     return parser
 
 

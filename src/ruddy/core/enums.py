@@ -76,6 +76,22 @@ class ComparisonTest(StrEnum):
     FISHER_EXACT = "fisher_exact"
 
 
+class ScalingMethod(StrEnum):
+    """Explicit feature scaling policies for projection analyses."""
+
+    NONE = "none"
+    STANDARD = "standard"
+    ROBUST = "robust"
+    MINMAX = "minmax"
+
+
+class ProjectionMethod(StrEnum):
+    """Supported nonlinear exploratory projection methods."""
+
+    UMAP = "umap"
+    TSNE = "tsne"
+
+
 class OutlierMethod(StrEnum):
     """Univariate statistical outlier rules supported by Ruddy."""
 

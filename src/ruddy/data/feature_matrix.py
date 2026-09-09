@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
 
 import numpy as np
 import pandas as pd
@@ -30,6 +31,7 @@ class FeatureMatrix:
         metadata: pd.DataFrame | None = None,
         metadata_id_column: str | None = None,
         metadata_alignment: AlignmentMode | str = AlignmentMode.STRICT,
+        provenance: Mapping[str, Any] | None = None,
     ) -> None:
         matrix, inferred_ids, inferred_names = self._normalize_matrix(data)
         n_rows, n_features = matrix.shape
@@ -59,6 +61,7 @@ class FeatureMatrix:
         self._feature_names = names
         self._metadata: pd.DataFrame | None = None
         self._alignment_report: AlignmentReport | None = None
+        self._provenance = MappingProxyType(dict(provenance or {}))
 
         if metadata is not None:
             aligned, report = align_annotations(
@@ -134,6 +137,12 @@ class FeatureMatrix:
     @property
     def alignment_report(self) -> AlignmentReport | None:
         return self._alignment_report
+
+    @property
+    def provenance(self) -> Mapping[str, Any]:
+        """Return immutable provenance attached to a derived feature matrix."""
+
+        return self._provenance
 
     def to_array(self) -> np.ndarray:
         """Return a defensive dense copy of the matrix."""

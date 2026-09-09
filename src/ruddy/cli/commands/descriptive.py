@@ -98,6 +98,20 @@ def build_config(args) -> AnalysisConfig:
         outlier_iqr_multiplier=getattr(args, "iqr_multiplier", 1.5),
         outlier_robust_z_threshold=getattr(args, "robust_z_threshold", 3.5),
         include_outlier_flags=getattr(args, "include_flags", False),
+        factorial_ss_type=int(getattr(args, "ss_type", 2)),
+        factorial_p_adjust=getattr(args, "p_adjust", "none") if getattr(args, "command", None) == "factorial" else "none",
+        factorial_robust_covariance=(
+            None
+            if getattr(args, "robust_covariance", None) in {None, "none"}
+            else getattr(args, "robust_covariance")
+        ),
+        factorial_min_cell_n=getattr(args, "min_cell_n", 2),
+        factorial_max_factor_levels=getattr(args, "max_factor_levels", 20),
+        factorial_max_design_cells=getattr(args, "max_design_cells", 5000),
+        factorial_max_design_columns=getattr(args, "max_design_columns", 500),
+        factorial_max_interaction_order=getattr(args, "max_interaction_order", 3),
+        factorial_diagnostic_alpha=getattr(args, "diagnostic_alpha", 0.05),
+        factorial_condition_number_threshold=getattr(args, "condition_number_threshold", 30.0),
     )
 
 
