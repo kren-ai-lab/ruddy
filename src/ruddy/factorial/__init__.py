@@ -4,12 +4,18 @@ from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factori
 from ruddy.factorial.diagnostics import build_factorial_cells, model_diagnostics
 from ruddy.factorial.effects import factorial_effect_sizes
 from ruddy.factorial.models import FactorialResult, analyze_factorial
+from ruddy.factorial.marginal_means import MarginalMeansResult, analyze_marginal_means
+from ruddy.factorial.mixed_effects import MixedEffectsResult, analyze_mixed_effects
 
 __all__ = [
     "FactorialDesign",
     "FactorialResult",
     "FactorialTerm",
+    "MarginalMeansResult",
+    "MixedEffectsResult",
     "analyze_factorial",
+    "analyze_marginal_means",
+    "analyze_mixed_effects",
     "build_factorial_cells",
     "build_factorial_design",
     "factorial_effect_sizes",

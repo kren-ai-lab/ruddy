@@ -5,6 +5,12 @@ from ruddy.univariate.categorical import (
     CATEGORICAL_STATISTICS_COLUMNS,
     summarize_categorical_statistics,
 )
+from ruddy.univariate.diagnostics import (
+    DistributionDiagnosticsResult,
+    analyze_distribution_diagnostics,
+    summarize_dispersion_diagnostics,
+    summarize_normality_diagnostics,
+)
 from ruddy.univariate.distributions import (
     DATETIME_STATISTICS_COLUMNS,
     UnivariateResult,
@@ -34,6 +40,7 @@ __all__ = [
     "CATEGORICAL_FREQUENCY_COLUMNS",
     "CATEGORICAL_STATISTICS_COLUMNS",
     "DATETIME_STATISTICS_COLUMNS",
+    "DistributionDiagnosticsResult",
     "NUMERIC_STATISTICS_BASE_COLUMNS",
     "NUMERIC_QUALITY_COLUMNS",
     "OUTLIER_FLAG_COLUMNS",
@@ -41,12 +48,15 @@ __all__ = [
     "OutlierResult",
     "UnivariateResult",
     "UnivariateTables",
+    "analyze_distribution_diagnostics",
     "analyze_outliers",
     "analyze_univariate",
     "numeric_statistics_columns",
     "quantile_column_name",
     "summarize_categorical_statistics",
     "summarize_datetime_statistics",
+    "summarize_dispersion_diagnostics",
+    "summarize_normality_diagnostics",
     "summarize_numeric_quality",
     "summarize_numeric_statistics",
     "summarize_outliers",

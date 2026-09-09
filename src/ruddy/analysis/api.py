@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from ruddy.bivariate.groups import GroupAnalysisResult, analyze_grouped_responses
 from ruddy.core.enums import ComparisonTest, PAdjustMethod
 from ruddy.data import AlignedAnnotations, TabularDataset
+from ruddy.analysis.engine import analyze
 
 
 def analyze_groups(

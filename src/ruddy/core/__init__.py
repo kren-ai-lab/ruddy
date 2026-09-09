@@ -2,6 +2,7 @@
 
 from ruddy.core.enums import (
     AdvisoryLevel,
+    AnalysisBlock,
     AnnotationCoverage,
     AlignmentMode,
     ColumnKind,
@@ -31,6 +32,7 @@ from ruddy.core.exceptions import (
 
 __all__ = [
     "AdvisoryLevel",
+    "AnalysisBlock",
     "AnnotationCoverage",
     "AlignmentError",
     "AlignmentMode",

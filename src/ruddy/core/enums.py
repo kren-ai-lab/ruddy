@@ -104,3 +104,31 @@ class PAdjustMethod(StrEnum):
 
     NONE = "none"
     FDR_BH = "fdr_bh"
+
+
+class AnalysisBlock(StrEnum):
+    """Top-level scientific blocks available to the unified orchestrator."""
+
+    PROFILING = "profiling"
+    UNIVARIATE = "univariate"
+    BIVARIATE = "bivariate"
+    GROUPS = "groups"
+    OUTLIERS = "outliers"
+    PCA = "pca"
+    TSNE = "tsne"
+    UMAP = "umap"
+    MULTIVARIATE = "multivariate"
+    MANOVA = "manova"
+    FACTORIAL = "factorial"
+    DIAGNOSTICS = "diagnostics"
+    DEPENDENCE = "dependence"
+    CONTINGENCY = "contingency"
+    INTERVALS = "intervals"
+    PERMANOVA = "permanova"
+    POSTHOC = "posthoc"
+    MARGINAL_MEANS = "marginal_means"
+    MIXED_EFFECTS = "mixed_effects"
+    REPRESENTATION = "representation"
+    COMPOSITIONAL = "compositional"
+    BAYESIAN = "bayesian"
+    ANOMALY = "anomaly"

@@ -1,6 +1,13 @@
 """Reusable statistical primitives."""
 
 from ruddy.statistics.assumptions import expected_count_diagnostics
+from ruddy.statistics.bootstrap import BootstrapResult, bootstrap_confidence_interval
+from ruddy.statistics.confidence_intervals import (
+    mean_confidence_interval,
+    odds_ratio_confidence_interval,
+    pearson_confidence_interval,
+    welch_mean_difference_confidence_interval,
+)
 from ruddy.statistics.effect_sizes import (
     bias_corrected_cramers_v,
     cliffs_delta_from_u,
@@ -21,17 +28,23 @@ from ruddy.statistics.multiple_testing import (
 )
 
 __all__ = [
+    "BootstrapResult",
+    "MODIFIED_Z_CONSISTENCY",
     "adjust_pvalues",
     "apply_multiple_testing",
     "bias_corrected_cramers_v",
+    "bootstrap_confidence_interval",
     "cliffs_delta_from_u",
     "epsilon_squared",
     "eta_squared",
     "expected_count_diagnostics",
     "family_sizes",
     "hedges_g",
-    "MODIFIED_Z_CONSISTENCY",
+    "mean_confidence_interval",
     "median_absolute_deviation",
     "modified_z_scores",
+    "odds_ratio_confidence_interval",
+    "pearson_confidence_interval",
     "tukey_fences",
+    "welch_mean_difference_confidence_interval",
 ]

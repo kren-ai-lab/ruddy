@@ -7,6 +7,7 @@ from types import MappingProxyType
 
 from ruddy.core.enums import (
     AlignmentMode,
+    AnalysisBlock,
     ColumnKind,
     ColumnRole,
     ComparisonTest,
@@ -27,11 +28,27 @@ class AnalysisConfig:
     role_overrides: RoleOverrides = field(default_factory=dict)
     kind_overrides: KindOverrides = field(default_factory=dict)
     annotation_alignment: AlignmentMode = AlignmentMode.STRICT
+    feature_alignment: AlignmentMode = AlignmentMode.STRICT
     random_state: int = 0
 
     # Phase 4 statistical semantics.
     responses: tuple[str, ...] = ()
     groups: tuple[str, ...] = ()
+
+    # Phase 9 unified orchestration. Descriptive blocks run by default; every
+    # inferential/feature-space block must be explicitly enabled.
+    enabled_blocks: tuple[AnalysisBlock, ...] = (
+        AnalysisBlock.PROFILING,
+        AnalysisBlock.UNIVARIATE,
+    )
+    manova_responses: tuple[str, ...] = ()
+    manova_factors: tuple[str, ...] = ()
+    manova_covariates: tuple[str, ...] = ()
+    factorial_response: str | None = None
+    factorial_factors: tuple[str, ...] = ()
+    factorial_covariates: tuple[str, ...] = ()
+    factorial_interactions: tuple[tuple[str, ...], ...] = ()
+    factorial_formula: str | None = None
 
     # Phase 2 descriptive controls.
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99)
@@ -104,6 +121,78 @@ class AnalysisConfig:
     factorial_diagnostic_alpha: float = 0.05
     factorial_condition_number_threshold: float = 30.0
 
+    # Phase 9A EDA-completeness controls.
+    distribution_max_shapiro_n: int = 5000
+    dependence_partial_covariates: tuple[str, ...] = ()
+    dependence_min_complete_pairs: int = 5
+    dependence_max_columns: int = 50
+    dependence_n_permutations: int = 199
+    dependence_mi_neighbors: int = 3
+    confidence_level: float = 0.95
+    interval_correlations: tuple[CorrelationMethod, ...] = (CorrelationMethod.PEARSON,)
+    bootstrap_resamples: int = 1000
+    bootstrap_method: str = "bca"
+
+    # Phase 9B advanced group/inference controls.
+    permanova_factor: str | None = None
+    permanova_metric: str = "euclidean"
+    permanova_permutations: int = 999
+    permanova_min_group_n: int = 3
+    permanova_max_group_levels: int = 20
+
+    posthoc_response: str | None = None
+    posthoc_factor: str | None = None
+    posthoc_methods: tuple[str, ...] = ("tukey_hsd", "games_howell")
+
+    marginal_response: str | None = None
+    marginal_factors: tuple[str, ...] = ()
+    marginal_covariates: tuple[str, ...] = ()
+    marginal_interactions: tuple[tuple[str, ...], ...] = ()
+    marginal_formula: str | None = None
+    marginal_terms: tuple[tuple[str, ...], ...] = ()
+    marginal_p_adjust: PAdjustMethod = PAdjustMethod.FDR_BH
+
+    mixed_group: str | None = None
+    mixed_response: str | None = None
+    mixed_factors: tuple[str, ...] = ()
+    mixed_covariates: tuple[str, ...] = ()
+    mixed_interactions: tuple[tuple[str, ...], ...] = ()
+    mixed_formula: str | None = None
+    mixed_random_slopes: tuple[str, ...] = ()
+    mixed_reml: bool = True
+    mixed_optimizer: str = "lbfgs"
+    mixed_max_iter: int = 1000
+    mixed_min_groups: int = 3
+    mixed_min_group_n: int = 2
+
+    # Phase 9C representation-space and specialized statistics.
+    representation_alignment: AlignmentMode = AlignmentMode.STRICT
+    representation_cca_components: int = 2
+    representation_cca_scaling: ScalingMethod = ScalingMethod.STANDARD
+    representation_cca_max_iter: int = 1000
+    representation_cca_tol: float = 1e-6
+    representation_distance_metric: str = "euclidean"
+    representation_distance_similarity_method: str = "spearman"
+    representation_mantel_permutations: int = 999
+
+    compositional_transform: str = "clr"
+    compositional_replace_zeros: bool = False
+    compositional_zero_replacement_fraction: float = 0.65
+    compositional_alr_denominator: int = -1
+
+    bayesian_variables: tuple[str, ...] = ()
+    bayesian_groups: tuple[str, ...] = ()
+    bayesian_credible_level: float = 0.95
+    bayesian_rope: tuple[float, float] = (-0.1, 0.1)
+    bayesian_draws: int = 5000
+    bayesian_min_n: int = 3
+
+    anomaly_methods: tuple[str, ...] = ("isolation_forest", "lof")
+    anomaly_scaling: ScalingMethod = ScalingMethod.NONE
+    anomaly_contamination: str | float = "auto"
+    anomaly_isolation_estimators: int = 200
+    anomaly_lof_neighbors: int = 20
+
     def __post_init__(self) -> None:
         roles = {
             column: role if isinstance(role, ColumnRole) else ColumnRole(role)
@@ -118,12 +207,71 @@ class AnalysisConfig:
             if isinstance(self.annotation_alignment, AlignmentMode)
             else AlignmentMode(self.annotation_alignment)
         )
+        feature_mode = (
+            self.feature_alignment
+            if isinstance(self.feature_alignment, AlignmentMode)
+            else AlignmentMode(self.feature_alignment)
+        )
+        representation_mode = (
+            self.representation_alignment
+            if isinstance(self.representation_alignment, AlignmentMode)
+            else AlignmentMode(self.representation_alignment)
+        )
         responses = tuple(str(column) for column in self.responses)
         groups = tuple(str(column) for column in self.groups)
+        dependence_partial_covariates = tuple(str(column) for column in self.dependence_partial_covariates)
+        posthoc_methods = tuple(str(value).strip().lower() for value in self.posthoc_methods)
+        marginal_factors = tuple(str(column) for column in self.marginal_factors)
+        marginal_covariates = tuple(str(column) for column in self.marginal_covariates)
+        marginal_interactions = tuple(tuple(str(column) for column in term) for term in self.marginal_interactions)
+        marginal_terms = tuple(tuple(str(column) for column in term) for term in self.marginal_terms)
+        mixed_factors = tuple(str(column) for column in self.mixed_factors)
+        mixed_covariates = tuple(str(column) for column in self.mixed_covariates)
+        mixed_interactions = tuple(tuple(str(column) for column in term) for term in self.mixed_interactions)
+        mixed_random_slopes = tuple(str(column) for column in self.mixed_random_slopes)
+        bayesian_variables = tuple(str(column) for column in self.bayesian_variables)
+        bayesian_groups = tuple(str(column) for column in self.bayesian_groups)
+        anomaly_methods = tuple(str(value).strip().lower() for value in self.anomaly_methods)
+        enabled_blocks = tuple(
+            value if isinstance(value, AnalysisBlock) else AnalysisBlock(value)
+            for value in self.enabled_blocks
+        )
+        manova_responses = tuple(str(column) for column in self.manova_responses)
+        manova_factors = tuple(str(column) for column in self.manova_factors)
+        manova_covariates = tuple(str(column) for column in self.manova_covariates)
+        factorial_factors = tuple(str(column) for column in self.factorial_factors)
+        factorial_covariates = tuple(str(column) for column in self.factorial_covariates)
+        factorial_interactions = tuple(
+            tuple(str(column) for column in interaction)
+            for interaction in self.factorial_interactions
+        )
+        if not enabled_blocks:
+            raise ValueError("enabled_blocks cannot be empty.")
+        if len(set(enabled_blocks)) != len(enabled_blocks):
+            raise ValueError("enabled_blocks cannot contain duplicates.")
+        for label, values in (
+            ("manova_responses", manova_responses),
+            ("manova_factors", manova_factors),
+            ("manova_covariates", manova_covariates),
+            ("factorial_factors", factorial_factors),
+            ("factorial_covariates", factorial_covariates),
+        ):
+            if len(set(values)) != len(values):
+                raise ValueError(f"{label} cannot contain duplicates.")
+        if any(len(term) < 2 for term in factorial_interactions):
+            raise ValueError("factorial_interactions must contain at least two predictors per interaction.")
+        if len(set(factorial_interactions)) != len(factorial_interactions):
+            raise ValueError("factorial_interactions cannot contain duplicates.")
+        if self.factorial_formula is not None and not str(self.factorial_formula).strip():
+            raise ValueError("factorial_formula cannot be empty.")
+        if self.factorial_response is not None and not str(self.factorial_response).strip():
+            raise ValueError("factorial_response cannot be empty.")
         if len(set(responses)) != len(responses):
             raise ValueError("responses cannot contain duplicates.")
         if len(set(groups)) != len(groups):
             raise ValueError("groups cannot contain duplicates.")
+        if len(set(dependence_partial_covariates)) != len(dependence_partial_covariates):
+            raise ValueError("dependence_partial_covariates cannot contain duplicates.")
         overlap = sorted(set(responses) & set(groups))
         if overlap:
             raise ValueError(
@@ -133,6 +281,10 @@ class AnalysisConfig:
         correlations = tuple(
             value if isinstance(value, CorrelationMethod) else CorrelationMethod(value)
             for value in self.correlations
+        )
+        interval_correlations = tuple(
+            value if isinstance(value, CorrelationMethod) else CorrelationMethod(value)
+            for value in self.interval_correlations
         )
         comparison_tests = tuple(
             value if isinstance(value, ComparisonTest) else ComparisonTest(value)
@@ -148,6 +300,11 @@ class AnalysisConfig:
             if isinstance(self.factorial_p_adjust, PAdjustMethod)
             else PAdjustMethod(self.factorial_p_adjust)
         )
+        marginal_p_adjust = (
+            self.marginal_p_adjust
+            if isinstance(self.marginal_p_adjust, PAdjustMethod)
+            else PAdjustMethod(self.marginal_p_adjust)
+        )
         projection_scaling = (
             self.projection_scaling
             if isinstance(self.projection_scaling, ScalingMethod)
@@ -158,12 +315,24 @@ class AnalysisConfig:
             if isinstance(self.multivariate_scaling, ScalingMethod)
             else ScalingMethod(self.multivariate_scaling)
         )
+        representation_cca_scaling = (
+            self.representation_cca_scaling
+            if isinstance(self.representation_cca_scaling, ScalingMethod)
+            else ScalingMethod(self.representation_cca_scaling)
+        )
+        anomaly_scaling = (
+            self.anomaly_scaling
+            if isinstance(self.anomaly_scaling, ScalingMethod)
+            else ScalingMethod(self.anomaly_scaling)
+        )
         outlier_methods = tuple(
             value if isinstance(value, OutlierMethod) else OutlierMethod(value)
             for value in self.outlier_methods
         )
         if len(set(correlations)) != len(correlations):
             raise ValueError("correlations cannot contain duplicates.")
+        if len(set(interval_correlations)) != len(interval_correlations):
+            raise ValueError("interval_correlations cannot contain duplicates.")
         if len(set(comparison_tests)) != len(comparison_tests):
             raise ValueError("comparison_tests cannot contain duplicates.")
         if not outlier_methods:
@@ -229,6 +398,82 @@ class AnalysisConfig:
             raise ValueError("factorial_diagnostic_alpha must lie in (0, 1).")
         if self.factorial_condition_number_threshold <= 0.0:
             raise ValueError("factorial_condition_number_threshold must be greater than zero.")
+        if self.distribution_max_shapiro_n < 3:
+            raise ValueError("distribution_max_shapiro_n must be at least 3.")
+        if self.dependence_min_complete_pairs < 3:
+            raise ValueError("dependence_min_complete_pairs must be at least 3.")
+        if self.dependence_max_columns < 2:
+            raise ValueError("dependence_max_columns must be at least 2.")
+        if self.dependence_n_permutations < 0:
+            raise ValueError("dependence_n_permutations cannot be negative.")
+        if self.dependence_mi_neighbors < 1:
+            raise ValueError("dependence_mi_neighbors must be at least 1.")
+        if not 0.0 < self.confidence_level < 1.0:
+            raise ValueError("confidence_level must lie in (0, 1).")
+        if self.bootstrap_resamples < 100:
+            raise ValueError("bootstrap_resamples must be at least 100.")
+        bootstrap_method = str(self.bootstrap_method).strip().lower()
+        if bootstrap_method not in {"percentile", "basic", "bca"}:
+            raise ValueError("bootstrap_method must be percentile, basic, or bca.")
+        if self.permanova_factor is not None and not str(self.permanova_factor).strip():
+            raise ValueError("permanova_factor cannot be empty.")
+        if not str(self.permanova_metric).strip():
+            raise ValueError("permanova_metric cannot be empty.")
+        if self.permanova_permutations < 0:
+            raise ValueError("permanova_permutations cannot be negative.")
+        if self.permanova_min_group_n < 2:
+            raise ValueError("permanova_min_group_n must be at least 2.")
+        if self.permanova_max_group_levels < 2:
+            raise ValueError("permanova_max_group_levels must be at least 2.")
+        if not posthoc_methods or any(value not in {"tukey_hsd", "games_howell"} for value in posthoc_methods):
+            raise ValueError("posthoc_methods must contain tukey_hsd and/or games_howell.")
+        if len(set(posthoc_methods)) != len(posthoc_methods):
+            raise ValueError("posthoc_methods cannot contain duplicates.")
+        for label, values in (("marginal_factors", marginal_factors), ("marginal_covariates", marginal_covariates), ("mixed_factors", mixed_factors), ("mixed_covariates", mixed_covariates), ("mixed_random_slopes", mixed_random_slopes)):
+            if len(set(values)) != len(values):
+                raise ValueError(f"{label} cannot contain duplicates.")
+        for label, values in (("marginal_interactions", marginal_interactions), ("marginal_terms", marginal_terms), ("mixed_interactions", mixed_interactions)):
+            if any(len(term) < 1 for term in values) or len(set(values)) != len(values):
+                raise ValueError(f"{label} contains invalid or duplicate terms.")
+        if self.marginal_formula is not None and not str(self.marginal_formula).strip():
+            raise ValueError("marginal_formula cannot be empty.")
+        if self.mixed_formula is not None and not str(self.mixed_formula).strip():
+            raise ValueError("mixed_formula cannot be empty.")
+        if self.mixed_group is not None and not str(self.mixed_group).strip():
+            raise ValueError("mixed_group cannot be empty.")
+        if self.mixed_optimizer.strip() == "":
+            raise ValueError("mixed_optimizer cannot be empty.")
+        if self.mixed_max_iter < 1 or self.mixed_min_groups < 2 or self.mixed_min_group_n < 1:
+            raise ValueError("Invalid mixed-effects iteration/group controls.")
+        if self.representation_cca_components < 1 or self.representation_cca_max_iter < 1 or self.representation_cca_tol <= 0:
+            raise ValueError("Invalid CCA controls.")
+        if not str(self.representation_distance_metric).strip():
+            raise ValueError("representation_distance_metric cannot be empty.")
+        if self.representation_distance_similarity_method not in {"pearson", "spearman"}:
+            raise ValueError("representation_distance_similarity_method must be pearson or spearman.")
+        if self.representation_mantel_permutations < 0:
+            raise ValueError("representation_mantel_permutations cannot be negative.")
+        if str(self.compositional_transform).lower() not in {"clr", "alr", "ilr"}:
+            raise ValueError("compositional_transform must be clr, alr, or ilr.")
+        if not 0 < self.compositional_zero_replacement_fraction < 1:
+            raise ValueError("compositional_zero_replacement_fraction must lie in (0, 1).")
+        if len(set(bayesian_variables)) != len(bayesian_variables) or len(set(bayesian_groups)) != len(bayesian_groups):
+            raise ValueError("Bayesian variables/groups cannot contain duplicates.")
+        if not 0 < self.bayesian_credible_level < 1 or self.bayesian_draws < 100 or self.bayesian_min_n < 2:
+            raise ValueError("Invalid Bayesian EDA controls.")
+        if len(self.bayesian_rope) != 2 or self.bayesian_rope[0] > self.bayesian_rope[1]:
+            raise ValueError("bayesian_rope must be an ordered pair.")
+        if not anomaly_methods or any(v not in {"isolation_forest", "lof"} for v in anomaly_methods):
+            raise ValueError("anomaly_methods must contain isolation_forest and/or lof.")
+        if len(set(anomaly_methods)) != len(anomaly_methods):
+            raise ValueError("anomaly_methods cannot contain duplicates.")
+        if self.anomaly_isolation_estimators < 1 or self.anomaly_lof_neighbors < 2:
+            raise ValueError("Invalid anomaly controls.")
+        if isinstance(self.anomaly_contamination, float) and not 0 < self.anomaly_contamination <= 0.5:
+            raise ValueError("numeric anomaly_contamination must lie in (0, 0.5].")
+        if not (self.anomaly_contamination == "auto" or isinstance(self.anomaly_contamination, float)):
+            raise ValueError("anomaly_contamination must be 'auto' or a float.")
+
         if self.min_numeric_n < 2:
             raise ValueError("min_numeric_n must be at least 2.")
         if self.max_category_levels < 2:
@@ -249,10 +494,48 @@ class AnalysisConfig:
         object.__setattr__(self, "role_overrides", MappingProxyType(roles))
         object.__setattr__(self, "responses", responses)
         object.__setattr__(self, "groups", groups)
+        object.__setattr__(self, "dependence_partial_covariates", dependence_partial_covariates)
+        object.__setattr__(self, "bootstrap_method", bootstrap_method)
+        object.__setattr__(self, "posthoc_methods", posthoc_methods)
+        object.__setattr__(self, "marginal_factors", marginal_factors)
+        object.__setattr__(self, "marginal_covariates", marginal_covariates)
+        object.__setattr__(self, "marginal_interactions", marginal_interactions)
+        object.__setattr__(self, "marginal_terms", marginal_terms)
+        object.__setattr__(self, "marginal_p_adjust", marginal_p_adjust)
+        object.__setattr__(self, "mixed_factors", mixed_factors)
+        object.__setattr__(self, "mixed_covariates", mixed_covariates)
+        object.__setattr__(self, "mixed_interactions", mixed_interactions)
+        object.__setattr__(self, "mixed_random_slopes", mixed_random_slopes)
+        object.__setattr__(self, "permanova_factor", None if self.permanova_factor is None else str(self.permanova_factor).strip())
+        object.__setattr__(self, "posthoc_response", None if self.posthoc_response is None else str(self.posthoc_response).strip())
+        object.__setattr__(self, "posthoc_factor", None if self.posthoc_factor is None else str(self.posthoc_factor).strip())
+        object.__setattr__(self, "marginal_response", None if self.marginal_response is None else str(self.marginal_response).strip())
+        object.__setattr__(self, "marginal_formula", None if self.marginal_formula is None else str(self.marginal_formula).strip())
+        object.__setattr__(self, "mixed_group", None if self.mixed_group is None else str(self.mixed_group).strip())
+        object.__setattr__(self, "mixed_response", None if self.mixed_response is None else str(self.mixed_response).strip())
+        object.__setattr__(self, "mixed_formula", None if self.mixed_formula is None else str(self.mixed_formula).strip())
+        object.__setattr__(self, "bayesian_variables", bayesian_variables)
+        object.__setattr__(self, "bayesian_groups", bayesian_groups)
+        object.__setattr__(self, "anomaly_methods", anomaly_methods)
+        object.__setattr__(self, "representation_alignment", representation_mode)
+        object.__setattr__(self, "representation_cca_scaling", representation_cca_scaling)
+        object.__setattr__(self, "anomaly_scaling", anomaly_scaling)
+        object.__setattr__(self, "compositional_transform", str(self.compositional_transform).lower())
+        object.__setattr__(self, "enabled_blocks", enabled_blocks)
+        object.__setattr__(self, "manova_responses", manova_responses)
+        object.__setattr__(self, "manova_factors", manova_factors)
+        object.__setattr__(self, "manova_covariates", manova_covariates)
+        object.__setattr__(self, "factorial_factors", factorial_factors)
+        object.__setattr__(self, "factorial_covariates", factorial_covariates)
+        object.__setattr__(self, "factorial_interactions", factorial_interactions)
+        object.__setattr__(self, "factorial_formula", None if self.factorial_formula is None else str(self.factorial_formula).strip())
+        object.__setattr__(self, "factorial_response", None if self.factorial_response is None else str(self.factorial_response))
         object.__setattr__(self, "kind_overrides", MappingProxyType(kinds))
         object.__setattr__(self, "annotation_alignment", mode)
+        object.__setattr__(self, "feature_alignment", feature_mode)
         object.__setattr__(self, "quantiles", quantiles)
         object.__setattr__(self, "correlations", correlations)
+        object.__setattr__(self, "interval_correlations", interval_correlations)
         object.__setattr__(self, "comparison_tests", comparison_tests)
         object.__setattr__(self, "p_adjust", p_adjust)
         object.__setattr__(self, "factorial_p_adjust", factorial_p_adjust)
@@ -369,6 +652,131 @@ class AnalysisConfig:
             "max_interaction_order": self.factorial_max_interaction_order,
             "diagnostic_alpha": self.factorial_diagnostic_alpha,
             "condition_number_threshold": self.factorial_condition_number_threshold,
+        }
+
+    def distribution_diagnostics_kwargs(self) -> dict[str, object]:
+        """Return controls for standalone distribution diagnostics."""
+
+        return {
+            "responses": self.responses,
+            "groups": self.groups,
+            "p_adjust": self.p_adjust,
+            "min_group_n": self.min_group_n,
+            "max_group_levels": self.max_group_levels,
+            "max_shapiro_n": self.distribution_max_shapiro_n,
+        }
+
+    def dependence_kwargs(self) -> dict[str, object]:
+        """Return controls for nonlinear and partial dependence analysis."""
+
+        return {
+            "partial_covariates": self.dependence_partial_covariates,
+            "min_complete_pairs": self.dependence_min_complete_pairs,
+            "max_columns": self.dependence_max_columns,
+            "n_permutations": self.dependence_n_permutations,
+            "mutual_information_neighbors": self.dependence_mi_neighbors,
+            "p_adjust": self.p_adjust,
+            "random_state": self.random_state,
+        }
+
+    def contingency_kwargs(self) -> dict[str, object]:
+        """Return controls for cell-level contingency diagnostics."""
+
+        return {
+            "max_category_levels": self.max_category_levels,
+            "p_adjust": self.p_adjust,
+        }
+
+    def interval_kwargs(self) -> dict[str, object]:
+        """Return controls for common confidence-interval estimands."""
+
+        return {
+            "confidence_level": self.confidence_level,
+            "correlation_methods": self.interval_correlations,
+            "bootstrap_resamples": self.bootstrap_resamples,
+            "bootstrap_method": self.bootstrap_method,
+            "min_group_n": self.min_group_n,
+            "max_category_levels": self.max_group_levels,
+            "random_state": self.random_state,
+        }
+
+    def permanova_kwargs(self) -> dict[str, object]:
+        return {
+            "metric": self.permanova_metric,
+            "n_permutations": self.permanova_permutations,
+            "random_state": self.random_state,
+            "min_group_n": self.permanova_min_group_n,
+            "max_group_levels": self.permanova_max_group_levels,
+            "alignment": self.feature_alignment,
+        }
+
+    def posthoc_kwargs(self) -> dict[str, object]:
+        return {
+            "methods": self.posthoc_methods,
+            "confidence_level": self.confidence_level,
+            "min_group_n": self.min_group_n,
+            "max_group_levels": self.max_group_levels,
+        }
+
+    def marginal_means_kwargs(self) -> dict[str, object]:
+        return {
+            "confidence_level": self.confidence_level,
+            "p_adjust": self.marginal_p_adjust,
+            "max_interaction_order": self.factorial_max_interaction_order,
+        }
+
+    def mixed_effects_kwargs(self) -> dict[str, object]:
+        return {
+            "random_slopes": self.mixed_random_slopes,
+            "reml": self.mixed_reml,
+            "optimizer": self.mixed_optimizer,
+            "max_iter": self.mixed_max_iter,
+            "confidence_level": self.confidence_level,
+            "min_groups": self.mixed_min_groups,
+            "min_group_n": self.mixed_min_group_n,
+            "max_interaction_order": self.factorial_max_interaction_order,
+        }
+
+    def representation_kwargs(self) -> dict[str, object]:
+        return {
+            "alignment": self.representation_alignment,
+            "cca_components": self.representation_cca_components,
+            "cca_scaling": self.representation_cca_scaling,
+            "cca_max_iter": self.representation_cca_max_iter,
+            "cca_tol": self.representation_cca_tol,
+            "distance_metric": self.representation_distance_metric,
+            "distance_similarity_method": self.representation_distance_similarity_method,
+            "mantel_permutations": self.representation_mantel_permutations,
+            "random_state": self.random_state,
+        }
+
+    def compositional_kwargs(self) -> dict[str, object]:
+        return {
+            "transform": self.compositional_transform,
+            "replace_zeros": self.compositional_replace_zeros,
+            "zero_replacement_fraction": self.compositional_zero_replacement_fraction,
+            "alr_denominator": self.compositional_alr_denominator,
+        }
+
+    def bayesian_kwargs(self) -> dict[str, object]:
+        return {
+            "variables": self.bayesian_variables or None,
+            "groups": self.bayesian_groups or self.groups,
+            "credible_level": self.bayesian_credible_level,
+            "rope": self.bayesian_rope,
+            "draws": self.bayesian_draws,
+            "min_n": self.bayesian_min_n,
+            "random_state": self.random_state,
+        }
+
+    def anomaly_kwargs(self) -> dict[str, object]:
+        return {
+            "methods": self.anomaly_methods,
+            "scaling": self.anomaly_scaling,
+            "contamination": self.anomaly_contamination,
+            "isolation_estimators": self.anomaly_isolation_estimators,
+            "lof_neighbors": self.anomaly_lof_neighbors,
+            "random_state": self.random_state,
         }
 
     def grouped_kwargs(self) -> dict[str, object]:
