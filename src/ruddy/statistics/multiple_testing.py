@@ -72,9 +72,10 @@ def apply_multiple_testing(
 ) -> pd.DataFrame:
     """Adjust p-values independently within explicit hypothesis families.
 
-    Only ``status == 'ok'`` rows belong to the inferential family. Non-ok rows
-    retain missing q-values and a family size of zero if their family has no
-    successful hypotheses.
+    Only ``status == 'ok'`` rows with finite p-values belong to the inferential
+    family. This permits descriptive/statistic-only runs (for example zero
+    permutations) to retain ``status='ok'`` while leaving p/q values missing.
+    Non-inferential rows retain missing q-values.
     """
 
     required = {family_column, status_column, p_column, correction_column}
@@ -98,14 +99,16 @@ def apply_multiple_testing(
     if not result[correction_column].astype(str).eq(resolved.value).all():
         raise ValueError("correction column is inconsistent with configured method.")
 
-    sizes = family_sizes(result, family_column=family_column, status_column=status_column)
     normalized = result[family_column].astype(str)
+    numeric_p = pd.to_numeric(result[p_column], errors="coerce")
+    finite_p = np.isfinite(numeric_p.to_numpy(dtype=np.float64))
     for family_id in normalized.drop_duplicates().tolist():
         family_mask = normalized.eq(family_id)
-        result.loc[family_mask, family_size_column] = sizes.get(family_id, 0)
-        inferential = family_mask & result[status_column].eq("ok")
+        inferential = family_mask & result[status_column].eq("ok") & finite_p
+        family_size = int(inferential.sum())
+        result.loc[family_mask, family_size_column] = family_size
         if not bool(inferential.any()):
             continue
-        p_values = result.loc[inferential, p_column].to_numpy(dtype=np.float64)
+        p_values = numeric_p.loc[inferential].to_numpy(dtype=np.float64)
         result.loc[inferential, q_column] = adjust_pvalues(p_values, resolved)
     return result
