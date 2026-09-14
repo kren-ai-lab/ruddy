@@ -19,7 +19,7 @@ def _run(root: Path, *args: str) -> None:
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
-    _run(root, sys.executable, "-m", "compileall", "-q", "src", "tests")
+    _run(root, sys.executable, "-m", "compileall", "-q", "ruddy", "tests")
     _run(root, sys.executable, "-m", "pytest", "-q", "tests/phase10")
     _run(root, sys.executable, "-m", "pytest", "-q")
     print("Ruddy scientific freeze gate PASSED", flush=True)

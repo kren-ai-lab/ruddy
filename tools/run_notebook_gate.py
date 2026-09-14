@@ -25,7 +25,7 @@ def _python_gate(notebook: Path, root: Path, timeout: int) -> int:
         handle.write(source)
         script = Path(handle.name)
     env = os.environ.copy()
-    src = str(root / "src")
+    src = str(root)
     env["PYTHONPATH"] = src + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     env["MPLBACKEND"] = "Agg"
     try:
@@ -45,7 +45,7 @@ def _python_gate(notebook: Path, root: Path, timeout: int) -> int:
 
 def _jupyter_gate(notebook: Path, root: Path, timeout: int, inplace: bool) -> int:
     env = os.environ.copy()
-    src = str(root / "src")
+    src = str(root)
     env["PYTHONPATH"] = src + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     command = [
         sys.executable, "-m", "jupyter", "nbconvert", "--to", "notebook", "--execute",
