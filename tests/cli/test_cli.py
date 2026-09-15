@@ -1,28 +1,31 @@
 """CLI skeleton tests."""
 
 import pytest
+import typer
 
-from ruddy.cli.main import build_parser, main
+from ruddy.cli.main import app, main
 
 
-def test_cli_parser_builds() -> None:
-    parser = build_parser()
-    assert parser.prog == "ruddy"
+def _command_names(group: str | None = None) -> list[str]:
+    command = typer.main.get_command(app)
+    if group is not None:
+        command = command.commands[group]
+    return sorted(command.commands)
+
+
+def test_cli_exposes_the_command_groups() -> None:
+    assert _command_names() == ["analyze", "inspect", "model", "project"]
 
 
 def test_cli_empty_invocation() -> None:
-    assert main([]) == 0
+    # ``no_args_is_help`` prints the help and exits 2, as in the sibling CLIs.
+    assert main([]) == 2
 
 
 def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as exc_info:
-        main(["--version"])
-
-    assert exc_info.value.code == 0
+    assert main(["--version"]) == 0
     assert capsys.readouterr().out.strip() == "ruddy 0.1.0.dev0"
 
 
 def test_phase2_cli_exposes_profile_and_univariate() -> None:
-    parser = build_parser()
-    assert parser.parse_args(["profile", "data.csv"]).command == "profile"
-    assert parser.parse_args(["univariate", "data.csv"]).command == "univariate"
+    assert {"profile", "univariate"} <= set(_command_names("inspect"))

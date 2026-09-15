@@ -19,6 +19,7 @@ def test_bivariate_cli_writes_structured_outputs(tmp_path) -> None:
     ).to_csv(source, index=False)
     code = main(
         [
+            "analyze",
             "bivariate",
             str(source),
             "--id-column",

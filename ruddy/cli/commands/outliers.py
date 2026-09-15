@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ruddy.univariate import OutlierResult, analyze_outliers
 from ruddy.cli.commands.descriptive import build_config, load_dataset
+from ruddy.core.io import write_json, write_table
+from ruddy.univariate import OutlierResult, analyze_outliers
 
 
 def write_outlier_result(result: OutlierResult, output_dir: str | Path) -> Path:
@@ -14,14 +15,11 @@ def write_outlier_result(result: OutlierResult, output_dir: str | Path) -> Path:
 
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    result.summaries.to_csv(target / "outlier_summaries.csv", index=False)
-    result.quality.to_csv(target / "numeric_quality.csv", index=False)
+    write_table(result.summaries, target / "outlier_summaries.csv")
+    write_table(result.quality, target / "numeric_quality.csv")
     if not result.flags.empty:
-        result.flags.to_csv(target / "outlier_flags.csv", index=False)
-    (target / "outlier_provenance.json").write_text(
-        json.dumps(result.provenance.to_dict(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+        write_table(result.flags, target / "outlier_flags.csv")
+    write_json(result.provenance.to_dict(), target / "outlier_provenance.json")
     return target
 
 

@@ -22,6 +22,7 @@ def test_groups_cli_writes_structured_outputs(tmp_path) -> None:
 
     code = main(
         [
+            "analyze",
             "groups",
             str(source),
             "--id-column",
@@ -64,6 +65,7 @@ def test_groups_cli_supports_partial_external_annotations(tmp_path) -> None:
 
     code = main(
         [
+            "analyze",
             "groups",
             str(source),
             "--id-column",

@@ -5,22 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pandas as pd
-
 from ruddy.bivariate import GroupAnalysisResult, analyze_grouped_responses
 from ruddy.cli.commands.descriptive import build_config, load_dataset
 from ruddy.core import ColumnKind, ColumnRole
+from ruddy.core.io import read_table, write_json, write_table
 from ruddy.data import align_annotation_source
-
-
-def _read_table(path: str | Path) -> pd.DataFrame:
-    source = Path(path)
-    suffix = source.suffix.lower()
-    if suffix == ".csv":
-        return pd.read_csv(source)
-    if suffix in {".tsv", ".txt"}:
-        return pd.read_csv(source, sep="\t")
-    raise ValueError("Ruddy CLI currently accepts .csv, .tsv, or .txt tables.")
 
 
 def _annotation_roles(args) -> dict[str, ColumnRole]:
@@ -71,11 +60,8 @@ def write_group_result(result: GroupAnalysisResult, output_dir: str | Path) -> P
         "annotation_coverage": result.annotation_coverage,
     }
     for name, table in tables.items():
-        table.to_csv(target / f"{name}.csv", index=False)
-    (target / "grouped_provenance.json").write_text(
-        json.dumps(result.provenance.to_dict(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+        write_table(table, target / f"{name}.csv")
+    write_json(result.provenance.to_dict(), target / "grouped_provenance.json")
     return target
 
 
@@ -85,7 +71,7 @@ def run_groups(args) -> int:
     sources = ()
     external_responses: tuple[str, ...] = ()
     if args.annotation_file:
-        annotation_frame = _read_table(args.annotation_file)
+        annotation_frame = read_table(args.annotation_file)
         aligned = align_annotation_source(
             dataset,
             annotation_frame,

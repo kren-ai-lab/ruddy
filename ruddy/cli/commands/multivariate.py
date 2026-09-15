@@ -7,40 +7,57 @@ from pathlib import Path
 
 from ruddy.cli.commands.descriptive import build_config, load_dataset
 from ruddy.cli.commands.projections import load_feature_matrix
-from ruddy.multivariate import MANOVAResult, MultivariateResult, analyze_manova, analyze_multivariate
+from ruddy.core.io import write_json, write_table
+from ruddy.multivariate import (
+    MANOVAResult,
+    MultivariateResult,
+    analyze_manova,
+    analyze_multivariate,
+)
 
 
-def _write_json(path: Path, payload: dict) -> None:
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def write_multivariate_result(result: MultivariateResult, output_dir: str | Path) -> Path:
+def write_multivariate_result(
+    result: MultivariateResult, output_dir: str | Path
+) -> Path:
     """Persist structured multivariate diagnostics."""
 
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     cov = result.covariance
-    cov.covariance.to_csv(target / "covariance_matrix.csv", index=True, index_label="feature")
-    cov.pearson.to_csv(target / "pearson_matrix.csv", index=True, index_label="feature")
-    cov.spearman.to_csv(target / "spearman_matrix.csv", index=True, index_label="feature")
-    cov.pairwise_counts.to_csv(target / "pairwise_counts.csv", index=True, index_label="feature")
-    cov.feature_diagnostics.to_csv(target / "covariance_feature_diagnostics.csv", index=False)
-    cov.condition_spectrum.to_csv(target / "covariance_condition_spectrum.csv", index=False)
+    write_table(
+        cov.covariance,
+        target / "covariance_matrix.csv",
+        index=True,
+        index_label="feature",
+    )
+    write_table(
+        cov.pearson, target / "pearson_matrix.csv", index=True, index_label="feature"
+    )
+    write_table(
+        cov.spearman, target / "spearman_matrix.csv", index=True, index_label="feature"
+    )
+    write_table(
+        cov.pairwise_counts,
+        target / "pairwise_counts.csv",
+        index=True,
+        index_label="feature",
+    )
+    write_table(cov.feature_diagnostics, target / "covariance_feature_diagnostics.csv")
+    write_table(cov.condition_spectrum, target / "covariance_condition_spectrum.csv")
 
     col = result.collinearity
-    col.features.to_csv(target / "collinearity.csv", index=False)
-    col.condition_spectrum.to_csv(target / "collinearity_condition_spectrum.csv", index=False)
+    write_table(col.features, target / "collinearity.csv")
+    write_table(col.condition_spectrum, target / "collinearity_condition_spectrum.csv")
 
     mah = result.mahalanobis
-    mah.methods.to_csv(target / "mahalanobis_methods.csv", index=False)
-    mah.distances.to_csv(target / "mahalanobis_distances.csv", index=False)
+    write_table(mah.methods, target / "mahalanobis_methods.csv")
+    write_table(mah.distances, target / "mahalanobis_distances.csv")
     if not cov.exclusions.empty:
-        cov.exclusions.to_csv(target / "multivariate_exclusions.csv", index=False)
+        write_table(cov.exclusions, target / "multivariate_exclusions.csv")
 
-    _write_json(target / "covariance_summary.json", cov.summary)
-    _write_json(target / "collinearity_summary.json", col.summary)
-    _write_json(
-        target / "multivariate_provenance.json",
+    write_json(cov.summary, target / "covariance_summary.json")
+    write_json(col.summary, target / "collinearity_summary.json")
+    write_json(
         {
             "status": result.status.value,
             "reason": result.reason,
@@ -63,6 +80,7 @@ def write_multivariate_result(result: MultivariateResult, output_dir: str | Path
                 },
             },
         },
+        target / "multivariate_provenance.json",
     )
     return target
 
@@ -72,18 +90,18 @@ def write_manova_result(result: MANOVAResult, output_dir: str | Path) -> Path:
 
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    result.tests.to_csv(target / "manova_tests.csv", index=False)
-    result.factor_levels.to_csv(target / "manova_factor_levels.csv", index=False)
+    write_table(result.tests, target / "manova_tests.csv")
+    write_table(result.factor_levels, target / "manova_factor_levels.csv")
     if not result.exclusions.empty:
-        result.exclusions.to_csv(target / "manova_exclusions.csv", index=False)
-    _write_json(target / "manova_model_summary.json", result.model_summary)
-    _write_json(
-        target / "manova_provenance.json",
+        write_table(result.exclusions, target / "manova_exclusions.csv")
+    write_json(result.model_summary, target / "manova_model_summary.json")
+    write_json(
         {
             "status": result.status.value,
             "reason": result.reason,
             "provenance": result.provenance.to_dict(),
         },
+        target / "manova_provenance.json",
     )
     return target
 

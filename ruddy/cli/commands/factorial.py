@@ -6,11 +6,8 @@ import json
 from pathlib import Path
 
 from ruddy.cli.commands.descriptive import build_config, load_dataset
+from ruddy.core.io import write_json, write_table
 from ruddy.factorial import FactorialResult, analyze_factorial
-
-
-def _write_json(path: Path, payload: dict) -> None:
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _parse_interactions(values: list[str]) -> tuple[tuple[str, ...], ...]:
@@ -31,27 +28,28 @@ def write_factorial_result(result: FactorialResult, output_dir: str | Path) -> P
 
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    result.design_terms.to_csv(target / "factorial_design_terms.csv", index=False)
-    result.effects.to_csv(target / "factorial_effects.csv", index=False)
-    result.coefficients.to_csv(target / "factorial_coefficients.csv", index=False)
-    result.diagnostics.to_csv(target / "factorial_diagnostics.csv", index=False)
+    write_table(result.design_terms, target / "factorial_design_terms.csv")
+    write_table(result.effects, target / "factorial_effects.csv")
+    write_table(result.coefficients, target / "factorial_coefficients.csv")
+    write_table(result.diagnostics, target / "factorial_diagnostics.csv")
     if not result.observation_diagnostics.empty:
-        result.observation_diagnostics.to_csv(
-            target / "factorial_observation_diagnostics.csv", index=False
+        write_table(
+            result.observation_diagnostics,
+            target / "factorial_observation_diagnostics.csv",
         )
     if not result.cells.empty:
-        result.cells.to_csv(target / "factorial_cells.csv", index=False)
+        write_table(result.cells, target / "factorial_cells.csv")
     if not result.exclusions.empty:
-        result.exclusions.to_csv(target / "factorial_exclusions.csv", index=False)
-    _write_json(target / "factorial_model_summary.json", result.model_summary)
-    _write_json(
-        target / "factorial_provenance.json",
+        write_table(result.exclusions, target / "factorial_exclusions.csv")
+    write_json(result.model_summary, target / "factorial_model_summary.json")
+    write_json(
         {
             "status": result.status.value,
             "reason": result.reason,
             "advisories": [advisory.to_dict() for advisory in result.advisories],
             "provenance": result.provenance.to_dict(),
         },
+        target / "factorial_provenance.json",
     )
     return target
 
@@ -62,7 +60,9 @@ def run_factorial(args) -> int:
     kwargs = {
         "ss_type": int(args.ss_type),
         "p_adjust": args.p_adjust,
-        "robust_covariance": None if args.robust_covariance == "none" else args.robust_covariance,
+        "robust_covariance": None
+        if args.robust_covariance == "none"
+        else args.robust_covariance,
         "min_cell_n": args.min_cell_n,
         "max_factor_levels": args.max_factor_levels,
         "max_design_cells": args.max_design_cells,

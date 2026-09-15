@@ -6,17 +6,28 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-import numpy as np
-import pandas as pd
-from scipy import sparse
-
+from ruddy.cli._console import record_features
+from ruddy.core.io import (
+    TABLE_EXTENSIONS,
+    read_ids,
+    read_matrix,
+    read_table,
+    write_json,
+    write_table,
+)
 from ruddy.data import FeatureMatrix
-from ruddy.projections import PCAResult, ProjectionResult, analyze_pca, analyze_tsne, analyze_umap
+from ruddy.projections import (
+    PCAResult,
+    ProjectionResult,
+    analyze_pca,
+    analyze_tsne,
+    analyze_umap,
+)
 
 
-def _read_ids(path: str | Path) -> list[str]:
-    values = [line.strip() for line in Path(path).read_text(encoding="utf-8").splitlines()]
-    return [value for value in values if value]
+def _recorded(features: FeatureMatrix) -> FeatureMatrix:
+    record_features(features)
+    return features
 
 
 def load_feature_matrix(
@@ -30,10 +41,10 @@ def load_feature_matrix(
 
     source = Path(path)
     suffix = source.suffix.lower()
-    ids = None if ids_file is None else _read_ids(ids_file)
+    ids = None if ids_file is None else read_ids(ids_file)
 
-    if suffix in {".csv", ".tsv", ".txt"}:
-        frame = pd.read_csv(source, sep="\t" if suffix in {".tsv", ".txt"} else ",")
+    if suffix in TABLE_EXTENSIONS:
+        frame = read_table(source)
         if id_column is not None:
             if id_column not in frame.columns:
                 raise ValueError(f"Unknown feature-matrix ID column: {id_column!r}.")
@@ -46,33 +57,25 @@ def load_feature_matrix(
         missing = [column for column in selected if column not in frame.columns]
         if missing:
             raise ValueError(f"Unknown feature columns: {missing!r}.")
-        return FeatureMatrix(
-            frame[selected],
-            observation_ids=ids,
-            feature_names=selected,
+        return _recorded(
+            FeatureMatrix(
+                frame[selected],
+                observation_ids=ids,
+                feature_names=selected,
+            )
         )
 
-    if suffix == ".npy":
-        return FeatureMatrix(np.load(source), observation_ids=ids)
-    if suffix == ".npz":
-        try:
-            matrix = sparse.load_npz(source)
-        except Exception as exc:
-            raise ValueError(
-                "Ruddy CLI expects .npz feature inputs to be SciPy sparse matrices."
-            ) from exc
-        return FeatureMatrix(matrix, observation_ids=ids)
-    raise ValueError("Feature projection accepts .csv, .tsv, .txt, .npy, or sparse .npz inputs.")
+    return _recorded(FeatureMatrix(read_matrix(source), observation_ids=ids))
 
 
 def write_pca_result(result: PCAResult, output_dir: str | Path) -> Path:
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    result.scores.to_csv(target / "pca_scores.csv", index=False)
-    result.loadings.to_csv(target / "pca_loadings.csv", index=False)
-    result.variance.to_csv(target / "pca_variance.csv", index=False)
+    write_table(result.scores, target / "pca_scores.csv")
+    write_table(result.loadings, target / "pca_loadings.csv")
+    write_table(result.variance, target / "pca_variance.csv")
     if not result.exclusions.empty:
-        result.exclusions.to_csv(target / "projection_exclusions.csv", index=False)
+        write_table(result.exclusions, target / "projection_exclusions.csv")
     payload = {
         "status": result.status.value,
         "reason": result.reason,
@@ -80,18 +83,16 @@ def write_pca_result(result: PCAResult, output_dir: str | Path) -> Path:
         "preprocessing": result.preprocessing,
         "provenance": result.provenance.to_dict(),
     }
-    (target / "pca_provenance.json").write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    write_json(payload, target / "pca_provenance.json")
     return target
 
 
 def write_projection_result(result: ProjectionResult, output_dir: str | Path) -> Path:
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    result.coordinates.to_csv(target / "projection_coordinates.csv", index=False)
+    write_table(result.coordinates, target / "projection_coordinates.csv")
     if not result.exclusions.empty:
-        result.exclusions.to_csv(target / "projection_exclusions.csv", index=False)
+        write_table(result.exclusions, target / "projection_exclusions.csv")
     payload = {
         "status": result.status.value,
         "reason": result.reason,
@@ -103,9 +104,7 @@ def write_projection_result(result: ProjectionResult, output_dir: str | Path) ->
         "warnings": list(result.warnings),
         "provenance": result.provenance.to_dict(),
     }
-    (target / "projection_provenance.json").write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    write_json(payload, target / "projection_provenance.json")
     return target
 
 
@@ -126,14 +125,20 @@ def run_project(args) -> int:
         if args.output_dir:
             print(write_pca_result(result, args.output_dir))
         else:
-            print(json.dumps({
-                "method": "pca",
-                "status": result.status.value,
-                "n_scores": int(result.scores.shape[0]),
-                "n_components": int(result.variance.shape[0]),
-                "n_excluded": int(result.exclusions.shape[0]),
-                "inferential_allowed": result.inferential_allowed,
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "method": "pca",
+                        "status": result.status.value,
+                        "n_scores": int(result.scores.shape[0]),
+                        "n_components": int(result.variance.shape[0]),
+                        "n_excluded": int(result.exclusions.shape[0]),
+                        "inferential_allowed": result.inferential_allowed,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         return 0
 
     if args.method == "tsne":
@@ -155,13 +160,19 @@ def run_project(args) -> int:
     if args.output_dir:
         print(write_projection_result(result, args.output_dir))
     else:
-        print(json.dumps({
-            "method": result.method.value,
-            "status": result.status.value,
-            "n_coordinates": int(result.coordinates.shape[0]),
-            "n_components": args.n_components,
-            "n_excluded": int(result.exclusions.shape[0]),
-            "exploratory": result.exploratory,
-            "inferential_allowed": result.inferential_allowed,
-        }, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "method": result.method.value,
+                    "status": result.status.value,
+                    "n_coordinates": int(result.coordinates.shape[0]),
+                    "n_components": args.n_components,
+                    "n_excluded": int(result.exclusions.shape[0]),
+                    "exploratory": result.exploratory,
+                    "inferential_allowed": result.inferential_allowed,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
     return 0

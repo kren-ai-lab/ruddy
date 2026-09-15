@@ -13,10 +13,24 @@ def test_project_pca_cli_writes_structured_outputs(tmp_path):
     frame.insert(0, "id", [f"s{i}" for i in range(14)])
     frame.to_csv(source, index=False)
     output = tmp_path / "out"
-    assert main([
-        "project", str(source), "--method", "pca", "--id-column", "id",
-        "--n-components", "3", "--scaling", "standard", "--output-dir", str(output),
-    ]) == 0
+    assert (
+        main(
+            [
+                "project",
+                "pca",
+                str(source),
+                "--id-column",
+                "id",
+                "--n-components",
+                "3",
+                "--scaling",
+                "standard",
+                "--output-dir",
+                str(output),
+            ]
+        )
+        == 0
+    )
     assert (output / "pca_scores.csv").is_file()
     assert (output / "pca_loadings.csv").is_file()
     assert (output / "pca_variance.csv").is_file()
@@ -29,10 +43,22 @@ def test_project_tsne_cli_marks_output_noninferential(tmp_path, capsys):
     rng = np.random.default_rng(9)
     source = tmp_path / "features.npy"
     np.save(source, rng.normal(size=(16, 4)))
-    assert main([
-        "project", str(source), "--method", "tsne", "--perplexity", "4",
-        "--max-iter", "250", "--random-state", "2",
-    ]) == 0
+    assert (
+        main(
+            [
+                "project",
+                "tsne",
+                str(source),
+                "--perplexity",
+                "4",
+                "--max-iter",
+                "250",
+                "--random-state",
+                "2",
+            ]
+        )
+        == 0
+    )
     payload = json.loads(capsys.readouterr().out)
     assert payload["method"] == "tsne"
     assert payload["exploratory"] is True

@@ -23,7 +23,20 @@ def _write_fixture(tmp_path):
 def test_profile_cli_writes_structured_outputs(tmp_path) -> None:
     source = _write_fixture(tmp_path)
     output = tmp_path / "profile"
-    assert main(["profile", str(source), "--id-column", "id", "--output-dir", str(output)]) == 0
+    assert (
+        main(
+            [
+                "inspect",
+                "profile",
+                str(source),
+                "--id-column",
+                "id",
+                "--output-dir",
+                str(output),
+            ]
+        )
+        == 0
+    )
     assert {path.name for path in output.iterdir()} == {
         "overview.json",
         "provenance.json",
@@ -39,13 +52,22 @@ def test_profile_cli_writes_structured_outputs(tmp_path) -> None:
 def test_univariate_cli_writes_scientific_tables(tmp_path) -> None:
     source = _write_fixture(tmp_path)
     output = tmp_path / "univariate"
-    assert main([
-        "univariate",
-        str(source),
-        "--id-column", "id",
-        "--factor", "group",
-        "--output-dir", str(output),
-    ]) == 0
+    assert (
+        main(
+            [
+                "inspect",
+                "univariate",
+                str(source),
+                "--id-column",
+                "id",
+                "--factor",
+                "group",
+                "--output-dir",
+                str(output),
+            ]
+        )
+        == 0
+    )
     assert (output / "numeric_statistics.csv").is_file()
     assert (output / "categorical_statistics.csv").is_file()
     assert (output / "categorical_frequencies.csv").is_file()

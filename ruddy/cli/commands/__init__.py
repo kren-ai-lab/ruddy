@@ -1,18 +1,25 @@
 """Ruddy CLI command implementations."""
 
-from ruddy.cli.commands.analyze import run_analyze, write_unified_result
 from ruddy.cli.commands.advanced_groups import (
-    run_permanova,
-    run_posthoc,
     run_marginal_means,
     run_mixed_effects,
-    write_permanova_result,
-    write_posthoc_result,
+    run_permanova,
+    run_posthoc,
     write_marginal_means_result,
     write_mixed_effects_result,
+    write_permanova_result,
+    write_posthoc_result,
 )
-
+from ruddy.cli.commands.analyze import run_analyze, write_unified_result
 from ruddy.cli.commands.bivariate import run_bivariate, write_bivariate_result
+from ruddy.cli.commands.descriptive import (
+    build_config,
+    load_dataset,
+    run_profile,
+    run_univariate,
+    write_profiling_result,
+    write_univariate_result,
+)
 from ruddy.cli.commands.extensions import (
     run_contingency,
     run_dependence,
@@ -23,32 +30,30 @@ from ruddy.cli.commands.extensions import (
     write_dependence_result,
     write_distribution_diagnostics_result,
 )
-from ruddy.cli.commands.groups import run_groups, write_group_result
-from ruddy.cli.commands.specialized import (
-    run_anomaly, run_bayesian, run_compositional, run_representation,
-    write_anomaly_result, write_bayesian_result, write_compositional_result, write_representation_result,
-)
 from ruddy.cli.commands.factorial import run_factorial, write_factorial_result
-from ruddy.cli.commands.outliers import run_outliers, write_outlier_result
+from ruddy.cli.commands.groups import run_groups, write_group_result
 from ruddy.cli.commands.multivariate import (
     run_manova,
     run_multivariate,
     write_manova_result,
     write_multivariate_result,
 )
+from ruddy.cli.commands.outliers import run_outliers, write_outlier_result
 from ruddy.cli.commands.projections import (
     load_feature_matrix,
     run_project,
     write_pca_result,
     write_projection_result,
 )
-from ruddy.cli.commands.descriptive import (
-    build_config,
-    load_dataset,
-    run_profile,
-    run_univariate,
-    write_profiling_result,
-    write_univariate_result,
+from ruddy.cli.commands.specialized import (
+    run_anomaly,
+    run_bayesian,
+    run_compositional,
+    run_representation,
+    write_anomaly_result,
+    write_bayesian_result,
+    write_compositional_result,
+    write_representation_result,
 )
 
 __all__ = [

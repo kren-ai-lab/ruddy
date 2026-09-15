@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ruddy.bivariate import BivariateResult, analyze_bivariate
 from ruddy.cli.commands.descriptive import build_config, load_dataset
+from ruddy.core.io import write_json, write_table
 
 
 def write_bivariate_result(result: BivariateResult, output_dir: str | Path) -> Path:
@@ -14,15 +15,12 @@ def write_bivariate_result(result: BivariateResult, output_dir: str | Path) -> P
 
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    result.correlations.to_csv(target / "correlations.csv", index=False)
-    result.comparisons.to_csv(target / "comparisons.csv", index=False)
-    result.categorical_associations.to_csv(
-        target / "categorical_associations.csv", index=False
+    write_table(result.correlations, target / "correlations.csv")
+    write_table(result.comparisons, target / "comparisons.csv")
+    write_table(
+        result.categorical_associations, target / "categorical_associations.csv"
     )
-    (target / "bivariate_provenance.json").write_text(
-        json.dumps(result.provenance.to_dict(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json(result.provenance.to_dict(), target / "bivariate_provenance.json")
     return target
 
 

@@ -6,38 +6,46 @@ import json
 from pathlib import Path
 
 from ruddy.analysis import analyze
-from ruddy.core import AnalysisBlock
-from ruddy.cli.commands.bivariate import write_bivariate_result
+from ruddy.cli._console import record_blocks
 from ruddy.cli.commands.advanced_groups import (
-    write_permanova_result,
-    write_posthoc_result,
     write_marginal_means_result,
     write_mixed_effects_result,
+    write_permanova_result,
+    write_posthoc_result,
 )
+from ruddy.cli.commands.bivariate import write_bivariate_result
 from ruddy.cli.commands.descriptive import (
     build_config,
     load_dataset,
     write_profiling_result,
     write_univariate_result,
 )
-from ruddy.cli.commands.factorial import write_factorial_result
 from ruddy.cli.commands.extensions import (
     write_confidence_interval_result,
     write_contingency_diagnostics_result,
     write_dependence_result,
     write_distribution_diagnostics_result,
 )
+from ruddy.cli.commands.factorial import write_factorial_result
 from ruddy.cli.commands.groups import write_group_result
-from ruddy.cli.commands.specialized import (
-    write_anomaly_result, write_bayesian_result, write_compositional_result, write_representation_result,
+from ruddy.cli.commands.multivariate import (
+    write_manova_result,
+    write_multivariate_result,
 )
-from ruddy.cli.commands.multivariate import write_manova_result, write_multivariate_result
 from ruddy.cli.commands.outliers import write_outlier_result
 from ruddy.cli.commands.projections import (
     load_feature_matrix,
     write_pca_result,
     write_projection_result,
 )
+from ruddy.cli.commands.specialized import (
+    write_anomaly_result,
+    write_bayesian_result,
+    write_compositional_result,
+    write_representation_result,
+)
+from ruddy.core import AnalysisBlock, ResultStatus
+from ruddy.core.io import write_json
 
 
 def write_unified_result(result, output_dir: str | Path) -> Path:
@@ -74,11 +82,16 @@ def write_unified_result(result, output_dir: str | Path) -> Path:
         component = result.component(block)
         if component is not None:
             writers[block](component, target / block.value)
-    (target / "analysis_summary.json").write_text(
-        json.dumps(result.summary(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_json(result.summary(), target / "analysis_summary.json")
     return target
+
+
+def _block_ok(component) -> bool:
+    # Not every block result carries a status; those that do not always ran.
+    return (
+        component is not None
+        and getattr(component, "status", ResultStatus.OK) is ResultStatus.OK
+    )
 
 
 def run_analyze(args) -> int:
@@ -106,14 +119,25 @@ def run_analyze(args) -> int:
     comparison_features = None
     if AnalysisBlock.REPRESENTATION in config.enabled_blocks:
         if not args.comparison_feature_input:
-            raise ValueError("--comparison-feature-input is required when enabling representation.")
+            raise ValueError(
+                "--comparison-feature-input is required when enabling representation."
+            )
         comparison_features = load_feature_matrix(
             args.comparison_feature_input,
             id_column=args.comparison_feature_id_column,
             feature_columns=tuple(args.comparison_feature_column or ()),
             ids_file=args.comparison_feature_ids_file,
         )
-    result = analyze(dataset, config=config, features=features, comparison_features=comparison_features)
+    result = analyze(
+        dataset,
+        config=config,
+        features=features,
+        comparison_features=comparison_features,
+    )
+    record_blocks(
+        (block.value, _block_ok(result.component(block)))
+        for block in result.executed_blocks
+    )
     if args.output_dir:
         print(write_unified_result(result, args.output_dir))
     else:
