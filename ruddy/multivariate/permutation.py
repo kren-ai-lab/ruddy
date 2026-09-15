@@ -58,7 +58,7 @@ class PermutationGroupResult:
 
 def _feature_valid_rows(features: FeatureMatrix) -> np.ndarray:
     if features.is_sparse:
-        matrix = features.to_sparse().tocsr()
+        matrix = features.to_sparse().tocsr()  # ty: ignore[unresolved-attribute]
         valid = np.ones(matrix.shape[0], dtype=bool)
         for row in range(matrix.shape[0]):
             values = matrix.data[matrix.indptr[row] : matrix.indptr[row + 1]]
@@ -180,7 +180,7 @@ def analyze_permutation_group_structure(
                 "reason": reason,
             }
         )
-    exclusions = pd.DataFrame(exclusions_rows, columns=EXCLUSION_COLUMNS)
+    exclusions = pd.DataFrame(exclusions_rows, columns=pd.Index(EXCLUSION_COLUMNS))
 
     labels = group_series.to_numpy()[keep]
     levels, counts = np.unique(labels, return_counts=True)
@@ -202,9 +202,9 @@ def analyze_permutation_group_structure(
         },
         random_state=random_state,
     )
-    empty_summary = pd.DataFrame(columns=SUMMARY_COLUMNS)
-    empty_groups = pd.DataFrame(columns=GROUP_COLUMNS)
-    empty_dist = pd.DataFrame(columns=CENTROID_COLUMNS)
+    empty_summary = pd.DataFrame(columns=pd.Index(SUMMARY_COLUMNS))
+    empty_groups = pd.DataFrame(columns=pd.Index(GROUP_COLUMNS))
+    empty_dist = pd.DataFrame(columns=pd.Index(CENTROID_COLUMNS))
     if len(levels) < 2:
         return PermutationGroupResult(
             ResultStatus.DEGENERATE,
@@ -222,7 +222,7 @@ def analyze_permutation_group_structure(
     if np.any(counts < min_group_n):
         groups = pd.DataFrame(
             {"factor": factor, "level": levels, "n": counts, "mean_distance_to_centroid": np.nan},
-            columns=GROUP_COLUMNS,
+            columns=pd.Index(GROUP_COLUMNS),
         )
         return PermutationGroupResult(
             ResultStatus.DEGENERATE,
@@ -248,7 +248,7 @@ def analyze_permutation_group_structure(
             provenance,
         )
 
-    matrix = features.to_sparse()[keep] if features.is_sparse else features.to_array()[keep]
+    matrix = features.to_sparse()[keep] if features.is_sparse else features.to_array()[keep]  # ty: ignore[not-subscriptable]
     distance_matrix = pairwise_distances(matrix, metric=metric)
     if not np.isfinite(distance_matrix).all():
         return PermutationGroupResult(
@@ -340,7 +340,7 @@ def analyze_permutation_group_structure(
                 "reason": None if np.isfinite(permdisp_f) else "non_estimable_permdisp",
             },
         ],
-        columns=SUMMARY_COLUMNS,
+        columns=pd.Index(SUMMARY_COLUMNS),
     )
 
     kept_ids = ids[keep]
@@ -369,8 +369,8 @@ def analyze_permutation_group_structure(
                 "reason": None,
             }
         )
-    groups = pd.DataFrame(group_rows, columns=GROUP_COLUMNS)
-    distances_df = pd.DataFrame(dist_rows, columns=CENTROID_COLUMNS)
+    groups = pd.DataFrame(group_rows, columns=pd.Index(GROUP_COLUMNS))
+    distances_df = pd.DataFrame(dist_rows, columns=pd.Index(CENTROID_COLUMNS))
 
     advisories: list[Advisory] = []
     negative = eigenvalues[eigenvalues < 0]

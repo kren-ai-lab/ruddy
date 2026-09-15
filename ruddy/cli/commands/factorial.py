@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ruddy.cli.commands.descriptive import build_config, load_dataset
 from ruddy.core.io import write_json, write_table
@@ -64,7 +64,7 @@ def run_factorial(args: CliArgs) -> int:
     """Run the ``ruddy model factorial`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "ss_type": int(args.ss_type),
         "p_adjust": args.p_adjust,
         "robust_covariance": None if args.robust_covariance == "none" else args.robust_covariance,

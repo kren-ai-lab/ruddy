@@ -12,8 +12,8 @@ def _dataset() -> TabularDataset:
     counts = {("A", "X"): 30, ("A", "Y"): 10, ("B", "X"): 5, ("B", "Y"): 25}
     for (a, b), n in counts.items():
         rows.extend([(a, b)] * n)
-    frame = pd.DataFrame(rows, columns=["a", "b"])
-    frame.insert(0, "id", range(len(frame)))
+    frame = pd.DataFrame(rows, columns=pd.Index(["a", "b"]))
+    frame.insert(0, "id", range(len(frame)))  # ty: ignore[invalid-argument-type]
     return TabularDataset(frame, id_column="id")
 
 

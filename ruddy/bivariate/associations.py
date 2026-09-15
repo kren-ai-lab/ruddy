@@ -212,7 +212,7 @@ def summarize_categorical_associations(
             )
             rows.append(base)
 
-    table = pd.DataFrame(rows, columns=ASSOCIATION_COLUMNS)
+    table = pd.DataFrame(rows, columns=pd.Index(ASSOCIATION_COLUMNS))
     if table.empty:
         return table
     return apply_multiple_testing(table, correction)

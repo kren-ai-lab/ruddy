@@ -253,7 +253,7 @@ def summarize_group_coverage(
                 "reason": reason,
             }
         )
-    return pd.DataFrame(rows, columns=GROUP_COVERAGE_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(GROUP_COVERAGE_COLUMNS))
 
 
 def summarize_response_catalog(
@@ -298,10 +298,10 @@ def summarize_response_catalog(
                 "reason": reason,
             }
         )
-    return pd.DataFrame(rows, columns=RESPONSE_CATALOG_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(RESPONSE_CATALOG_COLUMNS))
 
 
-def _safe_float(value: object) -> float | None:
+def _safe_float(value: Any) -> float | None:
     try:
         converted = float(value)
     except (TypeError, ValueError):
@@ -392,7 +392,7 @@ def summarize_grouped_numeric_responses(
                     row["status"] = "degenerate"
                     row["reason"] = "constant_response_within_group"
                 rows.append(row)
-    return pd.DataFrame(rows, columns=NUMERIC_GROUP_SUMMARY_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(NUMERIC_GROUP_SUMMARY_COLUMNS))
 
 
 def summarize_grouped_categorical_responses(
@@ -470,7 +470,7 @@ def summarize_grouped_categorical_responses(
                             "reason": None if n_present else "all_missing_response",
                         }
                     )
-    return pd.DataFrame(rows, columns=CATEGORICAL_GROUP_SUMMARY_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(CATEGORICAL_GROUP_SUMMARY_COLUMNS))
 
 
 def summarize_annotation_coverage(
@@ -493,7 +493,7 @@ def summarize_annotation_coverage(
                 "columns_json": json.dumps(list(source.columns), separators=(",", ":"), ensure_ascii=False),
             }
         )
-    return pd.DataFrame(rows, columns=ANNOTATION_COVERAGE_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(ANNOTATION_COVERAGE_COLUMNS))
 
 
 def _group_counts(dataset: TabularDataset, group: str) -> tuple[int, int]:
@@ -544,7 +544,7 @@ def _numeric_response_comparisons(
             table["family_size"] = 0
             rows.append(table)
     if not rows:
-        return pd.DataFrame(columns=_GROUPED_NUMERIC_COMPARISON_COLUMNS)
+        return pd.DataFrame(columns=pd.Index(_GROUPED_NUMERIC_COMPARISON_COLUMNS))
     combined = pd.concat(rows, ignore_index=True)
     combined = apply_multiple_testing(combined, p_adjust)
     return combined.loc[:, _GROUPED_NUMERIC_COMPARISON_COLUMNS]
@@ -588,7 +588,7 @@ def _categorical_response_comparisons(
             table["family_size"] = 0
             rows.append(table)
     if not rows:
-        return pd.DataFrame(columns=_GROUPED_CATEGORICAL_COMPARISON_COLUMNS)
+        return pd.DataFrame(columns=pd.Index(_GROUPED_CATEGORICAL_COMPARISON_COLUMNS))
     combined = pd.concat(rows, ignore_index=True)
     combined = apply_multiple_testing(combined, p_adjust)
     return combined.loc[:, _GROUPED_CATEGORICAL_COMPARISON_COLUMNS]

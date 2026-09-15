@@ -206,18 +206,20 @@ def analyze_mahalanobis(
         pd.concat(distance_frames, ignore_index=True)
         if distance_frames
         else pd.DataFrame(
-            columns=(
-                "source_row_index",
-                "observation_id",
-                "method",
-                "squared_distance",
-                "distance",
-                "degrees_of_freedom",
-                "threshold_quantile",
-                "threshold_squared",
-                "is_flagged",
-                "status",
-                "reason",
+            columns=pd.Index(
+                (
+                    "source_row_index",
+                    "observation_id",
+                    "method",
+                    "squared_distance",
+                    "distance",
+                    "degrees_of_freedom",
+                    "threshold_quantile",
+                    "threshold_squared",
+                    "is_flagged",
+                    "status",
+                    "reason",
+                )
             )
         )
     )

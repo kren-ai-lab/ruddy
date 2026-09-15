@@ -42,7 +42,7 @@ def _coordinate_table(
     source_row_indices: np.ndarray,
 ) -> pd.DataFrame:
     columns = [f"component_{index + 1}" for index in range(coordinates.shape[1])]
-    table = pd.DataFrame(np.asarray(coordinates, dtype=np.float64), columns=columns)
+    table = pd.DataFrame(np.asarray(coordinates, dtype=np.float64), columns=pd.Index(columns))
     table.insert(0, "observation_id", observation_ids.to_list())
     table.insert(0, "source_row_index", source_row_indices)
     return table

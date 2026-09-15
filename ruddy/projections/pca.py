@@ -61,15 +61,17 @@ def _empty_result(
     return PCAResult(
         status=ResultStatus.SKIPPED,
         reason=reason,
-        scores=pd.DataFrame(columns=("source_row_index", "observation_id")),
-        loadings=pd.DataFrame(columns=("feature",)),
+        scores=pd.DataFrame(columns=pd.Index(("source_row_index", "observation_id"))),
+        loadings=pd.DataFrame(columns=pd.Index(("feature",))),
         variance=pd.DataFrame(
-            columns=(
-                "component",
-                "explained_variance",
-                "explained_variance_ratio",
-                "cumulative_explained_variance_ratio",
-                "singular_value",
+            columns=pd.Index(
+                (
+                    "component",
+                    "explained_variance",
+                    "explained_variance_ratio",
+                    "cumulative_explained_variance_ratio",
+                    "singular_value",
+                )
             )
         ),
         exclusions=exclusions,
@@ -135,15 +137,15 @@ def analyze_pca(
     estimator = PCA(n_components=int(n_components), random_state=int(random_state))
     score_matrix = np.asarray(estimator.fit_transform(matrix), dtype=np.float64)
     component_names = [f"PC{index + 1}" for index in range(score_matrix.shape[1])]
-    scores = pd.DataFrame(score_matrix, columns=component_names)
+    scores = pd.DataFrame(score_matrix, columns=pd.Index(component_names))
     scores.insert(0, "observation_id", prepared.observation_ids.to_list())
     scores.insert(0, "source_row_index", prepared.source_row_indices)
 
     loadings = pd.DataFrame(
         estimator.components_.T,
-        columns=component_names,
+        columns=pd.Index(component_names),
     )
-    loadings.insert(0, "feature", list(prepared.feature_names))
+    loadings.insert(0, "feature", list(prepared.feature_names))  # ty: ignore[invalid-argument-type]
 
     ratios = np.asarray(estimator.explained_variance_ratio_, dtype=np.float64)
     variance = pd.DataFrame(

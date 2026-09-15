@@ -18,7 +18,7 @@ def _write_dataset(path: Path) -> None:
                 x = rng.normal()
                 y = 1.0 + (a == "A1") * 0.8 + (b == "B1") * 0.5 + 0.4 * x + rng.normal(scale=0.5)
                 rows.append((f"{a}_{b}_{index}", y, a, b, x))
-    pd.DataFrame(rows, columns=("id", "y", "a", "b", "x")).to_csv(path, index=False)
+    pd.DataFrame(rows, columns=pd.Index(("id", "y", "a", "b", "x"))).to_csv(path, index=False)
 
 
 def test_factorial_cli_formula_writes_structured_outputs(tmp_path: Path):

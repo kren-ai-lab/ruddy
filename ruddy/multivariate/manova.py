@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from patsy import dmatrices
+from patsy import dmatrices  # ty: ignore[unresolved-import]
 from statsmodels.multivariate.manova import MANOVA
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
@@ -38,16 +38,18 @@ def _normalize_columns(values: Iterable[str], label: str) -> tuple[str, ...]:
 
 def _empty_tests() -> pd.DataFrame:
     return pd.DataFrame(
-        columns=(
-            "term",
-            "statistic",
-            "value",
-            "num_df",
-            "den_df",
-            "f_value",
-            "p_value",
-            "status",
-            "reason",
+        columns=pd.Index(
+            (
+                "term",
+                "statistic",
+                "value",
+                "num_df",
+                "den_df",
+                "f_value",
+                "p_value",
+                "status",
+                "reason",
+            )
         )
     )
 

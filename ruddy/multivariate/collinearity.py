@@ -96,7 +96,7 @@ def analyze_collinearity(
         rank = 0
         full_rank = False
         condition_number = np.inf
-        spectrum = pd.DataFrame(columns=("component", "singular_value", "condition_index"))
+        spectrum = pd.DataFrame(columns=pd.Index(("component", "singular_value", "condition_index")))
 
     usable_count = int(usable.sum())
     residual_df_ok = bool(n > usable_count + 1)

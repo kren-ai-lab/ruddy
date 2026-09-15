@@ -157,7 +157,7 @@ def summarize_correlations(
             row["p_value"] = p_value
             rows.append(row)
 
-    table = pd.DataFrame(rows, columns=CORRELATION_COLUMNS)
+    table = pd.DataFrame(rows, columns=pd.Index(CORRELATION_COLUMNS))
     if table.empty:
         return table
     return apply_multiple_testing(table, correction)

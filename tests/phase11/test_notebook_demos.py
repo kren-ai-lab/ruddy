@@ -98,14 +98,14 @@ def test_notebooks_use_ruddy_results_and_comparative_views() -> None:
 
 
 def test_demo_feature_spaces_share_observation_identity() -> None:
-    ids = pd.read_csv(DATA / "tabular_demo.csv", usecols=["id"])["id"].tolist()
+    ids = pd.read_csv(DATA / "tabular_demo.csv", usecols=["id"])["id"].tolist()  # ty: ignore[no-matching-overload]
     for name in (
         "representation_a.csv",
         "representation_b.csv",
         "representation_c.csv",
         "compositional_demo.csv",
     ):
-        assert pd.read_csv(DATA / name, usecols=["id"])["id"].tolist() == ids
+        assert pd.read_csv(DATA / name, usecols=["id"])["id"].tolist() == ids  # ty: ignore[no-matching-overload]
 
 
 def test_visualization_dependencies_do_not_leak_into_core() -> None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -50,7 +50,7 @@ def summarize_overview(dataset: TabularDataset, columns: pd.DataFrame) -> dict[s
     n_columns = int(dataset.n_columns)
     total_cells = n_records * n_columns
     n_missing_cells = int(frame.isna().sum().sum())
-    rows_with_missing = frame.isna().any(axis=1)
+    rows_with_missing = cast("pd.Series", frame.isna().any(axis=1))
     duplicated_all = frame.duplicated(keep=False)
     duplicated_extra = frame.duplicated(keep="first")
 

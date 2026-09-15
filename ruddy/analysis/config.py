@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from typing import Any
 
 from ruddy.core.enums import (
     AlignmentMode,
@@ -27,8 +28,8 @@ class AnalysisConfig:
     id_column: str | None = None
     role_overrides: RoleOverrides = field(default_factory=dict)
     kind_overrides: KindOverrides = field(default_factory=dict)
-    annotation_alignment: AlignmentMode = AlignmentMode.STRICT
-    feature_alignment: AlignmentMode = AlignmentMode.STRICT
+    annotation_alignment: AlignmentMode | str = AlignmentMode.STRICT
+    feature_alignment: AlignmentMode | str = AlignmentMode.STRICT
     random_state: int = 0
 
     # Phase 4 statistical semantics.
@@ -37,7 +38,7 @@ class AnalysisConfig:
 
     # Phase 9 unified orchestration. Descriptive blocks run by default; every
     # inferential/feature-space block must be explicitly enabled.
-    enabled_blocks: tuple[AnalysisBlock, ...] = (
+    enabled_blocks: tuple[AnalysisBlock | str, ...] = (
         AnalysisBlock.PROFILING,
         AnalysisBlock.UNIVARIATE,
     )
@@ -58,12 +59,12 @@ class AnalysisConfig:
     max_pairwise_columns: int = 200
 
     # Phase 3 bivariate controls.
-    correlations: tuple[CorrelationMethod, ...] = (
+    correlations: tuple[CorrelationMethod | str, ...] = (
         CorrelationMethod.PEARSON,
         CorrelationMethod.SPEARMAN,
         CorrelationMethod.KENDALL,
     )
-    comparison_tests: tuple[ComparisonTest, ...] = (
+    comparison_tests: tuple[ComparisonTest | str, ...] = (
         ComparisonTest.WELCH_T,
         ComparisonTest.MANN_WHITNEY,
         ComparisonTest.WELCH_ANOVA,
@@ -71,7 +72,7 @@ class AnalysisConfig:
         ComparisonTest.CHI_SQUARE,
         ComparisonTest.FISHER_EXACT,
     )
-    p_adjust: PAdjustMethod = PAdjustMethod.FDR_BH
+    p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH
     min_group_n: int = 3
     min_correlation_pairs: int = 3
     max_group_levels: int = 20
@@ -79,7 +80,7 @@ class AnalysisConfig:
     pairwise: bool = False
 
     # Phase 5 univariate outlier controls.
-    outlier_methods: tuple[OutlierMethod, ...] = (
+    outlier_methods: tuple[OutlierMethod | str, ...] = (
         OutlierMethod.IQR,
         OutlierMethod.ROBUST_Z,
     )
@@ -88,7 +89,7 @@ class AnalysisConfig:
     include_outlier_flags: bool = False
 
     # Phase 6 feature-space controls.
-    projection_scaling: ScalingMethod = ScalingMethod.NONE
+    projection_scaling: ScalingMethod | str = ScalingMethod.NONE
     projection_n_components: int = 2
     projection_metric: str = "euclidean"
     tsne_perplexity: float = 30.0
@@ -97,7 +98,7 @@ class AnalysisConfig:
     umap_min_dist: float = 0.1
 
     # Phase 7 multivariate statistical controls.
-    multivariate_scaling: ScalingMethod = ScalingMethod.NONE
+    multivariate_scaling: ScalingMethod | str = ScalingMethod.NONE
     multivariate_include_spearman: bool = True
     multivariate_max_covariance_features: int = 200
     multivariate_max_collinearity_features: int = 100
@@ -111,7 +112,7 @@ class AnalysisConfig:
 
     # Phase 8 factorial ANOVA/ANCOVA controls.
     factorial_ss_type: int = 2
-    factorial_p_adjust: PAdjustMethod = PAdjustMethod.NONE
+    factorial_p_adjust: PAdjustMethod | str = PAdjustMethod.NONE
     factorial_robust_covariance: str | None = None
     factorial_min_cell_n: int = 2
     factorial_max_factor_levels: int = 20
@@ -129,7 +130,7 @@ class AnalysisConfig:
     dependence_n_permutations: int = 199
     dependence_mi_neighbors: int = 3
     confidence_level: float = 0.95
-    interval_correlations: tuple[CorrelationMethod, ...] = (CorrelationMethod.PEARSON,)
+    interval_correlations: tuple[CorrelationMethod | str, ...] = (CorrelationMethod.PEARSON,)
     bootstrap_resamples: int = 1000
     bootstrap_method: str = "bca"
 
@@ -150,7 +151,7 @@ class AnalysisConfig:
     marginal_interactions: tuple[tuple[str, ...], ...] = ()
     marginal_formula: str | None = None
     marginal_terms: tuple[tuple[str, ...], ...] = ()
-    marginal_p_adjust: PAdjustMethod = PAdjustMethod.FDR_BH
+    marginal_p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH
 
     mixed_group: str | None = None
     mixed_response: str | None = None
@@ -166,9 +167,9 @@ class AnalysisConfig:
     mixed_min_group_n: int = 2
 
     # Phase 9C representation-space and specialized statistics.
-    representation_alignment: AlignmentMode = AlignmentMode.STRICT
+    representation_alignment: AlignmentMode | str = AlignmentMode.STRICT
     representation_cca_components: int = 2
-    representation_cca_scaling: ScalingMethod = ScalingMethod.STANDARD
+    representation_cca_scaling: ScalingMethod | str = ScalingMethod.STANDARD
     representation_cca_max_iter: int = 1000
     representation_cca_tol: float = 1e-6
     representation_distance_metric: str = "euclidean"
@@ -188,7 +189,7 @@ class AnalysisConfig:
     bayesian_min_n: int = 3
 
     anomaly_methods: tuple[str, ...] = ("isolation_forest", "lof")
-    anomaly_scaling: ScalingMethod = ScalingMethod.NONE
+    anomaly_scaling: ScalingMethod | str = ScalingMethod.NONE
     anomaly_contamination: str | float = "auto"
     anomaly_isolation_estimators: int = 200
     anomaly_lof_neighbors: int = 20
@@ -589,7 +590,7 @@ class AnalysisConfig:
         object.__setattr__(self, "projection_scaling", projection_scaling)
         object.__setattr__(self, "multivariate_scaling", multivariate_scaling)
 
-    def dataset_kwargs(self) -> dict[str, object]:
+    def dataset_kwargs(self) -> dict[str, Any]:
         """Return arguments accepted directly by :class:`TabularDataset`."""
         return {
             "id_column": self.id_column,
@@ -597,14 +598,14 @@ class AnalysisConfig:
             "kind_overrides": dict(self.kind_overrides),
         }
 
-    def profiling_kwargs(self) -> dict[str, object]:
+    def profiling_kwargs(self) -> dict[str, Any]:
         """Return controls used by descriptive profiling."""
         return {
             "max_missingness_patterns": self.max_missingness_patterns,
             "max_pairwise_columns": self.max_pairwise_columns,
         }
 
-    def univariate_kwargs(self) -> dict[str, object]:
+    def univariate_kwargs(self) -> dict[str, Any]:
         """Return controls used by univariate descriptive analysis."""
         return {
             "quantiles": self.quantiles,
@@ -613,7 +614,7 @@ class AnalysisConfig:
             **self.profiling_kwargs(),
         }
 
-    def outlier_kwargs(self) -> dict[str, object]:
+    def outlier_kwargs(self) -> dict[str, Any]:
         """Return controls used by univariate outlier diagnostics."""
         return {
             "methods": self.outlier_methods,
@@ -623,7 +624,7 @@ class AnalysisConfig:
             "include_flags": self.include_outlier_flags,
         }
 
-    def pca_kwargs(self) -> dict[str, object]:
+    def pca_kwargs(self) -> dict[str, Any]:
         """Return controls used by PCA."""
         return {
             "n_components": self.projection_n_components,
@@ -631,7 +632,7 @@ class AnalysisConfig:
             "random_state": self.random_state,
         }
 
-    def tsne_kwargs(self) -> dict[str, object]:
+    def tsne_kwargs(self) -> dict[str, Any]:
         """Return controls used by t-SNE."""
         return {
             "n_components": self.projection_n_components,
@@ -642,7 +643,7 @@ class AnalysisConfig:
             "max_iter": self.tsne_max_iter,
         }
 
-    def umap_kwargs(self) -> dict[str, object]:
+    def umap_kwargs(self) -> dict[str, Any]:
         """Return controls used by UMAP."""
         return {
             "n_components": self.projection_n_components,
@@ -653,7 +654,7 @@ class AnalysisConfig:
             "random_state": self.random_state,
         }
 
-    def multivariate_kwargs(self) -> dict[str, object]:
+    def multivariate_kwargs(self) -> dict[str, Any]:
         """Return controls used by core multivariate feature diagnostics."""
         return {
             "scaling": self.multivariate_scaling,
@@ -667,7 +668,7 @@ class AnalysisConfig:
             "max_mahalanobis_features": self.multivariate_max_mahalanobis_features,
         }
 
-    def manova_kwargs(self) -> dict[str, object]:
+    def manova_kwargs(self) -> dict[str, Any]:
         """Return generic dimensionality/sample guards used by MANOVA."""
         return {
             "max_responses": self.manova_max_responses,
@@ -675,7 +676,7 @@ class AnalysisConfig:
             "min_level_n": self.manova_min_level_n,
         }
 
-    def factorial_kwargs(self) -> dict[str, object]:
+    def factorial_kwargs(self) -> dict[str, Any]:
         """Return controls used by factorial ANOVA/ANCOVA."""
         return {
             "ss_type": self.factorial_ss_type,
@@ -690,7 +691,7 @@ class AnalysisConfig:
             "condition_number_threshold": self.factorial_condition_number_threshold,
         }
 
-    def distribution_diagnostics_kwargs(self) -> dict[str, object]:
+    def distribution_diagnostics_kwargs(self) -> dict[str, Any]:
         """Return controls for standalone distribution diagnostics."""
         return {
             "responses": self.responses,
@@ -701,7 +702,7 @@ class AnalysisConfig:
             "max_shapiro_n": self.distribution_max_shapiro_n,
         }
 
-    def dependence_kwargs(self) -> dict[str, object]:
+    def dependence_kwargs(self) -> dict[str, Any]:
         """Return controls for nonlinear and partial dependence analysis."""
         return {
             "partial_covariates": self.dependence_partial_covariates,
@@ -713,14 +714,14 @@ class AnalysisConfig:
             "random_state": self.random_state,
         }
 
-    def contingency_kwargs(self) -> dict[str, object]:
+    def contingency_kwargs(self) -> dict[str, Any]:
         """Return controls for cell-level contingency diagnostics."""
         return {
             "max_category_levels": self.max_category_levels,
             "p_adjust": self.p_adjust,
         }
 
-    def interval_kwargs(self) -> dict[str, object]:
+    def interval_kwargs(self) -> dict[str, Any]:
         """Return controls for common confidence-interval estimands."""
         return {
             "confidence_level": self.confidence_level,
@@ -732,7 +733,7 @@ class AnalysisConfig:
             "random_state": self.random_state,
         }
 
-    def permanova_kwargs(self) -> dict[str, object]:
+    def permanova_kwargs(self) -> dict[str, Any]:
         return {
             "metric": self.permanova_metric,
             "n_permutations": self.permanova_permutations,
@@ -742,7 +743,7 @@ class AnalysisConfig:
             "alignment": self.feature_alignment,
         }
 
-    def posthoc_kwargs(self) -> dict[str, object]:
+    def posthoc_kwargs(self) -> dict[str, Any]:
         return {
             "methods": self.posthoc_methods,
             "confidence_level": self.confidence_level,
@@ -750,14 +751,14 @@ class AnalysisConfig:
             "max_group_levels": self.max_group_levels,
         }
 
-    def marginal_means_kwargs(self) -> dict[str, object]:
+    def marginal_means_kwargs(self) -> dict[str, Any]:
         return {
             "confidence_level": self.confidence_level,
             "p_adjust": self.marginal_p_adjust,
             "max_interaction_order": self.factorial_max_interaction_order,
         }
 
-    def mixed_effects_kwargs(self) -> dict[str, object]:
+    def mixed_effects_kwargs(self) -> dict[str, Any]:
         return {
             "random_slopes": self.mixed_random_slopes,
             "reml": self.mixed_reml,
@@ -769,7 +770,7 @@ class AnalysisConfig:
             "max_interaction_order": self.factorial_max_interaction_order,
         }
 
-    def representation_kwargs(self) -> dict[str, object]:
+    def representation_kwargs(self) -> dict[str, Any]:
         return {
             "alignment": self.representation_alignment,
             "cca_components": self.representation_cca_components,
@@ -782,7 +783,7 @@ class AnalysisConfig:
             "random_state": self.random_state,
         }
 
-    def compositional_kwargs(self) -> dict[str, object]:
+    def compositional_kwargs(self) -> dict[str, Any]:
         return {
             "transform": self.compositional_transform,
             "replace_zeros": self.compositional_replace_zeros,
@@ -790,7 +791,7 @@ class AnalysisConfig:
             "alr_denominator": self.compositional_alr_denominator,
         }
 
-    def bayesian_kwargs(self) -> dict[str, object]:
+    def bayesian_kwargs(self) -> dict[str, Any]:
         return {
             "variables": self.bayesian_variables or None,
             "groups": self.bayesian_groups or self.groups,
@@ -801,7 +802,7 @@ class AnalysisConfig:
             "random_state": self.random_state,
         }
 
-    def anomaly_kwargs(self) -> dict[str, object]:
+    def anomaly_kwargs(self) -> dict[str, Any]:
         return {
             "methods": self.anomaly_methods,
             "scaling": self.anomaly_scaling,
@@ -811,7 +812,7 @@ class AnalysisConfig:
             "random_state": self.random_state,
         }
 
-    def grouped_kwargs(self) -> dict[str, object]:
+    def grouped_kwargs(self) -> dict[str, Any]:
         """Return controls used by response-centric grouped analysis."""
         return {
             "responses": self.responses or None,
@@ -824,7 +825,7 @@ class AnalysisConfig:
             "pairwise": self.pairwise,
         }
 
-    def bivariate_kwargs(self) -> dict[str, object]:
+    def bivariate_kwargs(self) -> dict[str, Any]:
         """Return controls used by Phase 3 mixed-type bivariate analysis."""
         return {
             "correlations": self.correlations,

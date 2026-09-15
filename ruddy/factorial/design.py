@@ -186,8 +186,9 @@ def build_factorial_design(
         raise ValueError("max_interaction_order must be at least 2.")
     resolved_ss = _normalize_ss_type(ss_type)
 
-    requested_formula = None if formula is None else str(formula).strip()
+    requested_formula: str | None = None
     if formula is not None:
+        requested_formula = str(formula).strip()
         if response is not None or tuple(factors) or tuple(covariates) or tuple(interactions):
             raise ValueError(
                 "Use either formula=... or explicit response/factors/covariates/interactions, not both."

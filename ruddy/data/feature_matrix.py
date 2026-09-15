@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -85,7 +85,7 @@ class FeatureMatrix:
             return matrix, data.index.copy(), tuple(str(c) for c in data.columns)
 
         if sparse.issparse(data):
-            matrix = data.copy()
+            matrix = cast("sparse.spmatrix", data).copy()  # ty: ignore[unresolved-attribute]
             if matrix.ndim != 2:
                 raise FeatureMatrixValidationError("FeatureMatrix must be two-dimensional.")
             if not np.issubdtype(matrix.dtype, np.number):

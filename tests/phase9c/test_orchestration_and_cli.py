@@ -52,6 +52,7 @@ def test_unified_representation_matches_standalone():
     )
     u = analyze(ds, config=cfg, features=x, comparison_features=y).representation
     s = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=9, random_state=5)
+    assert u is not None
     pd.testing.assert_frame_equal(u.cka, s.cka)
     pd.testing.assert_frame_equal(u.mantel, s.mantel)
 
@@ -72,6 +73,7 @@ def test_unified_anomaly_matches_standalone():
     )
     u = analyze(ds, config=cfg, features=x).anomaly
     s = analyze_anomalies(x, methods=("isolation_forest",), random_state=2)
+    assert u is not None
     pd.testing.assert_frame_equal(u.scores, s.scores)
 
 
@@ -88,6 +90,7 @@ def test_unified_bayesian_matches_standalone():
     )
     u = analyze(ds, config=cfg).bayesian
     s = analyze_bayesian_eda(ds, variables=("y",), groups=("g",), draws=500, random_state=3)
+    assert u is not None
     pd.testing.assert_frame_equal(u.mean_differences, s.mean_differences)
 
 
@@ -98,6 +101,8 @@ def test_unified_compositional_matches_standalone():
     cfg = AnalysisConfig(enabled_blocks=("compositional",), compositional_transform="ilr")
     u = analyze(ds, config=cfg, features=c).compositional
     s = analyze_composition(c, transform="ilr")
+    assert u is not None
+    assert u.transformed is not None
     np.testing.assert_allclose(u.transformed.to_array(), s.transformed.to_array())
 
 
@@ -143,8 +148,8 @@ def test_compositional_cli_writes_artifacts(tmp_path):
     rng = np.random.default_rng(3)
     p = tmp_path / "c.csv"
     out = tmp_path / "c_out"
-    frame = pd.DataFrame(np.abs(rng.normal(size=(20, 3))) + 0.2, columns=["a", "b", "c"])
-    frame.insert(0, "id", [f"o{i}" for i in range(20)])
+    frame = pd.DataFrame(np.abs(rng.normal(size=(20, 3))) + 0.2, columns=pd.Index(["a", "b", "c"]))
+    frame.insert(0, "id", [f"o{i}" for i in range(20)])  # ty: ignore[invalid-argument-type]
     frame.to_csv(p, index=False)
     code = main(
         [

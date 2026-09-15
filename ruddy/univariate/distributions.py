@@ -79,7 +79,8 @@ def summarize_datetime_statistics(
             range_seconds = 0.0
         else:
             status, reason = "ok", None
-            range_seconds = float((maximum - minimum).total_seconds())
+            # Recomputed from `present` so the non-empty branch needs no None check.
+            range_seconds = float((present.max() - present.min()).total_seconds())
         rows.append(
             {
                 "column": column,
@@ -94,7 +95,7 @@ def summarize_datetime_statistics(
                 "reason": reason,
             }
         )
-    return pd.DataFrame(rows, columns=DATETIME_STATISTICS_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(DATETIME_STATISTICS_COLUMNS))
 
 
 def summarize_univariate(

@@ -45,7 +45,7 @@ OBSERVATION_DIAGNOSTIC_COLUMNS = (
 )
 
 
-def _finite_or_none(value: object) -> float | None:
+def _finite_or_none(value: Any) -> float | None:
     try:
         converted = float(value)
     except (TypeError, ValueError):
@@ -68,7 +68,7 @@ def build_factorial_cells(
     factor_names = tuple(str(name) for name in factors)
     if not factor_names:
         return (
-            pd.DataFrame(columns=("n", "is_empty", "below_min_cell_n", "status", "reason")),
+            pd.DataFrame(columns=pd.Index(("n", "is_empty", "below_min_cell_n", "status", "reason"))),
             {
                 "n_design_cells": 0,
                 "n_observed_cells": 0,
@@ -119,7 +119,7 @@ def build_factorial_cells(
 
     table = pd.DataFrame(
         rows,
-        columns=(*factor_names, "n", "is_empty", "below_min_cell_n", "status", "reason"),
+        columns=pd.Index((*factor_names, "n", "is_empty", "below_min_cell_n", "status", "reason")),
     )
     n_empty = int(table["is_empty"].sum()) if not table.empty else 0
     n_small = int(table["below_min_cell_n"].sum()) if not table.empty else 0
@@ -323,11 +323,11 @@ def model_diagnostics(
                     "reason": None,
                 }
             )
-        observations = pd.DataFrame(obs_rows, columns=OBSERVATION_DIAGNOSTIC_COLUMNS)
+        observations = pd.DataFrame(obs_rows, columns=pd.Index(OBSERVATION_DIAGNOSTIC_COLUMNS))
     except (ValueError, np.linalg.LinAlgError):
-        observations = pd.DataFrame(columns=OBSERVATION_DIAGNOSTIC_COLUMNS)
+        observations = pd.DataFrame(columns=pd.Index(OBSERVATION_DIAGNOSTIC_COLUMNS))
 
-    return pd.DataFrame(rows, columns=DIAGNOSTIC_COLUMNS), observations
+    return pd.DataFrame(rows, columns=pd.Index(DIAGNOSTIC_COLUMNS)), observations
 
 
 __all__ = [

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -39,7 +41,7 @@ def test_pearson_interval_contains_estimate() -> None:
 
 
 def test_spearman_interval_bootstrap_is_deterministic() -> None:
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "correlation_methods": ("spearman",),
         "bootstrap_resamples": 120,
         "bootstrap_method": "percentile",

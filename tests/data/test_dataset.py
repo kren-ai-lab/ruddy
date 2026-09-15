@@ -111,12 +111,12 @@ def test_numeric_column_can_be_explicitly_treated_as_categorical() -> None:
 
 
 def test_duplicate_column_names_fail_explicitly() -> None:
-    frame = pd.DataFrame([[1, 2]], columns=["x", "x"])
+    frame = pd.DataFrame([[1, 2]], columns=pd.Index(["x", "x"]))
     with pytest.raises(ValueError, match="column names must be unique"):
         TabularDataset(frame)
 
 
 def test_non_string_column_names_are_rejected_for_stable_schema() -> None:
-    frame = pd.DataFrame([[1, 2]], columns=[0, 1])
+    frame = pd.DataFrame([[1, 2]], columns=pd.Index([0, 1]))
     with pytest.raises(TypeError, match="string column names"):
         TabularDataset(frame)

@@ -33,16 +33,17 @@ def test_shared_phase3_metrics_match_frozen_puma_reference() -> None:
         p_adjust="fdr_bh",
     )
     observed_correlations = {
-        (row.method, row.column_x, row.column_y): row for row in correlations.itertuples(index=False)
+        (row["method"], row["column_x"], row["column_y"]): row
+        for row in correlations.to_dict(orient="records")
     }
     for reference in expected["correlations"]:
         key = (reference["method"], reference["column_x"], reference["column_y"])
         row = observed_correlations[key]
-        assert row.n_complete == reference["n_complete"]
-        assert row.status == reference["status"]
-        assert row.reason == reference["reason"]
+        assert row["n_complete"] == reference["n_complete"]
+        assert row["status"] == reference["status"]
+        assert row["reason"] == reference["reason"]
         for field in ("coefficient", "p_value", "q_value"):
-            _assert_value(getattr(row, field), reference[field])
+            _assert_value(row[field], reference[field])
 
     comparisons = summarize_numeric_categorical_comparisons(
         dataset,
@@ -52,14 +53,14 @@ def test_shared_phase3_metrics_match_frozen_puma_reference() -> None:
     )
     observed_comparisons = {
         (
-            row.group_column,
-            row.scope,
-            row.test,
-            row.feature,
-            None if pd.isna(row.group_a) else row.group_a,
-            None if pd.isna(row.group_b) else row.group_b,
+            row["group_column"],
+            row["scope"],
+            row["test"],
+            row["feature"],
+            None if pd.isna(row["group_a"]) else row["group_a"],
+            None if pd.isna(row["group_b"]) else row["group_b"],
         ): row
-        for row in comparisons.itertuples(index=False)
+        for row in comparisons.to_dict(orient="records")
     }
     for block in ("comparisons_binary", "comparisons_multigroup"):
         for reference in expected[block]:
@@ -72,7 +73,7 @@ def test_shared_phase3_metrics_match_frozen_puma_reference() -> None:
                 reference["group_b"],
             )
             row = observed_comparisons[key]
-            assert row.status == reference["status"]
-            assert row.reason == reference["reason"]
+            assert row["status"] == reference["status"]
+            assert row["reason"] == reference["reason"]
             for field in ("statistic", "p_value", "effect_size"):
-                _assert_value(getattr(row, field), reference[field])
+                _assert_value(row[field], reference[field])

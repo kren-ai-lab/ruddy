@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -40,7 +41,7 @@ class MixedEffectsResult:
     variance_components: pd.DataFrame
     random_effects: pd.DataFrame
     exclusions: pd.DataFrame
-    model_summary: dict[str, object]
+    model_summary: dict[str, Any]
     advisories: tuple[Advisory, ...]
     provenance: AnalysisProvenance
 
@@ -150,7 +151,7 @@ def analyze_mixed_effects(
             "stage": "mixed_effects_complete_case",
             "reason": "missing_or_non_finite_model_value",
         },
-        columns=EXCLUSION_COLUMNS,
+        columns=pd.Index(EXCLUSION_COLUMNS),
     )
 
     group_counts = model_frame[group].value_counts(dropna=False)
@@ -176,9 +177,9 @@ def analyze_mixed_effects(
             "n_groups": len(group_counts),
         },
     )
-    empty_fixed = pd.DataFrame(columns=FIXED_COLUMNS)
-    empty_var = pd.DataFrame(columns=VARIANCE_COLUMNS)
-    empty_random = pd.DataFrame(columns=RANDOM_EFFECT_COLUMNS)
+    empty_fixed = pd.DataFrame(columns=pd.Index(FIXED_COLUMNS))
+    empty_var = pd.DataFrame(columns=pd.Index(VARIANCE_COLUMNS))
+    empty_random = pd.DataFrame(columns=pd.Index(RANDOM_EFFECT_COLUMNS))
 
     if len(group_counts) < min_groups:
         return MixedEffectsResult(
@@ -362,9 +363,9 @@ def analyze_mixed_effects(
     return MixedEffectsResult(
         status=status,
         reason=reason,
-        fixed_effects=pd.DataFrame(fixed_rows, columns=FIXED_COLUMNS),
-        variance_components=pd.DataFrame(variance_rows, columns=VARIANCE_COLUMNS),
-        random_effects=pd.DataFrame(random_rows, columns=RANDOM_EFFECT_COLUMNS),
+        fixed_effects=pd.DataFrame(fixed_rows, columns=pd.Index(FIXED_COLUMNS)),
+        variance_components=pd.DataFrame(variance_rows, columns=pd.Index(VARIANCE_COLUMNS)),
+        random_effects=pd.DataFrame(random_rows, columns=pd.Index(RANDOM_EFFECT_COLUMNS)),
         exclusions=exclusions,
         model_summary=summary,
         advisories=tuple(advisories),

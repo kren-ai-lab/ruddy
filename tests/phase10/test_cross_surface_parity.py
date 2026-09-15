@@ -30,6 +30,7 @@ def test_unified_pca_matches_standalone_exactly(robust_tabular):
         random_state=5,
     )
     unified = analyze(robust_tabular, config=config, features=f).pca
+    assert unified is not None
     pd.testing.assert_frame_equal(standalone.scores, unified.scores)
     pd.testing.assert_frame_equal(standalone.loadings, unified.loadings)
     pd.testing.assert_frame_equal(standalone.variance, unified.variance)
@@ -48,6 +49,7 @@ def test_unified_anomaly_matches_standalone_exactly(robust_tabular):
         random_state=9,
     )
     unified = analyze(robust_tabular, config=config, features=f).anomaly
+    assert unified is not None
     pd.testing.assert_frame_equal(standalone.scores, unified.scores)
     pd.testing.assert_frame_equal(standalone.methods, unified.methods)
 
@@ -67,8 +69,10 @@ def test_unified_representation_matches_standalone_exactly(robust_tabular):
         random_state=4,
     )
     unified = analyze(robust_tabular, config=cfg, features=a, comparison_features=b).representation
+    assert unified is not None
     pd.testing.assert_frame_equal(standalone.cka, unified.cka)
     pd.testing.assert_frame_equal(standalone.mantel, unified.mantel)
+    assert unified.cca is not None
     pd.testing.assert_frame_equal(standalone.cca.correlations, unified.cca.correlations)
 
 
@@ -88,7 +92,10 @@ def test_cli_writer_preserves_unified_component_tables(tmp_path, robust_tabular)
     out = write_unified_result(result, tmp_path / "out")
     pca_scores = pd.read_csv(out / "pca" / "pca_scores.csv")
     anomaly_scores = pd.read_csv(out / "anomaly" / "anomaly_scores.csv")
+    assert result.pca is not None
     pd.testing.assert_frame_equal(pca_scores, result.pca.scores, check_dtype=False, rtol=1e-12, atol=1e-12)
+    assert result.anomaly is not None
+    assert result.anomaly.scores is not None
     expected_anomaly = result.anomaly.scores.copy()
     for column in expected_anomaly.select_dtypes(include="object").columns:
         expected_anomaly[column] = expected_anomaly[column].fillna("")
@@ -106,7 +113,10 @@ def test_feature_alignment_never_uses_row_position(robust_tabular):
     f = FeatureMatrix(x[order], observation_ids=[ids[i] for i in order])
     cfg = AnalysisConfig(enabled_blocks=("pca",), projection_n_components=2, feature_alignment="strict")
     result = analyze(robust_tabular, config=cfg, features=f)
+    assert result.feature_alignment is not None
     assert result.feature_alignment.complete
+    assert result.pca is not None
+    assert result.pca.scores is not None
     assert set(result.pca.scores.observation_id) == set(ids)
 
 

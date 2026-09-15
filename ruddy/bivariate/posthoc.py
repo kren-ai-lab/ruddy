@@ -278,7 +278,7 @@ def analyze_posthoc(
                     groups, response=response, factor=factor, confidence_level=confidence_level
                 )
             )
-    table = pd.DataFrame(rows, columns=PAIRWISE_COLUMNS)
+    table = pd.DataFrame(rows, columns=pd.Index(PAIRWISE_COLUMNS))
     if not table.empty:
         for level, values in groups.items():
             if len(values) < min_group_n:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from types import MappingProxyType
+from typing import Any
 
 import pandas as pd
 
@@ -74,8 +75,8 @@ class AlignedAnnotations:
     def to_frame(self) -> pd.DataFrame:
         return self._data.copy(deep=True)
 
-    def summary(self) -> dict[str, object]:
-        payload: dict[str, object] = {
+    def summary(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "source_name": self.source_name,
             "coverage": self.coverage.value,
             "columns": list(self.columns),
@@ -128,9 +129,8 @@ def _resolve_annotation_kinds(
         if column not in overrides:
             resolved[column] = observed
             continue
-        requested = (
-            overrides[column] if isinstance(overrides[column], ColumnKind) else ColumnKind(overrides[column])
-        )
+        declared = overrides[column]
+        requested = declared if isinstance(declared, ColumnKind) else ColumnKind(declared)
         if requested is ColumnKind.NUMERIC and observed is not ColumnKind.NUMERIC:
             raise ValueError(
                 f"Annotation column {column!r} cannot be declared numeric without "

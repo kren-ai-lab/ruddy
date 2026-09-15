@@ -13,14 +13,14 @@ def test_phase9b_config_normalizes_blocks_and_methods():
         posthoc_methods=("games_howell",),
         marginal_p_adjust="none",
     )
-    assert [block.value for block in config.enabled_blocks] == [
+    assert list(config.enabled_blocks) == [
         "permanova",
         "posthoc",
         "marginal_means",
         "mixed_effects",
     ]
     assert config.posthoc_methods == ("games_howell",)
-    assert config.marginal_p_adjust.value == "none"
+    assert config.marginal_p_adjust == "none"
 
 
 def test_config_rejects_invalid_posthoc_method():
@@ -44,6 +44,7 @@ def test_unified_permanova_matches_standalone(group_dataset, separated_features)
     standalone = analyze_permutation_group_structure(
         separated_features, group_dataset, factor="group", n_permutations=19, random_state=4
     )
+    assert unified.permanova is not None
     pd.testing.assert_frame_equal(unified.permanova.summary, standalone.summary)
 
 
@@ -65,6 +66,7 @@ def test_unified_posthoc_matches_standalone(group_dataset):
     standalone = analyze_posthoc(
         group_dataset, response="y", factor="group", methods=("tukey_hsd",), min_group_n=2
     )
+    assert unified.posthoc is not None
     pd.testing.assert_frame_equal(unified.posthoc.comparisons, standalone.comparisons)
 
 
@@ -77,6 +79,7 @@ def test_unified_marginal_means_matches_standalone(group_dataset):
     )
     unified = analyze(group_dataset, config=config)
     standalone = analyze_marginal_means(group_dataset, response="y", factors=("group",), covariates=("x",))
+    assert unified.marginal_means is not None
     pd.testing.assert_frame_equal(unified.marginal_means.means, standalone.means)
     pd.testing.assert_frame_equal(unified.marginal_means.contrasts, standalone.contrasts)
 
@@ -94,6 +97,7 @@ def test_unified_mixed_effects_matches_standalone(mixed_dataset):
     standalone = analyze_mixed_effects(
         mixed_dataset, group="batch", response="y", factors=("condition",), covariates=("x",), reml=False
     )
+    assert unified.mixed_effects is not None
     assert unified.mixed_effects.status == standalone.status
     pd.testing.assert_frame_equal(unified.mixed_effects.fixed_effects, standalone.fixed_effects)
 

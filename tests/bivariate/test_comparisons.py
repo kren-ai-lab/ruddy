@@ -22,14 +22,14 @@ def test_two_group_tests_and_effect_sizes_match_references(mixed_dataset) -> Non
     ref_t = stats.ttest_ind(a, b, equal_var=False)
     np.testing.assert_allclose(welch["statistic"], ref_t.statistic, rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(welch["p_value"], ref_t.pvalue, rtol=1e-12, atol=1e-12)
-    np.testing.assert_allclose(welch["effect_size"], hedges_g(a, b), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(welch["effect_size"], hedges_g(a, b), rtol=1e-12, atol=1e-12)  # ty: ignore[no-matching-overload]
     assert welch["effect_size_name"] == "hedges_g"
 
     mann = table.query("group_column == 'binary' and feature == 'z' and test == 'mann_whitney'").iloc[0]
     ref_u = stats.mannwhitneyu(a, b, alternative="two-sided", method="auto")
     np.testing.assert_allclose(mann["statistic"], ref_u.statistic, rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(mann["p_value"], ref_u.pvalue, rtol=1e-12, atol=1e-12)
-    np.testing.assert_allclose(
+    np.testing.assert_allclose(  # ty: ignore[no-matching-overload]
         mann["effect_size"],
         cliffs_delta_from_u(ref_u.statistic, len(a), len(b)),
         rtol=1e-12,
@@ -52,7 +52,7 @@ def test_multigroup_welch_and_kruskal_match_independent_backends(mixed_dataset) 
     ref_welch = anova_oneway(groups, use_var="unequal", welch_correction=True)
     np.testing.assert_allclose(welch["statistic"], ref_welch.statistic, rtol=1e-10, atol=1e-12)
     np.testing.assert_allclose(welch["p_value"], ref_welch.pvalue, rtol=1e-10, atol=1e-12)
-    np.testing.assert_allclose(welch["effect_size"], eta_squared(groups), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(welch["effect_size"], eta_squared(groups), rtol=1e-12, atol=1e-12)  # ty: ignore[no-matching-overload]
 
     kruskal = table.query("group_column == 'three' and feature == 'z' and test == 'kruskal_wallis'").iloc[0]
     ref_kw = stats.kruskal(*groups)

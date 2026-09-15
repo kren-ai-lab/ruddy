@@ -229,13 +229,21 @@ def _cca_result(
             }
         )
     cols = [f"CC{i + 1}" for i in range(n_components)]
-    x_weights = pd.DataFrame(model.x_weights_, index=x_names, columns=cols).reset_index(names="feature")
-    y_weights = pd.DataFrame(model.y_weights_, index=y_names, columns=cols).reset_index(names="feature")
-    x_loadings = pd.DataFrame(model.x_loadings_, index=x_names, columns=cols).reset_index(names="feature")
-    y_loadings = pd.DataFrame(model.y_loadings_, index=y_names, columns=cols).reset_index(names="feature")
-    x_scores = pd.DataFrame(xs, columns=cols)
+    x_weights = pd.DataFrame(model.x_weights_, index=pd.Index(x_names), columns=pd.Index(cols)).reset_index(
+        names="feature"
+    )
+    y_weights = pd.DataFrame(model.y_weights_, index=pd.Index(y_names), columns=pd.Index(cols)).reset_index(
+        names="feature"
+    )
+    x_loadings = pd.DataFrame(model.x_loadings_, index=pd.Index(x_names), columns=pd.Index(cols)).reset_index(
+        names="feature"
+    )
+    y_loadings = pd.DataFrame(model.y_loadings_, index=pd.Index(y_names), columns=pd.Index(cols)).reset_index(
+        names="feature"
+    )
+    x_scores = pd.DataFrame(xs, columns=pd.Index(cols))
     x_scores.insert(0, "observation_id", pair.observation_ids.to_list())
-    y_scores = pd.DataFrame(ys, columns=cols)
+    y_scores = pd.DataFrame(ys, columns=pd.Index(cols))
     y_scores.insert(0, "observation_id", pair.observation_ids.to_list())
     return CCAResult(
         ResultStatus.OK,
@@ -298,7 +306,7 @@ def _procrustes(pair: AlignedRepresentationPair) -> pd.DataFrame:
 
 
 def _distance_vectors(pair: AlignedRepresentationPair, metric: str) -> tuple[np.ndarray, np.ndarray]:
-    return pdist(pair.x, metric=metric), pdist(pair.y, metric=metric)
+    return pdist(pair.x, metric=metric), pdist(pair.y, metric=metric)  # ty: ignore[no-matching-overload]
 
 
 def _distance_similarity(pair: AlignedRepresentationPair, metric: str, method: str) -> pd.DataFrame:
@@ -329,8 +337,8 @@ def _mantel(
 ) -> pd.DataFrame:
     if permutations < 0:
         raise ValueError("mantel_permutations must be non-negative.")
-    dx = squareform(pdist(pair.x, metric=metric))
-    dy = squareform(pdist(pair.y, metric=metric))
+    dx = squareform(pdist(pair.x, metric=metric))  # ty: ignore[no-matching-overload]
+    dy = squareform(pdist(pair.y, metric=metric))  # ty: ignore[no-matching-overload]
     tri = np.triu_indices(dx.shape[0], k=1)
     observed = float(stats.pearsonr(dx[tri], dy[tri]).statistic)
     if permutations == 0:

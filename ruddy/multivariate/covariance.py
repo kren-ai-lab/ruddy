@@ -34,13 +34,13 @@ class CovarianceResult:
 
 
 def _square_frame(values: np.ndarray, names: tuple[str, ...]) -> pd.DataFrame:
-    return pd.DataFrame(np.asarray(values, dtype=float), index=names, columns=names)
+    return pd.DataFrame(np.asarray(values, dtype=float), index=pd.Index(names), columns=pd.Index(names))
 
 
 def _pairwise_finite_counts(array: np.ndarray, names: tuple[str, ...]) -> pd.DataFrame:
     finite = np.isfinite(array)
     counts = finite.T.astype(np.int64) @ finite.astype(np.int64)
-    return pd.DataFrame(counts, index=names, columns=names)
+    return pd.DataFrame(counts, index=pd.Index(names), columns=pd.Index(names))
 
 
 def _standardized_condition_diagnostics(
@@ -68,7 +68,7 @@ def _standardized_condition_diagnostics(
 
     usable = ~constant
     if int(usable.sum()) == 0:
-        spectrum = pd.DataFrame(columns=("component", "singular_value", "condition_index"))
+        spectrum = pd.DataFrame(columns=pd.Index(("component", "singular_value", "condition_index")))
         summary = {
             "n_observations": int(matrix.shape[0]),
             "n_features": int(matrix.shape[1]),
@@ -155,7 +155,7 @@ def analyze_covariance_structure(
     pearson = np.atleast_2d(np.asarray(pearson, dtype=float))
 
     if include_spearman:
-        spearman = pd.DataFrame(matrix, columns=names).corr(method="spearman").to_numpy(dtype=float)
+        spearman = pd.DataFrame(matrix, columns=pd.Index(names)).corr(method="spearman").to_numpy(dtype=float)
     else:
         spearman = np.full((len(names), len(names)), np.nan, dtype=float)
 

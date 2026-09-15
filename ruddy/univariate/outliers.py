@@ -192,7 +192,7 @@ def summarize_numeric_quality(
             }
         )
 
-    return pd.DataFrame(rows, columns=NUMERIC_QUALITY_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(NUMERIC_QUALITY_COLUMNS))
 
 
 def _summary_base(
@@ -540,8 +540,8 @@ def summarize_outliers(
             flags.extend(method_flags)
 
     return (
-        pd.DataFrame(summaries, columns=OUTLIER_SUMMARY_COLUMNS),
-        pd.DataFrame(flags, columns=OUTLIER_FLAG_COLUMNS),
+        pd.DataFrame(summaries, columns=pd.Index(OUTLIER_SUMMARY_COLUMNS)),
+        pd.DataFrame(flags, columns=pd.Index(OUTLIER_FLAG_COLUMNS)),
     )
 
 

@@ -11,8 +11,8 @@ from ruddy.cli.main import main
 
 def test_multivariate_cli_writes_structured_outputs(tmp_path: Path):
     rng = np.random.default_rng(5)
-    frame = pd.DataFrame(rng.normal(size=(50, 4)), columns=["f1", "f2", "f3", "f4"])
-    frame.insert(0, "id", [f"o{i}" for i in range(len(frame))])
+    frame = pd.DataFrame(rng.normal(size=(50, 4)), columns=pd.Index(["f1", "f2", "f3", "f4"]))
+    frame.insert(0, "id", [f"o{i}" for i in range(len(frame))])  # ty: ignore[invalid-argument-type]
     source = tmp_path / "features.csv"
     target = tmp_path / "results"
     frame.to_csv(source, index=False)

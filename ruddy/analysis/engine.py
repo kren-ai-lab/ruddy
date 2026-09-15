@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any, cast
 
 import pandas as pd
 
@@ -62,9 +63,10 @@ def analyze(
         raise TypeError("comparison_features must be a FeatureMatrix or None.")
 
     cfg = AnalysisConfig() if config is None else config
-    blocks = cfg.enabled_blocks
+    # __post_init__ has already normalised every entry to an AnalysisBlock.
+    blocks = cast("tuple[AnalysisBlock, ...]", cfg.enabled_blocks)
     annotation_sources = tuple(annotations)
-    components: dict[str, object] = {}
+    components: dict[str, Any] = {}
 
     feature_alignment = None
     if features is not None:
@@ -121,35 +123,37 @@ def analyze(
     if requested_feature_blocks and features is None:
         names = ", ".join(block.value for block in requested_feature_blocks)
         raise ValueError(f"FeatureMatrix is required for enabled feature-space blocks: {names}.")
+    # The guard above makes this non-None for every feature-space block below.
+    feature_space = cast("FeatureMatrix", features)
 
     if AnalysisBlock.PCA in blocks:
-        components["pca"] = analyze_pca(features, **cfg.pca_kwargs())  # type: ignore[arg-type]
+        components["pca"] = analyze_pca(feature_space, **cfg.pca_kwargs())
     if AnalysisBlock.TSNE in blocks:
-        components["tsne"] = analyze_tsne(features, **cfg.tsne_kwargs())  # type: ignore[arg-type]
+        components["tsne"] = analyze_tsne(feature_space, **cfg.tsne_kwargs())
     if AnalysisBlock.UMAP in blocks:
-        components["umap"] = analyze_umap(features, **cfg.umap_kwargs())  # type: ignore[arg-type]
+        components["umap"] = analyze_umap(feature_space, **cfg.umap_kwargs())
     if AnalysisBlock.MULTIVARIATE in blocks:
         components["multivariate"] = analyze_multivariate(
-            features,
-            **cfg.multivariate_kwargs(),  # type: ignore[arg-type]
+            feature_space,
+            **cfg.multivariate_kwargs(),
         )
     if AnalysisBlock.COMPOSITIONAL in blocks:
         components["compositional"] = analyze_composition(
-            features,
-            **cfg.compositional_kwargs(),  # type: ignore[arg-type]
+            feature_space,
+            **cfg.compositional_kwargs(),
         )
     if AnalysisBlock.ANOMALY in blocks:
         components["anomaly"] = analyze_anomalies(
-            features,
-            **cfg.anomaly_kwargs(),  # type: ignore[arg-type]
+            feature_space,
+            **cfg.anomaly_kwargs(),
         )
     if AnalysisBlock.REPRESENTATION in blocks:
         if comparison_features is None:
             raise ValueError("Representation block requires comparison_features.")
         components["representation"] = analyze_representation_similarity(
-            features,
+            feature_space,
             comparison_features,
-            **cfg.representation_kwargs(),  # type: ignore[arg-type]
+            **cfg.representation_kwargs(),
         )
 
     factors = _factor_columns(dataset, cfg)
@@ -165,10 +169,10 @@ def analyze(
                 )
             factor = candidates[0]
         components["permanova"] = analyze_permutation_group_structure(
-            features,
+            feature_space,
             dataset,
             factor=factor,
-            **cfg.permanova_kwargs(),  # type: ignore[arg-type]
+            **cfg.permanova_kwargs(),
         )
 
     if AnalysisBlock.MANOVA in blocks:
@@ -317,29 +321,29 @@ def analyze(
         random_state=cfg.random_state,
     )
     return UnifiedAnalysisResult(
-        profiling=components.get("profiling"),  # type: ignore[arg-type]
-        univariate=components.get("univariate"),  # type: ignore[arg-type]
-        bivariate=components.get("bivariate"),  # type: ignore[arg-type]
-        groups=components.get("groups"),  # type: ignore[arg-type]
-        outliers=components.get("outliers"),  # type: ignore[arg-type]
-        pca=components.get("pca"),  # type: ignore[arg-type]
-        tsne=components.get("tsne"),  # type: ignore[arg-type]
-        umap=components.get("umap"),  # type: ignore[arg-type]
-        multivariate=components.get("multivariate"),  # type: ignore[arg-type]
-        manova=components.get("manova"),  # type: ignore[arg-type]
-        factorial=components.get("factorial"),  # type: ignore[arg-type]
-        diagnostics=components.get("diagnostics"),  # type: ignore[arg-type]
-        dependence=components.get("dependence"),  # type: ignore[arg-type]
-        contingency=components.get("contingency"),  # type: ignore[arg-type]
-        intervals=components.get("intervals"),  # type: ignore[arg-type]
-        permanova=components.get("permanova"),  # type: ignore[arg-type]
-        posthoc=components.get("posthoc"),  # type: ignore[arg-type]
-        marginal_means=components.get("marginal_means"),  # type: ignore[arg-type]
-        mixed_effects=components.get("mixed_effects"),  # type: ignore[arg-type]
-        representation=components.get("representation"),  # type: ignore[arg-type]
-        compositional=components.get("compositional"),  # type: ignore[arg-type]
-        bayesian=components.get("bayesian"),  # type: ignore[arg-type]
-        anomaly=components.get("anomaly"),  # type: ignore[arg-type]
+        profiling=components.get("profiling"),
+        univariate=components.get("univariate"),
+        bivariate=components.get("bivariate"),
+        groups=components.get("groups"),
+        outliers=components.get("outliers"),
+        pca=components.get("pca"),
+        tsne=components.get("tsne"),
+        umap=components.get("umap"),
+        multivariate=components.get("multivariate"),
+        manova=components.get("manova"),
+        factorial=components.get("factorial"),
+        diagnostics=components.get("diagnostics"),
+        dependence=components.get("dependence"),
+        contingency=components.get("contingency"),
+        intervals=components.get("intervals"),
+        permanova=components.get("permanova"),
+        posthoc=components.get("posthoc"),
+        marginal_means=components.get("marginal_means"),
+        mixed_effects=components.get("mixed_effects"),
+        representation=components.get("representation"),
+        compositional=components.get("compositional"),
+        bayesian=components.get("bayesian"),
+        anomaly=components.get("anomaly"),
         feature_alignment=feature_alignment,
         executed_blocks=blocks,
         provenance=provenance,

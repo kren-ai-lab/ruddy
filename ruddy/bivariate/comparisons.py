@@ -89,7 +89,7 @@ def _finite_values(series: pd.Series) -> np.ndarray:
     return values[np.isfinite(values)]
 
 
-def _safe_float(value: object) -> float | None:
+def _safe_float(value: Any) -> float | None:
     try:
         converted = float(value)
     except (TypeError, ValueError):
@@ -473,7 +473,7 @@ def summarize_numeric_categorical_comparisons(
                             )
                         )
 
-    table = pd.DataFrame(rows, columns=COMPARISON_COLUMNS)
+    table = pd.DataFrame(rows, columns=pd.Index(COMPARISON_COLUMNS))
     if table.empty:
         return table
     return apply_multiple_testing(table, correction)

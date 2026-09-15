@@ -32,7 +32,7 @@ hooks = [
   {
     id = "ty",
     name = "ty-check",
-    entry = "uv run ty check",
+    entry = "uv run task ty",
     language = "python",
     types = ["python"],
     pass_filenames = false
@@ -40,7 +40,7 @@ hooks = [
   {
     id = "pyrefly",
     name = "pyrefly-check",
-    entry = "uv run pyrefly check",
+    entry = "uv run task pyrefly",
     language = "python",
     types = ["python"],
     pass_filenames = false

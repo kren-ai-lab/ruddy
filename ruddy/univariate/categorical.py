@@ -181,6 +181,6 @@ def summarize_categorical_statistics(
         frequencies.extend(rows)
 
     return (
-        pd.DataFrame(summaries, columns=CATEGORICAL_STATISTICS_COLUMNS),
-        pd.DataFrame(frequencies, columns=CATEGORICAL_FREQUENCY_COLUMNS),
+        pd.DataFrame(summaries, columns=pd.Index(CATEGORICAL_STATISTICS_COLUMNS)),
+        pd.DataFrame(frequencies, columns=pd.Index(CATEGORICAL_FREQUENCY_COLUMNS)),
     )

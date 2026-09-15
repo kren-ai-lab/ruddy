@@ -50,7 +50,9 @@ def write_compositional_result(result: CompositionalResult, output_dir: str | Pa
     """Persist structured compositional artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    transformed = pd.DataFrame(result.transformed.to_array(), columns=result.transformed.feature_names)
+    transformed = pd.DataFrame(
+        result.transformed.to_array(), columns=pd.Index(result.transformed.feature_names)
+    )
     transformed.insert(0, "observation_id", result.transformed.observation_ids.to_list())
     write_table(transformed, target / "compositional_transformed.csv")
     write_table(result.variation_matrix, target / "variation_matrix.csv", index=True)

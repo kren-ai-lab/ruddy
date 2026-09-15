@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from itertools import combinations_with_replacement
+from typing import Any
 
 import pandas as pd
 
@@ -107,7 +108,7 @@ def pairwise_completeness(
     frame = dataset.select(selected)
     present = frame.notna()
     n_total = len(frame)
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, Any]] = []
     for column_x, column_y in combinations_with_replacement(selected, 2):
         n_complete = int((present[column_x] & present[column_y]).sum())
         rows.append(
@@ -120,7 +121,7 @@ def pairwise_completeness(
                 "fraction_complete": float(n_complete / n_total) if n_total else 0.0,
             }
         )
-    return pd.DataFrame(rows, columns=PAIRWISE_COMPLETENESS_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(PAIRWISE_COMPLETENESS_COLUMNS))
 
 
 def summarize_missingness_patterns(
@@ -160,4 +161,4 @@ def summarize_missingness_patterns(
         }
         for rank, (pattern, count) in enumerate(reported, start=1)
     ]
-    return pd.DataFrame(rows, columns=MISSINGNESS_PATTERN_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(MISSINGNESS_PATTERN_COLUMNS))

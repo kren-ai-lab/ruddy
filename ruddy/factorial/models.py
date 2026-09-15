@@ -106,7 +106,7 @@ def _normalize_robust_covariance(value: str | None) -> str | None:
     return normalized
 
 
-def _finite_or_none(value: object) -> float | None:
+def _finite_or_none(value: Any) -> float | None:
     try:
         converted = float(value)
     except (TypeError, ValueError):
@@ -126,7 +126,7 @@ def _design_term_table(design: FactorialDesign) -> pd.DataFrame:
             }
             for term in design.terms
         ],
-        columns=DESIGN_TERM_COLUMNS,
+        columns=pd.Index(DESIGN_TERM_COLUMNS),
     )
 
 
@@ -149,10 +149,10 @@ def _empty_result(
         reason=reason,
         design=design,
         design_terms=design_terms,
-        effects=pd.DataFrame(columns=EFFECT_COLUMNS),
-        coefficients=pd.DataFrame(columns=COEFFICIENT_COLUMNS),
-        diagnostics=pd.DataFrame(columns=DIAGNOSTIC_COLUMNS),
-        observation_diagnostics=pd.DataFrame(columns=OBSERVATION_DIAGNOSTIC_COLUMNS),
+        effects=pd.DataFrame(columns=pd.Index(EFFECT_COLUMNS)),
+        coefficients=pd.DataFrame(columns=pd.Index(COEFFICIENT_COLUMNS)),
+        diagnostics=pd.DataFrame(columns=pd.Index(DIAGNOSTIC_COLUMNS)),
+        observation_diagnostics=pd.DataFrame(columns=pd.Index(OBSERVATION_DIAGNOSTIC_COLUMNS)),
         cells=cells,
         exclusions=exclusions,
         model_summary=model_summary,
@@ -318,7 +318,7 @@ def analyze_factorial(
             "stage": "factorial_complete_case",
             "reason": "missing_or_non_finite_model_value",
         },
-        columns=EXCLUSION_COLUMNS,
+        columns=pd.Index(EXCLUSION_COLUMNS),
     )
     model_frame = frame.loc[complete].reset_index(drop=True)
     n = len(model_frame)
@@ -570,7 +570,7 @@ def analyze_factorial(
                 "reason": reason,
             }
         )
-    effects = pd.DataFrame(effect_rows, columns=EFFECT_COLUMNS)
+    effects = pd.DataFrame(effect_rows, columns=pd.Index(EFFECT_COLUMNS))
     inferential = effects["status"].eq(ResultStatus.OK.value)
     family_size = int(inferential.sum())
     effects.loc[:, "family_size"] = family_size
@@ -603,7 +603,7 @@ def analyze_factorial(
                 "reason": None if ok else "non_finite_coefficient_inference",
             }
         )
-    coefficients = pd.DataFrame(coefficient_rows, columns=COEFFICIENT_COLUMNS)
+    coefficients = pd.DataFrame(coefficient_rows, columns=pd.Index(COEFFICIENT_COLUMNS))
 
     diagnostics, observation_diagnostics = model_diagnostics(
         model,

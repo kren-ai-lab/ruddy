@@ -149,7 +149,7 @@ def summarize_normality_diagnostics(
                     row["statistic"] = statistic
                     row["p_value"] = p_value
             rows.append(row)
-    table = pd.DataFrame(rows, columns=NORMALITY_COLUMNS)
+    table = pd.DataFrame(rows, columns=pd.Index(NORMALITY_COLUMNS))
     return table if table.empty else apply_multiple_testing(table, correction)
 
 
@@ -234,7 +234,7 @@ def summarize_dispersion_diagnostics(
                     row["statistic"] = float(result.statistic)
                     row["p_value"] = float(result.pvalue)
                 rows.append(row)
-    table = pd.DataFrame(rows, columns=DISPERSION_COLUMNS)
+    table = pd.DataFrame(rows, columns=pd.Index(DISPERSION_COLUMNS))
     return table if table.empty else apply_multiple_testing(table, correction)
 
 
@@ -260,7 +260,7 @@ def analyze_distribution_diagnostics(
             p_adjust=p_adjust,
         )
         if responses and groups
-        else pd.DataFrame(columns=DISPERSION_COLUMNS)
+        else pd.DataFrame(columns=pd.Index(DISPERSION_COLUMNS))
     )
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     provenance = AnalysisProvenance(

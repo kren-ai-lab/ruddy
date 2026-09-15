@@ -74,10 +74,10 @@ def bootstrap_confidence_interval(
 
     if isinstance(data, np.ndarray) and data.ndim == 1:
         arrays = (_as_1d_finite(data),)
-    elif not isinstance(data, np.ndarray) and data and np.isscalar(data[0]):  # type: ignore[index]
-        arrays = (_as_1d_finite(data),)  # type: ignore[arg-type]
+    elif not isinstance(data, np.ndarray) and data and np.isscalar(data[0]):
+        arrays = (_as_1d_finite(data),)  # ty: ignore[invalid-argument-type]
     else:
-        arrays = tuple(_as_1d_finite(values) for values in data)  # type: ignore[arg-type]
+        arrays = tuple(_as_1d_finite(values) for values in data)  # ty: ignore[invalid-argument-type]
 
     if not arrays or any(array.size < 2 for array in arrays):
         return BootstrapResult(

@@ -28,7 +28,7 @@ def test_enabled_blocks_cannot_repeat():
 
 
 def test_feature_alignment_normalizes():
-    assert AnalysisConfig(feature_alignment="partial").feature_alignment.value == "partial"
+    assert AnalysisConfig(feature_alignment="partial").feature_alignment == "partial"
 
 
 def test_factorial_interactions_are_immutable_tuples():

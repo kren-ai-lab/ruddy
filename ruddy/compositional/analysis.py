@@ -109,7 +109,7 @@ def variation_matrix(array: np.ndarray, feature_names: tuple[str, ...]) -> pd.Da
     for i in range(d):
         for j in range(d):
             out[i, j] = float(np.var(logx[:, i] - logx[:, j], ddof=1)) if x.shape[0] > 1 else 0.0
-    return pd.DataFrame(out, index=feature_names, columns=feature_names)
+    return pd.DataFrame(out, index=pd.Index(feature_names), columns=pd.Index(feature_names))
 
 
 def aitchison_distance_matrix(array: np.ndarray, observation_ids: pd.Index) -> pd.DataFrame:

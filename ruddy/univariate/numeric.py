@@ -224,4 +224,4 @@ def summarize_numeric_statistics(
         )
         for _, profile in selected.iterrows()
     ]
-    return pd.DataFrame(rows, columns=numeric_statistics_columns(quantiles))
+    return pd.DataFrame(rows, columns=pd.Index(numeric_statistics_columns(quantiles)))

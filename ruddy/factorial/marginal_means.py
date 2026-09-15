@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from itertools import combinations, product
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from patsy import build_design_matrices, dmatrices
+from patsy import build_design_matrices, dmatrices  # ty: ignore[unresolved-import]
 from scipy.stats import t as student_t
 from statsmodels.api import OLS
 
@@ -67,7 +68,7 @@ class MarginalMeansResult:
 def _safe_model(
     dataset: TabularDataset,
     design: FactorialDesign,
-) -> tuple[object, pd.DataFrame, np.ndarray, dict[str, str], dict[str, str], object]:
+) -> tuple[Any, pd.DataFrame, np.ndarray, dict[str, str], dict[str, str], Any]:
     selected = (design.response, *design.factors, *design.covariates)
     frame = dataset.select(selected)
     complete = np.ones(len(frame), dtype=bool)
@@ -135,10 +136,10 @@ def _grid_l_vectors(
     }
     result: list[tuple[tuple[object, ...], np.ndarray]] = []
     for target_values in target_combinations:
-        rows: list[dict[str, object]] = []
+        rows: list[dict[str, Any]] = []
         target_map = dict(zip(term, target_values, strict=True))
         for nuisance_values in nuisance_combinations:
-            row: dict[str, object] = {}
+            row: dict[str, Any] = {}
             nuisance_map = dict(zip(nuisance, nuisance_values, strict=True))
             for factor in design.factors:
                 row[factor_safe[factor]] = target_map.get(factor, nuisance_map.get(factor))
@@ -258,7 +259,9 @@ def analyze_marginal_means(
                 }
             )
         if family_rows:
-            q_values = adjust_pvalues([row["p_value"] for row in family_rows], method=correction)
+            q_values = adjust_pvalues(
+                np.asarray([row["p_value"] for row in family_rows], dtype=float), method=correction
+            )
             for row, q_value in zip(family_rows, q_values, strict=True):
                 row["q_value"] = float(q_value) if q_value is not None else np.nan
             contrast_rows.extend(family_rows)
@@ -271,7 +274,7 @@ def analyze_marginal_means(
             "stage": "marginal_means_complete_case",
             "reason": "missing_or_non_finite_model_value",
         },
-        columns=EXCLUSION_COLUMNS,
+        columns=pd.Index(EXCLUSION_COLUMNS),
     )
     provenance = AnalysisProvenance(
         analysis="marginal_means",
@@ -294,8 +297,8 @@ def analyze_marginal_means(
         },
     )
     return MarginalMeansResult(
-        means=pd.DataFrame(mean_rows, columns=MEAN_COLUMNS),
-        contrasts=pd.DataFrame(contrast_rows, columns=CONTRAST_COLUMNS),
+        means=pd.DataFrame(mean_rows, columns=pd.Index(MEAN_COLUMNS)),
+        contrasts=pd.DataFrame(contrast_rows, columns=pd.Index(CONTRAST_COLUMNS)),
         exclusions=exclusions,
         provenance=provenance,
     )

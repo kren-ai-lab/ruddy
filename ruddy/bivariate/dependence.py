@@ -214,7 +214,7 @@ def summarize_partial_correlations(
                 p_value = float(2.0 * stats.t.sf(abs(t_stat), df))
             row.update(coefficient=r, statistic=t_stat, df=float(df), p_value=p_value)
             rows.append(row)
-    table = pd.DataFrame(rows, columns=PARTIAL_COLUMNS)
+    table = pd.DataFrame(rows, columns=pd.Index(PARTIAL_COLUMNS))
     return table if table.empty else apply_multiple_testing(table, correction)
 
 
@@ -408,7 +408,7 @@ def summarize_general_dependence(
             outputs[method].append(row)
     tables = []
     for method in ("distance_correlation", "mutual_information"):
-        table = pd.DataFrame(outputs.get(method, []), columns=DEPENDENCE_COLUMNS)
+        table = pd.DataFrame(outputs.get(method, []), columns=pd.Index(DEPENDENCE_COLUMNS))
         tables.append(table if table.empty else apply_multiple_testing(table, correction))
     return tables[0], tables[1]
 
@@ -439,7 +439,7 @@ def analyze_dependence(
             p_adjust=p_adjust,
         )
         if partial_covariates
-        else pd.DataFrame(columns=PARTIAL_COLUMNS)
+        else pd.DataFrame(columns=pd.Index(PARTIAL_COLUMNS))
     )
     distance, mi = summarize_general_dependence(
         dataset,

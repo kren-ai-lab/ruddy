@@ -8,9 +8,10 @@ from ruddy.cli.main import app, main
 
 def _command_names(group: str | None = None) -> list[str]:
     command = typer.main.get_command(app)
+    commands = command.commands  # ty: ignore[unresolved-attribute]
     if group is not None:
-        command = command.commands[group]
-    return sorted(command.commands)
+        commands = commands[group].commands
+    return sorted(commands)
 
 
 def test_cli_exposes_the_command_groups() -> None:

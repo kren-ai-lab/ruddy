@@ -15,7 +15,8 @@ def mean_confidence_interval(
     x = np.asarray(values, dtype=float)
     x = x[np.isfinite(x)]
     if x.size < 2:
-        return (float("nan"),) * 4
+        nan = float("nan")
+        return nan, nan, nan, nan
     mean = float(np.mean(x))
     se = float(stats.sem(x))
     critical = float(stats.t.ppf((1.0 + confidence_level) / 2.0, x.size - 1))
@@ -43,7 +44,8 @@ def welch_mean_difference_confidence_interval(
     a = a[np.isfinite(a)]
     b = b[np.isfinite(b)]
     if a.size < 2 or b.size < 2:
-        return (float("nan"),) * 5
+        nan = float("nan")
+        return nan, nan, nan, nan, nan
     va = float(np.var(a, ddof=1))
     vb = float(np.var(b, ddof=1))
     estimate = float(np.mean(a) - np.mean(b))

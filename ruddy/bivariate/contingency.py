@@ -165,10 +165,10 @@ def analyze_contingency_diagnostics(
                         "reason": reason,
                     }
                 )
-    summary = pd.DataFrame(summaries, columns=SUMMARY_COLUMNS)
+    summary = pd.DataFrame(summaries, columns=pd.Index(SUMMARY_COLUMNS))
     if not summary.empty:
         summary = apply_multiple_testing(summary, correction)
-    cell_table = pd.DataFrame(cells, columns=CELL_COLUMNS)
+    cell_table = pd.DataFrame(cells, columns=pd.Index(CELL_COLUMNS))
     provenance = AnalysisProvenance(
         analysis="contingency_diagnostics",
         parameters={

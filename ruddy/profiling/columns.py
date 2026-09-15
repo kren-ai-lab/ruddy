@@ -121,4 +121,4 @@ def profile_columns(dataset: TabularDataset) -> pd.DataFrame:
             }
         )
 
-    return pd.DataFrame(rows, columns=COLUMN_PROFILE_COLUMNS)
+    return pd.DataFrame(rows, columns=pd.Index(COLUMN_PROFILE_COLUMNS))

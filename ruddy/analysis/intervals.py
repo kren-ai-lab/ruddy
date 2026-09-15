@@ -35,6 +35,12 @@ class ConfidenceIntervalResult:
     provenance: AnalysisProvenance
 
 
+def _hedges_g_or_nan(x: np.ndarray, y: np.ndarray) -> float:
+    """Return Hedges' g, or NaN when it is not estimable."""
+    value = hedges_g(x, y)
+    return float(np.nan if value is None else value)
+
+
 def _numeric(dataset: TabularDataset) -> tuple[str, ...]:
     return tuple(
         spec.name
@@ -227,7 +233,7 @@ def analyze_confidence_intervals(
             else:
                 boot = bootstrap_confidence_interval(
                     (a, b),
-                    lambda x, y: float(hedges_g(x, y) if hedges_g(x, y) is not None else np.nan),
+                    _hedges_g_or_nan,
                     confidence_level=confidence_level,
                     n_resamples=bootstrap_resamples,
                     method=bootstrap_method,

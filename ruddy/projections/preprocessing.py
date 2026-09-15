@@ -128,7 +128,7 @@ def prepare_features(
             f"{minimum_observations} finite observation rows after preprocessing."
         )
 
-    prepared = matrix[valid_mask]
+    prepared = matrix[valid_mask]  # ty: ignore[not-subscriptable]
     scaled, scaling_metadata = _scale_matrix(prepared, method)
     return PreparedFeatures(
         matrix=scaled,

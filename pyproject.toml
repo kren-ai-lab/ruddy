@@ -73,6 +73,7 @@ dev = [
     "pyrefly",
     "taskipy>=1.14",
     "prek",
+    "nbformat>=5.10",
 ]
 
 [tool.hatch.version]

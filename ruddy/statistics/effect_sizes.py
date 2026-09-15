@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 
 
-def _finite_float(value: object) -> float | None:
+def _finite_float(value: Any) -> float | None:
     try:
         converted = float(value)
     except (TypeError, ValueError):

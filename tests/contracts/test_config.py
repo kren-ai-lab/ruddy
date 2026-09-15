@@ -16,11 +16,11 @@ def test_analysis_config_normalizes_and_freezes_overrides() -> None:
 
     assert config.role_overrides["group"] is ColumnRole.FACTOR
     assert config.kind_overrides["code"] is ColumnKind.CATEGORICAL
-    assert config.annotation_alignment.value == "partial"
+    assert config.annotation_alignment == "partial"
     assert config.dataset_kwargs()["id_column"] == "id"
 
     with pytest.raises(TypeError):
-        config.role_overrides["x"] = ColumnRole.RESPONSE  # type: ignore[index]
+        config.role_overrides["x"] = ColumnRole.RESPONSE  # ty: ignore[invalid-assignment]
 
 
 def test_phase2_config_validates_descriptive_controls() -> None:
