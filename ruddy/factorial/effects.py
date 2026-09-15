@@ -26,7 +26,6 @@ def factorial_effect_sizes(
     partition the corrected total; effect sizes therefore should not be interpreted
     as additive shares across terms.
     """
-
     values = (effect_ss, effect_df, residual_ss, residual_df, corrected_total_ss)
     if not all(math.isfinite(float(value)) for value in values):
         return {

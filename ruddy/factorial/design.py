@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import combinations
-import re
-from typing import Iterable
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
-
 
 _SIMPLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
@@ -113,8 +112,7 @@ def _parse_formula(
     def add_atomic(name: str) -> None:
         if not _SIMPLE_NAME.fullmatch(name):
             raise ValueError(
-                "Formula syntax accepts only direct column names and '+', ':', '*'; "
-                f"invalid token={name!r}."
+                f"Formula syntax accepts only direct column names and '+', ':', '*'; invalid token={name!r}."
             )
         if name not in dataset.columns:
             raise ValueError(f"Unknown factorial predictor column: {name!r}.")
@@ -184,7 +182,6 @@ def build_factorial_design(
     usual hierarchical interpretation. For unusual column names, use the explicit
     ``response``/``factors``/``covariates``/``interactions`` arguments.
     """
-
     if max_interaction_order < 2:
         raise ValueError("max_interaction_order must be at least 2.")
     resolved_ss = _normalize_ss_type(ss_type)
@@ -198,9 +195,7 @@ def build_factorial_design(
         response_name, predictors, parsed_interactions = _parse_formula(
             dataset, requested_formula, max_interaction_order=max_interaction_order
         )
-        factor_names = tuple(
-            name for name in predictors if _infer_predictor_role(dataset, name) == "factor"
-        )
+        factor_names = tuple(name for name in predictors if _infer_predictor_role(dataset, name) == "factor")
         covariate_names = tuple(
             name for name in predictors if _infer_predictor_role(dataset, name) == "covariate"
         )
@@ -209,9 +204,7 @@ def build_factorial_design(
         if response is None:
             responses = dataset.columns_with_role(ColumnRole.RESPONSE)
             if len(responses) != 1:
-                raise ValueError(
-                    "Specify response=... unless exactly one column has the response role."
-                )
+                raise ValueError("Specify response=... unless exactly one column has the response role.")
             response_name = responses[0]
         else:
             response_name = str(response)
@@ -263,9 +256,7 @@ def build_factorial_design(
         if len(term) < 2:
             raise ValueError("Each factorial interaction requires at least two predictors.")
         if len(term) > max_interaction_order:
-            raise ValueError(
-                f"Interaction {term} exceeds max_interaction_order={max_interaction_order}."
-            )
+            raise ValueError(f"Interaction {term} exceeds max_interaction_order={max_interaction_order}.")
         if len(set(term)) != len(term):
             raise ValueError(f"Interaction cannot repeat a predictor: {term}.")
         missing = [name for name in term if name not in predictor_set]

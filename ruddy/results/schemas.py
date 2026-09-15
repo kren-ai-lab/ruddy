@@ -22,16 +22,13 @@ def validate_result_table(
 
     Analysis-specific schemas will extend this small global contract in later phases.
     """
-
     if not isinstance(frame, pd.DataFrame):
         raise TypeError("Result tables must be pandas DataFrames.")
 
     required = {RESULT_STATUS_COLUMN, RESULT_REASON_COLUMN, *required_columns}
     missing = sorted(required - set(frame.columns))
     if missing:
-        raise ResultContractError(
-            f"Result table is missing required columns: {missing}."
-        )
+        raise ResultContractError(f"Result table is missing required columns: {missing}.")
 
     valid_statuses = {status.value for status in ResultStatus}
     observed = set(frame[RESULT_STATUS_COLUMN].dropna().astype(str))
@@ -42,9 +39,7 @@ def validate_result_table(
     status = frame[RESULT_STATUS_COLUMN].astype(str)
     reason = frame[RESULT_REASON_COLUMN]
     bad_ok = (status == ResultStatus.OK.value) & reason.notna()
-    bad_non_ok = status.isin(
-        [ResultStatus.DEGENERATE.value, ResultStatus.SKIPPED.value]
-    ) & reason.isna()
+    bad_non_ok = status.isin([ResultStatus.DEGENERATE.value, ResultStatus.SKIPPED.value]) & reason.isna()
     if bad_ok.any() or bad_non_ok.any():
         raise ResultContractError(
             "Result table violates status/reason consistency: OK rows require no "

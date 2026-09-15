@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
+from ruddy.analysis.intervals import ConfidenceIntervalResult
 from ruddy.anomaly import AnomalyResult
 from ruddy.bayesian import BayesianEDAResult
-from ruddy.compositional import CompositionalResult
-from ruddy.representation import RepresentationComparisonResult
 from ruddy.bivariate import (
     BivariateResult,
     ContingencyDiagnosticsResult,
@@ -17,14 +17,15 @@ from ruddy.bivariate import (
     GroupAnalysisResult,
     PosthocResult,
 )
+from ruddy.compositional import CompositionalResult
 from ruddy.core.enums import AnalysisBlock
+from ruddy.data.validation import AlignmentReport
 from ruddy.factorial import FactorialResult, MarginalMeansResult, MixedEffectsResult
-from ruddy.analysis.intervals import ConfidenceIntervalResult
 from ruddy.multivariate import MANOVAResult, MultivariateResult, PermutationGroupResult
 from ruddy.profiling import ProfilingResult
 from ruddy.projections import PCAResult, ProjectionResult
+from ruddy.representation import RepresentationComparisonResult
 from ruddy.results import AnalysisProvenance
-from ruddy.data.validation import AlignmentReport
 from ruddy.univariate import DistributionDiagnosticsResult, OutlierResult, UnivariateResult
 
 
@@ -70,27 +71,19 @@ class UnifiedAnalysisResult:
 
     def component(self, block: AnalysisBlock | str) -> Any | None:
         """Return one named component without coupling callers to field dispatch."""
-
         resolved = block if isinstance(block, AnalysisBlock) else AnalysisBlock(block)
         return getattr(self, resolved.value)
 
     @property
     def components(self) -> Mapping[AnalysisBlock, Any]:
         """Return an immutable mapping containing only executed components."""
-
-        return MappingProxyType(
-            {block: self.component(block) for block in self.executed_blocks}
-        )
+        return MappingProxyType({block: self.component(block) for block in self.executed_blocks})
 
     def summary(self) -> dict[str, Any]:
         """Return a lightweight serialization-safe execution summary."""
-
         return {
             "executed_blocks": [block.value for block in self.executed_blocks],
-            "components": {
-                block.value: self.component(block) is not None
-                for block in self.executed_blocks
-            },
+            "components": {block.value: self.component(block) is not None for block in self.executed_blocks},
             "feature_alignment": (
                 None if self.feature_alignment is None else self.feature_alignment.to_dict()
             ),

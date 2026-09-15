@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -41,9 +42,7 @@ class FeatureMatrix:
             ids = pd.RangeIndex(n_rows)
         validated_ids = validate_observation_ids(ids)
         if len(validated_ids) != n_rows:
-            raise FeatureMatrixValidationError(
-                "observation_ids length must match the number of matrix rows."
-            )
+            raise FeatureMatrixValidationError("observation_ids length must match the number of matrix rows.")
 
         names = inferred_names if feature_names is None else tuple(feature_names)
         if names is None:
@@ -88,22 +87,16 @@ class FeatureMatrix:
         if sparse.issparse(data):
             matrix = data.copy()
             if matrix.ndim != 2:
-                raise FeatureMatrixValidationError(
-                    "FeatureMatrix must be two-dimensional."
-                )
+                raise FeatureMatrixValidationError("FeatureMatrix must be two-dimensional.")
             if not np.issubdtype(matrix.dtype, np.number):
-                raise FeatureMatrixValidationError(
-                    "FeatureMatrix must contain numeric data."
-                )
+                raise FeatureMatrixValidationError("FeatureMatrix must contain numeric data.")
             return matrix, None, None
 
         matrix = np.asarray(data)
         if matrix.ndim != 2:
             raise FeatureMatrixValidationError("FeatureMatrix must be two-dimensional.")
         if not np.issubdtype(matrix.dtype, np.number):
-            raise FeatureMatrixValidationError(
-                "FeatureMatrix must contain numeric data."
-            )
+            raise FeatureMatrixValidationError("FeatureMatrix must contain numeric data.")
         return matrix.copy(), None, None
 
     @property
@@ -141,19 +134,16 @@ class FeatureMatrix:
     @property
     def provenance(self) -> Mapping[str, Any]:
         """Return immutable provenance attached to a derived feature matrix."""
-
         return self._provenance
 
     def to_array(self) -> np.ndarray:
         """Return a defensive dense copy of the matrix."""
-
         if sparse.issparse(self._matrix):
             return self._matrix.toarray()
         return self._matrix.copy()
 
     def to_sparse(self) -> sparse.spmatrix:
         """Return a defensive sparse copy of the matrix."""
-
         if sparse.issparse(self._matrix):
             return self._matrix.copy()
         return sparse.csr_matrix(self._matrix)

@@ -45,8 +45,7 @@ def test_multigroup_welch_and_kruskal_match_independent_backends(mixed_dataset) 
     )
     frame = mixed_dataset.to_frame()
     groups = tuple(
-        frame.loc[frame["three"].eq(level), "z"].to_numpy(dtype=float)
-        for level in ("H", "L", "M")
+        frame.loc[frame["three"].eq(level), "z"].to_numpy(dtype=float) for level in ("H", "L", "M")
     )
 
     welch = table.query("group_column == 'three' and feature == 'z' and test == 'welch_anova'").iloc[0]
@@ -75,7 +74,9 @@ def test_pairwise_posthoc_is_opt_in(mixed_dataset) -> None:
     )
     assert not default["scope"].eq("pairwise").any()
     assert enabled["scope"].eq("pairwise").any()
-    pairs = enabled.query("group_column == 'three' and feature == 'z' and scope == 'pairwise' and test == 'welch_t'")
+    pairs = enabled.query(
+        "group_column == 'three' and feature == 'z' and scope == 'pairwise' and test == 'welch_t'"
+    )
     assert len(pairs) == 3
     assert len(set(pairs["family_id"])) == 1
     assert set(pairs["family_size"]) == {3}

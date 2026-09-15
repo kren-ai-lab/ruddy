@@ -29,7 +29,18 @@ def _dataset() -> TabularDataset:
             "factor_code": [1, 1, 1, 2, 2, 3, 3, 3],
             "constant_category": ["only"] * 8,
             "all_missing_category": pd.Series([None] * 8, dtype="object"),
-            "when": pd.to_datetime(["2026-01-01", "2026-01-02", None, "2026-01-04", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08"]),
+            "when": pd.to_datetime(
+                [
+                    "2026-01-01",
+                    "2026-01-02",
+                    None,
+                    "2026-01-04",
+                    "2026-01-05",
+                    "2026-01-06",
+                    "2026-01-07",
+                    "2026-01-08",
+                ]
+            ),
         }
     )
     return TabularDataset(
@@ -68,7 +79,9 @@ def test_numeric_statistics_follow_finite_value_policy_and_add_variance_range() 
 
 def test_numeric_degenerate_and_insufficient_states_are_kept() -> None:
     dataset = _dataset()
-    stats = summarize_numeric_statistics(dataset, profile_columns(dataset), min_numeric_n=3).set_index("column")
+    stats = summarize_numeric_statistics(dataset, profile_columns(dataset), min_numeric_n=3).set_index(
+        "column"
+    )
     constant = stats.loc["constant_numeric"]
     tiny = stats.loc["tiny_numeric"]
     assert constant["status"] == "degenerate"
@@ -110,7 +123,9 @@ def test_categorical_entropy_frequency_order_and_factor_semantics() -> None:
 
 def test_boolean_constant_all_missing_and_high_cardinality_are_explicit() -> None:
     dataset = _dataset()
-    summary, frequencies = summarize_categorical_statistics(dataset, profile_columns(dataset), max_category_levels=2)
+    summary, frequencies = summarize_categorical_statistics(
+        dataset, profile_columns(dataset), max_category_levels=2
+    )
     table = summary.set_index("column")
     assert set(frequencies.loc[frequencies["column"] == "flag", "level"]) == {"false", "true"}
     assert table.loc["constant_category", "status"] == "degenerate"

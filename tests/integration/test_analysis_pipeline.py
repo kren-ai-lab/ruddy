@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import dataclasses
-
 import numpy as np
-import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
@@ -228,7 +225,7 @@ def test_summary_is_serialization_safe(pipeline_dataset):
 def test_orchestration_does_not_mutate_sources(pipeline_frame, pipeline_features):
     original_frame = pipeline_frame.copy(deep=True)
     original_matrix = pipeline_features.to_array()
-    dataset = pipeline_dataset = __import__("ruddy").TabularDataset(
+    dataset = __import__("ruddy").TabularDataset(
         pipeline_frame,
         id_column="id",
         role_overrides={"y1": "response", "factor": "factor", "sequence": "excluded"},

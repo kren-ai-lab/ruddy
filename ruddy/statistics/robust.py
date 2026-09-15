@@ -9,7 +9,6 @@ MODIFIED_Z_CONSISTENCY: float = 0.6744897501960817
 
 def median_absolute_deviation(values: np.ndarray) -> float:
     """Return the unscaled median absolute deviation of finite numeric values."""
-
     array = np.asarray(values, dtype=float)
     if array.ndim != 1:
         raise ValueError("values must be one-dimensional.")
@@ -23,7 +22,6 @@ def median_absolute_deviation(values: np.ndarray) -> float:
 
 def modified_z_scores(values: np.ndarray) -> tuple[np.ndarray, float, float]:
     """Return modified Z-scores together with their median and unscaled MAD."""
-
     array = np.asarray(values, dtype=float)
     if array.ndim != 1:
         raise ValueError("values must be one-dimensional.")
@@ -45,7 +43,6 @@ def tukey_fences(
     multiplier: float = 1.5,
 ) -> tuple[float, float, float, float]:
     """Return Q1, Q3 and Tukey lower/upper fences for finite observations."""
-
     if multiplier <= 0:
         raise ValueError("multiplier must be greater than zero.")
     array = np.asarray(values, dtype=float)

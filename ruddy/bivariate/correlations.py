@@ -93,14 +93,12 @@ def summarize_correlations(
     selects a method from normality diagnostics; requested methods are executed
     explicitly and corrected in separate hypothesis families.
     """
-
     if min_complete_pairs < 2:
         raise ValueError("min_complete_pairs must be at least 2.")
     if max_columns < 2:
         raise ValueError("max_columns must be at least 2.")
     resolved_methods = tuple(
-        method if isinstance(method, CorrelationMethod) else CorrelationMethod(method)
-        for method in methods
+        method if isinstance(method, CorrelationMethod) else CorrelationMethod(method) for method in methods
     )
     if not resolved_methods:
         raise ValueError("At least one correlation method is required.")
@@ -110,9 +108,7 @@ def summarize_correlations(
 
     candidates = _eligible_numeric_columns(dataset)
     if len(candidates) > max_columns:
-        raise ValueError(
-            f"Resolved {len(candidates)} numeric columns, exceeding max_columns={max_columns}."
-        )
+        raise ValueError(f"Resolved {len(candidates)} numeric columns, exceeding max_columns={max_columns}.")
 
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []

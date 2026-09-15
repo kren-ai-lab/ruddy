@@ -6,10 +6,11 @@ from collections.abc import Iterable
 
 import pandas as pd
 
+from ruddy.analysis.config import AnalysisConfig
+from ruddy.analysis.intervals import analyze_confidence_intervals
+from ruddy.analysis.results import UnifiedAnalysisResult
 from ruddy.anomaly import analyze_anomalies
 from ruddy.bayesian import analyze_bayesian_eda
-from ruddy.compositional import analyze_composition
-from ruddy.representation import analyze_representation_similarity
 from ruddy.bivariate import (
     analyze_bivariate,
     analyze_contingency_diagnostics,
@@ -17,6 +18,7 @@ from ruddy.bivariate import (
     analyze_grouped_responses,
     analyze_posthoc,
 )
+from ruddy.compositional import analyze_composition
 from ruddy.core.enums import AnalysisBlock, ColumnRole
 from ruddy.data import AlignedAnnotations, FeatureMatrix, TabularDataset
 from ruddy.data.validation import align_annotations
@@ -24,12 +26,9 @@ from ruddy.factorial import analyze_factorial, analyze_marginal_means, analyze_m
 from ruddy.multivariate import analyze_manova, analyze_multivariate, analyze_permutation_group_structure
 from ruddy.profiling import profile_dataset
 from ruddy.projections import analyze_pca, analyze_tsne, analyze_umap
+from ruddy.representation import analyze_representation_similarity
 from ruddy.results import AnalysisProvenance
 from ruddy.univariate import analyze_distribution_diagnostics, analyze_outliers, analyze_univariate
-
-from ruddy.analysis.config import AnalysisConfig
-from ruddy.analysis.intervals import analyze_confidence_intervals
-from ruddy.analysis.results import UnifiedAnalysisResult
 
 
 def _factor_columns(dataset: TabularDataset, config: AnalysisConfig) -> tuple[str, ...]:
@@ -55,7 +54,6 @@ def analyze(
     The orchestrator contains no new statistical logic. Every component delegates to
     the same standalone public function used outside the unified pipeline.
     """
-
     if not isinstance(dataset, TabularDataset):
         raise TypeError("dataset must be a TabularDataset.")
     if features is not None and not isinstance(features, FeatureMatrix):
@@ -101,19 +99,13 @@ def analyze(
         )
 
     if AnalysisBlock.DEPENDENCE in blocks:
-        components["dependence"] = analyze_dependence(
-            dataset, **cfg.dependence_kwargs()
-        )
+        components["dependence"] = analyze_dependence(dataset, **cfg.dependence_kwargs())
 
     if AnalysisBlock.CONTINGENCY in blocks:
-        components["contingency"] = analyze_contingency_diagnostics(
-            dataset, **cfg.contingency_kwargs()
-        )
+        components["contingency"] = analyze_contingency_diagnostics(dataset, **cfg.contingency_kwargs())
 
     if AnalysisBlock.INTERVALS in blocks:
-        components["intervals"] = analyze_confidence_intervals(
-            dataset, **cfg.interval_kwargs()
-        )
+        components["intervals"] = analyze_confidence_intervals(dataset, **cfg.interval_kwargs())
 
     feature_blocks = {
         AnalysisBlock.PCA,
@@ -138,21 +130,26 @@ def analyze(
         components["umap"] = analyze_umap(features, **cfg.umap_kwargs())  # type: ignore[arg-type]
     if AnalysisBlock.MULTIVARIATE in blocks:
         components["multivariate"] = analyze_multivariate(
-            features, **cfg.multivariate_kwargs()  # type: ignore[arg-type]
+            features,
+            **cfg.multivariate_kwargs(),  # type: ignore[arg-type]
         )
     if AnalysisBlock.COMPOSITIONAL in blocks:
         components["compositional"] = analyze_composition(
-            features, **cfg.compositional_kwargs()  # type: ignore[arg-type]
+            features,
+            **cfg.compositional_kwargs(),  # type: ignore[arg-type]
         )
     if AnalysisBlock.ANOMALY in blocks:
         components["anomaly"] = analyze_anomalies(
-            features, **cfg.anomaly_kwargs()  # type: ignore[arg-type]
+            features,
+            **cfg.anomaly_kwargs(),  # type: ignore[arg-type]
         )
     if AnalysisBlock.REPRESENTATION in blocks:
         if comparison_features is None:
             raise ValueError("Representation block requires comparison_features.")
         components["representation"] = analyze_representation_similarity(
-            features, comparison_features, **cfg.representation_kwargs()  # type: ignore[arg-type]
+            features,
+            comparison_features,
+            **cfg.representation_kwargs(),  # type: ignore[arg-type]
         )
 
     factors = _factor_columns(dataset, cfg)
@@ -163,10 +160,15 @@ def analyze(
         if factor is None:
             candidates = cfg.groups or factors
             if len(candidates) != 1:
-                raise ValueError("PERMANOVA block requires permanova_factor or exactly one configured group/factor.")
+                raise ValueError(
+                    "PERMANOVA block requires permanova_factor or exactly one configured group/factor."
+                )
             factor = candidates[0]
         components["permanova"] = analyze_permutation_group_structure(
-            features, dataset, factor=factor, **cfg.permanova_kwargs()  # type: ignore[arg-type]
+            features,
+            dataset,
+            factor=factor,
+            **cfg.permanova_kwargs(),  # type: ignore[arg-type]
         )
 
     if AnalysisBlock.MANOVA in blocks:
@@ -204,9 +206,7 @@ def analyze(
             factorial_factors = cfg.factorial_factors or factors
             factorial_covariates = cfg.factorial_covariates or covariates
             if not factorial_factors and not factorial_covariates:
-                raise ValueError(
-                    "Factorial block requires at least one factor or covariate."
-                )
+                raise ValueError("Factorial block requires at least one factor or covariate.")
             components["factorial"] = analyze_factorial(
                 dataset,
                 response=response,
@@ -220,13 +220,17 @@ def analyze(
         response = cfg.posthoc_response
         if response is None:
             if len(cfg.responses) != 1:
-                raise ValueError("Posthoc block requires posthoc_response or exactly one configured response.")
+                raise ValueError(
+                    "Posthoc block requires posthoc_response or exactly one configured response."
+                )
             response = cfg.responses[0]
         factor = cfg.posthoc_factor
         if factor is None:
             candidates = cfg.groups or factors
             if len(candidates) != 1:
-                raise ValueError("Posthoc block requires posthoc_factor or exactly one configured group/factor.")
+                raise ValueError(
+                    "Posthoc block requires posthoc_factor or exactly one configured group/factor."
+                )
             factor = candidates[0]
         components["posthoc"] = analyze_posthoc(
             dataset, response=response, factor=factor, **cfg.posthoc_kwargs()
@@ -235,23 +239,31 @@ def analyze(
     if AnalysisBlock.MARGINAL_MEANS in blocks:
         if cfg.marginal_formula is not None:
             components["marginal_means"] = analyze_marginal_means(
-                dataset, formula=cfg.marginal_formula,
-                terms=cfg.marginal_terms or None, **cfg.marginal_means_kwargs()
+                dataset,
+                formula=cfg.marginal_formula,
+                terms=cfg.marginal_terms or None,
+                **cfg.marginal_means_kwargs(),
             )
         else:
             response = cfg.marginal_response
             if response is None:
                 if len(cfg.responses) != 1:
-                    raise ValueError("Marginal-means block requires marginal_response, marginal_formula, or exactly one configured response.")
+                    raise ValueError(
+                        "Marginal-means block requires marginal_response, marginal_formula, or exactly one configured response."
+                    )
                 response = cfg.responses[0]
             mm_factors = cfg.marginal_factors or factors
             mm_covariates = cfg.marginal_covariates or covariates
             if not mm_factors:
                 raise ValueError("Marginal-means block requires at least one factor.")
             components["marginal_means"] = analyze_marginal_means(
-                dataset, response=response, factors=mm_factors, covariates=mm_covariates,
-                interactions=cfg.marginal_interactions, terms=cfg.marginal_terms or None,
-                **cfg.marginal_means_kwargs()
+                dataset,
+                response=response,
+                factors=mm_factors,
+                covariates=mm_covariates,
+                interactions=cfg.marginal_interactions,
+                terms=cfg.marginal_terms or None,
+                **cfg.marginal_means_kwargs(),
             )
 
     if AnalysisBlock.MIXED_EFFECTS in blocks:
@@ -259,29 +271,32 @@ def analyze(
             raise ValueError("Mixed-effects block requires mixed_group.")
         if cfg.mixed_formula is not None:
             components["mixed_effects"] = analyze_mixed_effects(
-                dataset, group=cfg.mixed_group, formula=cfg.mixed_formula,
-                **cfg.mixed_effects_kwargs()
+                dataset, group=cfg.mixed_group, formula=cfg.mixed_formula, **cfg.mixed_effects_kwargs()
             )
         else:
             response = cfg.mixed_response
             if response is None:
                 if len(cfg.responses) != 1:
-                    raise ValueError("Mixed-effects block requires mixed_response, mixed_formula, or exactly one configured response.")
+                    raise ValueError(
+                        "Mixed-effects block requires mixed_response, mixed_formula, or exactly one configured response."
+                    )
                 response = cfg.responses[0]
             mixed_factors = cfg.mixed_factors or factors
             mixed_covariates = cfg.mixed_covariates or covariates
             if not mixed_factors and not mixed_covariates:
                 raise ValueError("Mixed-effects block requires at least one fixed factor or covariate.")
             components["mixed_effects"] = analyze_mixed_effects(
-                dataset, group=cfg.mixed_group, response=response, factors=mixed_factors,
-                covariates=mixed_covariates, interactions=cfg.mixed_interactions,
-                **cfg.mixed_effects_kwargs()
+                dataset,
+                group=cfg.mixed_group,
+                response=response,
+                factors=mixed_factors,
+                covariates=mixed_covariates,
+                interactions=cfg.mixed_interactions,
+                **cfg.mixed_effects_kwargs(),
             )
 
     if AnalysisBlock.BAYESIAN in blocks:
-        components["bayesian"] = analyze_bayesian_eda(
-            dataset, **cfg.bayesian_kwargs()
-        )
+        components["bayesian"] = analyze_bayesian_eda(dataset, **cfg.bayesian_kwargs())
 
     provenance = AnalysisProvenance(
         analysis="unified",

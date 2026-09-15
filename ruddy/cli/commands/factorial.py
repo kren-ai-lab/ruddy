@@ -4,20 +4,27 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruddy.cli.commands.descriptive import build_config, load_dataset
 from ruddy.core.io import write_json, write_table
 from ruddy.factorial import FactorialResult, analyze_factorial
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.cli._options import CliArgs
+
+
+#: An interaction needs at least two colon-separated predictors.
+_MIN_INTERACTION_TERMS = 2
 
 
 def _parse_interactions(values: list[str]) -> tuple[tuple[str, ...], ...]:
     interactions: list[tuple[str, ...]] = []
     for value in values:
         columns = tuple(part.strip() for part in str(value).split(":"))
-        if len(columns) < 2 or any(not column for column in columns):
-            raise ValueError(
-                "--interaction must use colon-separated predictor names, e.g. factor_a:factor_b."
-            )
+        if len(columns) < _MIN_INTERACTION_TERMS or any(not column for column in columns):
+            msg = "--interaction must use colon-separated predictor names, e.g. factor_a:factor_b."
+            raise ValueError(msg)
         if columns not in interactions:
             interactions.append(columns)
     return tuple(interactions)
@@ -25,7 +32,6 @@ def _parse_interactions(values: list[str]) -> tuple[tuple[str, ...], ...]:
 
 def write_factorial_result(result: FactorialResult, output_dir: str | Path) -> Path:
     """Persist structured factorial outputs without plotting or narrative reporting."""
-
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.design_terms, target / "factorial_design_terms.csv")
@@ -54,15 +60,14 @@ def write_factorial_result(result: FactorialResult, output_dir: str | Path) -> P
     return target
 
 
-def run_factorial(args) -> int:
+def run_factorial(args: CliArgs) -> int:
+    """Run the ``ruddy model factorial`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     kwargs = {
         "ss_type": int(args.ss_type),
         "p_adjust": args.p_adjust,
-        "robust_covariance": None
-        if args.robust_covariance == "none"
-        else args.robust_covariance,
+        "robust_covariance": None if args.robust_covariance == "none" else args.robust_covariance,
         "min_cell_n": args.min_cell_n,
         "max_factor_levels": args.max_factor_levels,
         "max_design_cells": args.max_design_cells,
@@ -76,9 +81,8 @@ def run_factorial(args) -> int:
     else:
         responses = tuple(args.response or ())
         if len(responses) != 1:
-            raise ValueError(
-                "Factorial CLI requires exactly one --response unless --formula is used."
-            )
+            msg = "Factorial CLI requires exactly one --response unless --formula is used."
+            raise ValueError(msg)
         result = analyze_factorial(
             dataset,
             response=responses[0],
@@ -97,7 +101,7 @@ def run_factorial(args) -> int:
             "reason": result.reason,
             "resolved_formula": result.design.resolved_formula,
             "ss_type": result.design.ss_type,
-            "n_effects": int(len(result.effects)),
+            "n_effects": len(result.effects),
             "n_complete_case": result.model_summary.get("n_complete_case"),
             "n_advisories": len(result.advisories),
         }

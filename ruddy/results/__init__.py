@@ -9,10 +9,10 @@ from ruddy.results.schemas import (
 )
 
 __all__ = [
+    "RESULT_REASON_COLUMN",
+    "RESULT_STATUS_COLUMN",
     "Advisory",
     "AnalysisProvenance",
     "AnalysisResult",
-    "RESULT_REASON_COLUMN",
-    "RESULT_STATUS_COLUMN",
     "validate_result_table",
 ]

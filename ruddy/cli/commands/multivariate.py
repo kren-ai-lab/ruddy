@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruddy.cli.commands.descriptive import build_config, load_dataset
 from ruddy.cli.commands.projections import load_feature_matrix
@@ -15,12 +16,16 @@ from ruddy.multivariate import (
     analyze_multivariate,
 )
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.cli._options import CliArgs
 
-def write_multivariate_result(
-    result: MultivariateResult, output_dir: str | Path
-) -> Path:
+
+#: MANOVA is only defined for two or more responses.
+_MANOVA_MIN_RESPONSES = 2
+
+
+def write_multivariate_result(result: MultivariateResult, output_dir: str | Path) -> Path:
     """Persist structured multivariate diagnostics."""
-
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     cov = result.covariance
@@ -30,12 +35,8 @@ def write_multivariate_result(
         index=True,
         index_label="feature",
     )
-    write_table(
-        cov.pearson, target / "pearson_matrix.csv", index=True, index_label="feature"
-    )
-    write_table(
-        cov.spearman, target / "spearman_matrix.csv", index=True, index_label="feature"
-    )
+    write_table(cov.pearson, target / "pearson_matrix.csv", index=True, index_label="feature")
+    write_table(cov.spearman, target / "spearman_matrix.csv", index=True, index_label="feature")
     write_table(
         cov.pairwise_counts,
         target / "pairwise_counts.csv",
@@ -87,7 +88,6 @@ def write_multivariate_result(
 
 def write_manova_result(result: MANOVAResult, output_dir: str | Path) -> Path:
     """Persist MANOVA statistics, complete-case diagnostics, and provenance."""
-
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.tests, target / "manova_tests.csv")
@@ -106,7 +106,8 @@ def write_manova_result(result: MANOVAResult, output_dir: str | Path) -> Path:
     return target
 
 
-def run_multivariate(args) -> int:
+def run_multivariate(args: CliArgs) -> int:
+    """Run the ``ruddy inspect multivariate`` command."""
     features = load_feature_matrix(
         args.input,
         id_column=args.id_column,
@@ -146,11 +147,14 @@ def run_multivariate(args) -> int:
     return 0
 
 
-def run_manova(args) -> int:
-    if len(args.response or []) < 2:
-        raise ValueError("ruddy manova requires at least two --response columns.")
+def run_manova(args: CliArgs) -> int:
+    """Run the ``ruddy model manova`` command."""
+    if len(args.response or []) < _MANOVA_MIN_RESPONSES:
+        msg = "ruddy manova requires at least two --response columns."
+        raise ValueError(msg)
     if not args.factor:
-        raise ValueError("ruddy manova requires at least one --factor column.")
+        msg = "ruddy manova requires at least one --factor column."
+        raise ValueError(msg)
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     result = analyze_manova(

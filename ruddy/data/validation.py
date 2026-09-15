@@ -18,19 +18,15 @@ from ruddy.core.exceptions import (
 
 def validate_observation_ids(values: Any, *, source: str = "observations") -> pd.Index:
     """Validate non-missing, unique observation identifiers."""
-
     ids = pd.Index(values, copy=True)
     if ids.hasnans:
-        raise MissingObservationIDError(
-            f"{source.capitalize()} contain missing observation identifiers."
-        )
+        raise MissingObservationIDError(f"{source.capitalize()} contain missing observation identifiers.")
     duplicated = ids[ids.duplicated()].unique().tolist()
     if duplicated:
         preview = duplicated[:10]
         suffix = "" if len(duplicated) <= 10 else " ..."
         raise DuplicateObservationIDError(
-            f"{source.capitalize()} contain duplicate observation identifiers: "
-            f"{preview}{suffix}."
+            f"{source.capitalize()} contain duplicate observation identifiers: {preview}{suffix}."
         )
     return ids
 
@@ -80,7 +76,6 @@ def align_annotations(
     table with missing annotation fields represented as missing values and a report that
     explicitly lists missing and unmatched IDs.
     """
-
     if not isinstance(annotations, pd.DataFrame):
         raise TypeError("annotations must be a pandas DataFrame.")
 
@@ -95,9 +90,7 @@ def align_annotations(
     else:
         if id_column not in source.columns:
             raise UnknownColumnError(f"Unknown annotation ID column: {id_column!r}.")
-        annotation_ids = validate_observation_ids(
-            source[id_column], source="annotations"
-        )
+        annotation_ids = validate_observation_ids(source[id_column], source="annotations")
         indexed = source.set_index(id_column, drop=False)
         indexed.index = annotation_ids
 

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Any
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -73,7 +73,6 @@ def analyze_mahalanobis(
     Threshold flags use a chi-square reference with ``df = n_features``. Flags are
     diagnostic only; observations are never removed or altered.
     """
-
     if not 0.5 < threshold_quantile < 1.0:
         raise ValueError("threshold_quantile must be between 0.5 and 1.0.")
     if max_features < 1:
@@ -127,7 +126,9 @@ def analyze_mahalanobis(
             }
         )
     else:
-        reason = "singular_covariance" if centered_rank < p else "insufficient_observations_for_covariance_inverse"
+        reason = (
+            "singular_covariance" if centered_rank < p else "insufficient_observations_for_covariance_inverse"
+        )
         method_records.append(
             {
                 "method": "classical",
@@ -206,9 +207,17 @@ def analyze_mahalanobis(
         if distance_frames
         else pd.DataFrame(
             columns=(
-                "source_row_index", "observation_id", "method", "squared_distance",
-                "distance", "degrees_of_freedom", "threshold_quantile",
-                "threshold_squared", "is_flagged", "status", "reason",
+                "source_row_index",
+                "observation_id",
+                "method",
+                "squared_distance",
+                "distance",
+                "degrees_of_freedom",
+                "threshold_quantile",
+                "threshold_squared",
+                "is_flagged",
+                "status",
+                "reason",
             )
         )
     )

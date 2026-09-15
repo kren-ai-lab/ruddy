@@ -26,13 +26,19 @@ def test_permdisp_is_reported_together(group_dataset, separated_features):
 
 
 def test_permutation_analysis_is_deterministic(group_dataset, separated_features):
-    a = analyze_permutation_group_structure(separated_features, group_dataset, factor="group", n_permutations=49, random_state=11)
-    b = analyze_permutation_group_structure(separated_features, group_dataset, factor="group", n_permutations=49, random_state=11)
+    a = analyze_permutation_group_structure(
+        separated_features, group_dataset, factor="group", n_permutations=49, random_state=11
+    )
+    b = analyze_permutation_group_structure(
+        separated_features, group_dataset, factor="group", n_permutations=49, random_state=11
+    )
     pd.testing.assert_frame_equal(a.summary, b.summary)
 
 
 def test_zero_distance_space_is_degenerate(group_dataset):
-    matrix = FeatureMatrix(np.ones((group_dataset.n_observations, 3)), observation_ids=group_dataset.observation_ids)
+    matrix = FeatureMatrix(
+        np.ones((group_dataset.n_observations, 3)), observation_ids=group_dataset.observation_ids
+    )
     result = analyze_permutation_group_structure(matrix, group_dataset, factor="group", n_permutations=9)
     assert result.status.value == "degenerate"
     assert result.reason == "zero_distance_space"
@@ -57,15 +63,16 @@ def test_non_euclidean_metric_records_pcoa_advisory(group_dataset, separated_fea
 
 def test_permanova_matches_direct_sum_of_squares_formula():
     from ruddy import TabularDataset
-    frame = pd.DataFrame({"id": range(6), "group": ["A","A","A","B","B","B"]})
-    dataset = TabularDataset(frame, id_column="id", role_overrides={"group":"factor"})
-    values = np.array([[0.0],[0.2],[0.4],[2.0],[2.2],[2.4]])
+
+    frame = pd.DataFrame({"id": range(6), "group": ["A", "A", "A", "B", "B", "B"]})
+    dataset = TabularDataset(frame, id_column="id", role_overrides={"group": "factor"})
+    values = np.array([[0.0], [0.2], [0.4], [2.0], [2.2], [2.4]])
     features = FeatureMatrix(values, observation_ids=dataset.observation_ids)
     result = analyze_permutation_group_structure(features, dataset, factor="group", n_permutations=0)
     observed = result.summary.query("analysis == 'permanova'").iloc[0]
     d = np.abs(values[:, None, 0] - values[None, :, 0])
     ss_total = np.triu(d**2, 1).sum() / 6
-    ss_within = np.triu(d[:3,:3]**2, 1).sum()/3 + np.triu(d[3:,3:]**2, 1).sum()/3
-    expected_f = ((ss_total-ss_within)/1) / (ss_within/4)
+    ss_within = np.triu(d[:3, :3] ** 2, 1).sum() / 3 + np.triu(d[3:, 3:] ** 2, 1).sum() / 3
+    expected_f = ((ss_total - ss_within) / 1) / (ss_within / 4)
     assert np.isclose(observed.value, expected_f)
-    assert np.isclose(observed.r_squared, (ss_total-ss_within)/ss_total)
+    assert np.isclose(observed.r_squared, (ss_total - ss_within) / ss_total)

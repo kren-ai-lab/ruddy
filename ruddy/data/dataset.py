@@ -33,15 +33,11 @@ class TabularDataset:
 
         if not data.columns.is_unique:
             duplicates = data.columns[data.columns.duplicated()].tolist()
-            raise ValueError(
-                "DataFrame column names must be unique; "
-                f"duplicates={duplicates}."
-            )
+            raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
         non_string = [column for column in data.columns if not isinstance(column, str)]
         if non_string:
             raise TypeError(
-                "Ruddy requires string column names for stable schemas; "
-                f"non-string labels={non_string}."
+                f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
             )
 
         self._data = data.copy(deep=True)
@@ -53,21 +49,13 @@ class TabularDataset:
         self._kinds = resolve_kinds(self._data, overrides=kind_overrides)
 
         inferred_id_columns = [
-            column
-            for column, role in self._roles.items()
-            if role is ColumnRole.IDENTIFIER
+            column for column, role in self._roles.items() if role is ColumnRole.IDENTIFIER
         ]
         self._id_column = (
-            id_column
-            if id_column is not None
-            else (inferred_id_columns[0] if inferred_id_columns else None)
+            id_column if id_column is not None else (inferred_id_columns[0] if inferred_id_columns else None)
         )
 
-        raw_ids = (
-            self._data[self._id_column]
-            if self._id_column is not None
-            else self._data.index
-        )
+        raw_ids = self._data[self._id_column] if self._id_column is not None else self._data.index
         self._observation_ids = validate_observation_ids(raw_ids)
         self._schema = build_schema(
             self._data,
@@ -106,27 +94,18 @@ class TabularDataset:
         return self._kinds[column]
 
     def columns_with_role(self, *roles: ColumnRole | str) -> tuple[str, ...]:
-        wanted = {
-            role if isinstance(role, ColumnRole) else ColumnRole(role) for role in roles
-        }
-        return tuple(
-            column for column in self._data.columns if self._roles[column] in wanted
-        )
+        wanted = {role if isinstance(role, ColumnRole) else ColumnRole(role) for role in roles}
+        return tuple(column for column in self._data.columns if self._roles[column] in wanted)
 
     def columns_with_kind(self, *kinds: ColumnKind | str) -> tuple[str, ...]:
-        wanted = {
-            kind if isinstance(kind, ColumnKind) else ColumnKind(kind) for kind in kinds
-        }
-        return tuple(
-            column for column in self._data.columns if self._kinds[column] in wanted
-        )
+        wanted = {kind if isinstance(kind, ColumnKind) else ColumnKind(kind) for kind in kinds}
+        return tuple(column for column in self._data.columns if self._kinds[column] in wanted)
 
     def select(self, columns: Iterable[str]) -> pd.DataFrame:
         return self._data.loc[:, list(columns)].copy(deep=True)
 
     def to_frame(self) -> pd.DataFrame:
         """Return a defensive copy of the stored table."""
-
         return self._data.copy(deep=True)
 
     def __len__(self) -> int:

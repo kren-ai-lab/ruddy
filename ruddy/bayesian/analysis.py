@@ -93,7 +93,6 @@ def analyze_bayesian_eda(
     random_state: int = 0,
 ) -> BayesianEDAResult:
     """Estimate Bayesian means and binary-group mean differences under a weak N-IG prior."""
-
     if not 0 < credible_level < 1:
         raise ValueError("credible_level must lie strictly between 0 and 1.")
     if draws < 100:
@@ -103,7 +102,8 @@ def analyze_bayesian_eda(
     frame = dataset.to_frame()
     if variables is None:
         variables = tuple(
-            c for c in dataset.columns
+            c
+            for c in dataset.columns
             if dataset.kind_of(c) is ColumnKind.NUMERIC
             and dataset.role_of(c) in {ColumnRole.VARIABLE, ColumnRole.RESPONSE, ColumnRole.COVARIATE}
         )
@@ -117,13 +117,31 @@ def analyze_bayesian_eda(
         values = pd.to_numeric(frame[column], errors="raise").to_numpy(dtype=float)
         finite = values[np.isfinite(values)]
         if finite.size < min_n:
-            mean_rows.append({"variable": column, "n": int(finite.size), "status": "skipped", "reason": "insufficient_finite_observations"})
+            mean_rows.append(
+                {
+                    "variable": column,
+                    "n": int(finite.size),
+                    "status": "skipped",
+                    "reason": "insufficient_finite_observations",
+                }
+            )
             continue
         draws_mu = _sample_mean_posterior(
-            finite, draws=draws, rng=rng, prior_mean=prior_mean, prior_kappa=prior_kappa,
-            prior_alpha=prior_alpha, prior_beta=prior_beta,
+            finite,
+            draws=draws,
+            rng=rng,
+            prior_mean=prior_mean,
+            prior_kappa=prior_kappa,
+            prior_alpha=prior_alpha,
+            prior_beta=prior_beta,
         )
-        row = {"variable": column, "n": int(finite.size), **_posterior_summary(draws_mu, level=credible_level, rope=rope), "status": "ok", "reason": None}
+        row = {
+            "variable": column,
+            "n": int(finite.size),
+            **_posterior_summary(draws_mu, level=credible_level, rope=rope),
+            "status": "ok",
+            "reason": None,
+        }
         mean_rows.append(row)
         for group in groups:
             if group not in dataset.columns:
@@ -131,28 +149,77 @@ def analyze_bayesian_eda(
             g = frame[group]
             levels = [v for v in pd.unique(g.dropna())]
             if len(levels) != 2:
-                diff_rows.append({"variable": column, "group": group, "level_a": None, "level_b": None, "status": "skipped", "reason": "bayesian_mean_difference_requires_two_levels"})
+                diff_rows.append(
+                    {
+                        "variable": column,
+                        "group": group,
+                        "level_a": None,
+                        "level_b": None,
+                        "status": "skipped",
+                        "reason": "bayesian_mean_difference_requires_two_levels",
+                    }
+                )
                 continue
             a, b = levels
-            va = pd.to_numeric(frame.loc[g == a, column], errors="raise").to_numpy(dtype=float); va = va[np.isfinite(va)]
-            vb = pd.to_numeric(frame.loc[g == b, column], errors="raise").to_numpy(dtype=float); vb = vb[np.isfinite(vb)]
+            va = pd.to_numeric(frame.loc[g == a, column], errors="raise").to_numpy(dtype=float)
+            va = va[np.isfinite(va)]
+            vb = pd.to_numeric(frame.loc[g == b, column], errors="raise").to_numpy(dtype=float)
+            vb = vb[np.isfinite(vb)]
             if len(va) < min_n or len(vb) < min_n:
-                diff_rows.append({"variable": column, "group": group, "level_a": a, "level_b": b, "n_a": len(va), "n_b": len(vb), "status": "skipped", "reason": "group_too_small"})
+                diff_rows.append(
+                    {
+                        "variable": column,
+                        "group": group,
+                        "level_a": a,
+                        "level_b": b,
+                        "n_a": len(va),
+                        "n_b": len(vb),
+                        "status": "skipped",
+                        "reason": "group_too_small",
+                    }
+                )
                 continue
-            da = _sample_mean_posterior(va, draws=draws, rng=rng, prior_mean=prior_mean, prior_kappa=prior_kappa, prior_alpha=prior_alpha, prior_beta=prior_beta)
-            db = _sample_mean_posterior(vb, draws=draws, rng=rng, prior_mean=prior_mean, prior_kappa=prior_kappa, prior_alpha=prior_alpha, prior_beta=prior_beta)
+            da = _sample_mean_posterior(
+                va,
+                draws=draws,
+                rng=rng,
+                prior_mean=prior_mean,
+                prior_kappa=prior_kappa,
+                prior_alpha=prior_alpha,
+                prior_beta=prior_beta,
+            )
+            db = _sample_mean_posterior(
+                vb,
+                draws=draws,
+                rng=rng,
+                prior_mean=prior_mean,
+                prior_kappa=prior_kappa,
+                prior_alpha=prior_alpha,
+                prior_beta=prior_beta,
+            )
             dd = da - db
-            diff_rows.append({
-                "variable": column, "group": group, "level_a": a, "level_b": b,
-                "n_a": len(va), "n_b": len(vb), **_posterior_summary(dd, level=credible_level, rope=rope),
-                "status": "ok", "reason": None,
-            })
+            diff_rows.append(
+                {
+                    "variable": column,
+                    "group": group,
+                    "level_a": a,
+                    "level_b": b,
+                    "n_a": len(va),
+                    "n_b": len(vb),
+                    **_posterior_summary(dd, level=credible_level, rope=rope),
+                    "status": "ok",
+                    "reason": None,
+                }
+            )
     provenance = AnalysisProvenance(
         analysis="bayesian_eda",
         parameters={
-            "credible_level": credible_level, "rope": rope, "draws": draws,
+            "credible_level": credible_level,
+            "rope": rope,
+            "draws": draws,
             "prior": {"mean": prior_mean, "kappa": prior_kappa, "alpha": prior_alpha, "beta": prior_beta},
-            "groups": groups, "min_n": min_n,
+            "groups": groups,
+            "min_n": min_n,
         },
         input_summary={"n_observations": dataset.n_observations, "variables": variables},
         random_state=random_state,

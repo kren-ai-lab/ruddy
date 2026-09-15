@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import pytest
 from scipy import sparse
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
@@ -31,9 +30,7 @@ def test_dense_scaling_matches_sklearn(method, transformer):
 
 def test_non_finite_rows_are_explicitly_excluded():
     x = np.array([[1.0, 2.0], [np.nan, 4.0], [5.0, np.inf], [7.0, 8.0]])
-    result = prepare_features(
-        FeatureMatrix(x, observation_ids=["a", "b", "c", "d"]), scaling="none"
-    )
+    result = prepare_features(FeatureMatrix(x, observation_ids=["a", "b", "c", "d"]), scaling="none")
     assert result.observation_ids.tolist() == ["a", "d"]
     assert result.source_row_indices.tolist() == [0, 3]
     assert result.exclusions["observation_id"].tolist() == ["b", "c"]

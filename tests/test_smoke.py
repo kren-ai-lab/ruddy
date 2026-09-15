@@ -19,4 +19,4 @@ def test_scientific_namespaces_import() -> None:
     import ruddy.projections
     import ruddy.results
     import ruddy.statistics
-    import ruddy.univariate
+    import ruddy.univariate  # noqa: F401

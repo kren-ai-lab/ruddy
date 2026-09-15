@@ -17,7 +17,6 @@ def _finite_float(value: object) -> float | None:
 
 def hedges_g(group_a: np.ndarray, group_b: np.ndarray) -> float | None:
     """Bias-corrected standardized mean difference, A minus B."""
-
     a = np.asarray(group_a, dtype=np.float64)
     b = np.asarray(group_b, dtype=np.float64)
     n_a, n_b = a.size, b.size
@@ -38,7 +37,6 @@ def hedges_g(group_a: np.ndarray, group_b: np.ndarray) -> float | None:
 
 def cliffs_delta_from_u(u_statistic: float, n_a: int, n_b: int) -> float | None:
     """Cliff's delta from Mann-Whitney U for group A versus group B."""
-
     if n_a <= 0 or n_b <= 0:
         return None
     value = 2.0 * float(u_statistic) / float(n_a * n_b) - 1.0
@@ -49,7 +47,6 @@ def cliffs_delta_from_u(u_statistic: float, n_a: int, n_b: int) -> float | None:
 
 def eta_squared(groups: tuple[np.ndarray, ...]) -> float | None:
     """Descriptive eta squared from between/total sums of squares."""
-
     if not groups or any(np.asarray(group).size == 0 for group in groups):
         return None
     arrays = tuple(np.asarray(group, dtype=np.float64) for group in groups)
@@ -60,15 +57,12 @@ def eta_squared(groups: tuple[np.ndarray, ...]) -> float | None:
     ss_total = float(np.sum((pooled - grand) ** 2))
     if not math.isfinite(ss_total) or ss_total <= 0.0:
         return None
-    ss_between = float(
-        sum(len(group) * (float(np.mean(group)) - grand) ** 2 for group in arrays)
-    )
+    ss_between = float(sum(len(group) * (float(np.mean(group)) - grand) ** 2 for group in arrays))
     return _finite_float(ss_between / ss_total)
 
 
 def epsilon_squared(kruskal_h: float, groups: tuple[np.ndarray, ...]) -> float | None:
     """Kruskal-Wallis epsilon squared, bounded to [0, 1]."""
-
     k = len(groups)
     n = sum(np.asarray(group).size for group in groups)
     denominator = n - k
@@ -82,7 +76,6 @@ def epsilon_squared(kruskal_h: float, groups: tuple[np.ndarray, ...]) -> float |
 
 def bias_corrected_cramers_v(chi2: float, n: int, r: int, k: int) -> float | None:
     """Bias-corrected Cramer's V for an r x k contingency table."""
-
     if n <= 1 or r < 2 or k < 2:
         return None
     phi2 = float(chi2) / n

@@ -200,7 +200,7 @@ app = typer.Typer(
 
 
 @app.command("run", context_settings=CONTEXT_SETTINGS)
-def run(  # noqa: PLR0913
+def run(
     input: str = TABLE_ARGUMENT,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,

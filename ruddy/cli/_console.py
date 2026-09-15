@@ -40,9 +40,16 @@ STATE = _RunState()
 
 
 def configure(*, quiet: bool, debug: bool) -> None:
-    """Reset per-invocation state and apply the global flags."""
-    global STATE  # noqa: PLW0603
-    STATE = _RunState(quiet=quiet, debug=debug)
+    """Reset per-invocation state in place and apply the global flags.
+
+    ``STATE`` is mutated rather than rebound so that importers keep seeing the
+    live object.
+    """
+    STATE.quiet = quiet
+    STATE.debug = debug
+    STATE.inputs.clear()
+    STATE.blocks.clear()
+    STATE.output = None
 
 
 def record_dataset(dataset: TabularDataset) -> None:
@@ -50,9 +57,11 @@ def record_dataset(dataset: TabularDataset) -> None:
     STATE.inputs.append(
         (
             "dataset",
-            f"{dataset.n_observations} observations, {dataset.n_columns} columns "
-            f"({len(dataset.columns_with_kind('numeric'))} numeric, "
-            f"{len(dataset.columns_with_kind('categorical'))} categorical)",
+            (
+                f"{dataset.n_observations} observations, {dataset.n_columns} columns "
+                f"({len(dataset.columns_with_kind('numeric'))} numeric, "
+                f"{len(dataset.columns_with_kind('categorical'))} categorical)"
+            ),
         )
     )
 

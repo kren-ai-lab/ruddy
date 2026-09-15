@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import warnings
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -14,10 +14,16 @@ from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, build_factorial_design
 from ruddy.results import Advisory, AnalysisProvenance
 
-
 FIXED_COLUMNS = (
-    "parameter", "estimate", "std_error", "z_value", "p_value", "ci_lower", "ci_upper",
-    "status", "reason",
+    "parameter",
+    "estimate",
+    "std_error",
+    "z_value",
+    "p_value",
+    "ci_lower",
+    "ci_upper",
+    "status",
+    "reason",
 )
 VARIANCE_COLUMNS = ("component", "row", "column", "estimate", "status", "reason")
 RANDOM_EFFECT_COLUMNS = ("group", "effect", "estimate", "status", "reason")
@@ -62,7 +68,9 @@ def _safe_fixed_frame(
             random_names[name] = safe_name
     rhs = " + ".join(":".join(expression[name] for name in term.columns) for term in design.terms)
     fixed_formula = f"Y ~ {rhs}"
-    re_formula = "1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes)
+    re_formula = (
+        "1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes)
+    )
     return safe, fixed_formula, expression, random_names
 
 
@@ -97,7 +105,6 @@ def analyze_mixed_effects(
     Ruddy intentionally does not provide a general mixed-model DSL here. Random effects
     are one grouping factor, a random intercept, and optional numeric random slopes.
     """
-
     if group not in dataset.columns:
         raise ValueError(f"Unknown mixed-effects grouping column: {group!r}.")
     if not 0.0 < confidence_level < 1.0:
@@ -122,7 +129,7 @@ def analyze_mixed_effects(
     )
     unknown_slopes = [name for name in random_slopes if name not in design.covariates]
     if unknown_slopes:
-        raise ValueError("Random slopes must be declared numeric covariates; " f"invalid={unknown_slopes}.")
+        raise ValueError(f"Random slopes must be declared numeric covariates; invalid={unknown_slopes}.")
     for name in random_slopes:
         if dataset.kind_of(name) is not ColumnKind.NUMERIC:
             raise ValueError(f"Random slope {name!r} must be numeric.")
@@ -136,27 +143,37 @@ def analyze_mixed_effects(
         complete &= frame[name].notna().to_numpy()
     model_frame = frame.loc[complete].reset_index(drop=True)
     excluded_idx = np.flatnonzero(~complete)
-    exclusions = pd.DataFrame({
-        "source_row_index": excluded_idx.astype(np.int64),
-        "observation_id": dataset.observation_ids.take(excluded_idx).to_list(),
-        "stage": "mixed_effects_complete_case",
-        "reason": "missing_or_non_finite_model_value",
-    }, columns=EXCLUSION_COLUMNS)
+    exclusions = pd.DataFrame(
+        {
+            "source_row_index": excluded_idx.astype(np.int64),
+            "observation_id": dataset.observation_ids.take(excluded_idx).to_list(),
+            "stage": "mixed_effects_complete_case",
+            "reason": "missing_or_non_finite_model_value",
+        },
+        columns=EXCLUSION_COLUMNS,
+    )
 
     group_counts = model_frame[group].value_counts(dropna=False)
     provenance = AnalysisProvenance(
         analysis="mixed_effects",
         parameters={
-            "response": design.response, "factors": design.factors,
-            "covariates": design.covariates, "interactions": design.interactions,
-            "group": group, "random_slopes": random_slopes, "random_intercept": True,
-            "reml": bool(reml), "optimizer": optimizer, "max_iter": int(max_iter),
+            "response": design.response,
+            "factors": design.factors,
+            "covariates": design.covariates,
+            "interactions": design.interactions,
+            "group": group,
+            "random_slopes": random_slopes,
+            "random_intercept": True,
+            "reml": bool(reml),
+            "optimizer": optimizer,
+            "max_iter": int(max_iter),
             "confidence_level": confidence_level,
         },
         input_summary={
             "n_observations": dataset.n_observations,
-            "n_complete_case": int(complete.sum()), "n_excluded": int((~complete).sum()),
-            "n_groups": int(len(group_counts)),
+            "n_complete_case": int(complete.sum()),
+            "n_excluded": int((~complete).sum()),
+            "n_groups": len(group_counts),
         },
     )
     empty_fixed = pd.DataFrame(columns=FIXED_COLUMNS)
@@ -164,14 +181,46 @@ def analyze_mixed_effects(
     empty_random = pd.DataFrame(columns=RANDOM_EFFECT_COLUMNS)
 
     if len(group_counts) < min_groups:
-        return MixedEffectsResult(ResultStatus.DEGENERATE, "insufficient_groups", empty_fixed, empty_var, empty_random, exclusions, {"n_groups": len(group_counts)}, (), provenance)
+        return MixedEffectsResult(
+            ResultStatus.DEGENERATE,
+            "insufficient_groups",
+            empty_fixed,
+            empty_var,
+            empty_random,
+            exclusions,
+            {"n_groups": len(group_counts)},
+            (),
+            provenance,
+        )
     if (group_counts < min_group_n).any():
-        return MixedEffectsResult(ResultStatus.DEGENERATE, "group_too_small", empty_fixed, empty_var, empty_random, exclusions, {"group_counts": group_counts.to_dict()}, (), provenance)
+        return MixedEffectsResult(
+            ResultStatus.DEGENERATE,
+            "group_too_small",
+            empty_fixed,
+            empty_var,
+            empty_random,
+            exclusions,
+            {"group_counts": group_counts.to_dict()},
+            (),
+            provenance,
+        )
     if model_frame[design.response].nunique(dropna=True) < 2:
-        return MixedEffectsResult(ResultStatus.DEGENERATE, "constant_response", empty_fixed, empty_var, empty_random, exclusions, {}, (), provenance)
+        return MixedEffectsResult(
+            ResultStatus.DEGENERATE,
+            "constant_response",
+            empty_fixed,
+            empty_var,
+            empty_random,
+            exclusions,
+            {},
+            (),
+            provenance,
+        )
 
     safe, fixed_formula, _, random_names = _safe_fixed_frame(model_frame, design, group, random_slopes)
-    re_formula = "1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes)
+    re_formula = (
+        "1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes)
+    )
     advisories: list[Advisory] = []
     try:
         model = mixedlm(fixed_formula, safe, groups=safe["G"], re_formula=re_formula)
@@ -179,14 +228,26 @@ def analyze_mixed_effects(
             warnings.simplefilter("always")
             fit = model.fit(reml=reml, method=optimizer, maxiter=max_iter, disp=False)
         for warning in captured:
-            advisories.append(Advisory(
-                code="mixed_model_fit_warning",
-                message=str(warning.message),
-                context={"warning_category": warning.category.__name__},
-            ))
+            advisories.append(
+                Advisory(
+                    code="mixed_model_fit_warning",
+                    message=str(warning.message),
+                    context={"warning_category": warning.category.__name__},
+                )
+            )
     except (ValueError, np.linalg.LinAlgError) as exc:
         advisories.append(Advisory(code="mixed_model_fit_error", message=str(exc)))
-        return MixedEffectsResult(ResultStatus.DEGENERATE, "mixed_model_fit_failed", empty_fixed, empty_var, empty_random, exclusions, {"fixed_formula": fixed_formula, "re_formula": re_formula}, tuple(advisories), provenance)
+        return MixedEffectsResult(
+            ResultStatus.DEGENERATE,
+            "mixed_model_fit_failed",
+            empty_fixed,
+            empty_var,
+            empty_random,
+            exclusions,
+            {"fixed_formula": fixed_formula, "re_formula": re_formula},
+            tuple(advisories),
+            provenance,
+        )
 
     ci = fit.conf_int(alpha=1.0 - confidence_level)
     fixed_rows = []
@@ -195,61 +256,97 @@ def analyze_mixed_effects(
         se = float(fit.bse_fe[name])
         z_value = estimate / se if se > 0 else (np.inf if estimate != 0 else 0.0)
         p_value = float(fit.pvalues[name]) if name in fit.pvalues.index else np.nan
-        fixed_rows.append({
-            "parameter": str(name), "estimate": estimate, "std_error": se,
-            "z_value": float(z_value), "p_value": p_value,
-            "ci_lower": float(ci.loc[name, 0]), "ci_upper": float(ci.loc[name, 1]),
-            "status": ResultStatus.OK.value, "reason": None,
-        })
+        fixed_rows.append(
+            {
+                "parameter": str(name),
+                "estimate": estimate,
+                "std_error": se,
+                "z_value": float(z_value),
+                "p_value": p_value,
+                "ci_lower": float(ci.loc[name, 0]),
+                "ci_upper": float(ci.loc[name, 1]),
+                "status": ResultStatus.OK.value,
+                "reason": None,
+            }
+        )
 
-    variance_rows = [{
-        "component": "residual", "row": "residual", "column": "residual",
-        "estimate": float(fit.scale), "status": ResultStatus.OK.value, "reason": None,
-    }]
+    variance_rows = [
+        {
+            "component": "residual",
+            "row": "residual",
+            "column": "residual",
+            "estimate": float(fit.scale),
+            "status": ResultStatus.OK.value,
+            "reason": None,
+        }
+    ]
     cov_re = pd.DataFrame(fit.cov_re)
     for row_name in cov_re.index:
         for col_name in cov_re.columns:
-            variance_rows.append({
-                "component": "random_effect_covariance", "row": str(row_name), "column": str(col_name),
-                "estimate": float(cov_re.loc[row_name, col_name]),
-                "status": ResultStatus.OK.value, "reason": None,
-            })
+            variance_rows.append(
+                {
+                    "component": "random_effect_covariance",
+                    "row": str(row_name),
+                    "column": str(col_name),
+                    "estimate": float(cov_re.loc[row_name, col_name]),
+                    "status": ResultStatus.OK.value,
+                    "reason": None,
+                }
+            )
 
     random_rows = []
     try:
         for level, effects in fit.random_effects.items():
             for effect_name, estimate in pd.Series(effects).items():
-                random_rows.append({
-                    "group": level, "effect": str(effect_name), "estimate": float(estimate),
-                    "status": ResultStatus.OK.value, "reason": None,
-                })
+                random_rows.append(
+                    {
+                        "group": level,
+                        "effect": str(effect_name),
+                        "estimate": float(estimate),
+                        "status": ResultStatus.OK.value,
+                        "reason": None,
+                    }
+                )
     except (ValueError, np.linalg.LinAlgError) as exc:
-        advisories.append(Advisory(
-            code="random_effects_unavailable",
-            message="Conditional random-effect estimates could not be recovered.",
-            context={"error": str(exc)},
-        ))
+        advisories.append(
+            Advisory(
+                code="random_effects_unavailable",
+                message="Conditional random-effect estimates could not be recovered.",
+                context={"error": str(exc)},
+            )
+        )
 
     eigenvalues = np.linalg.eigvalsh(np.asarray(cov_re, dtype=float)) if cov_re.size else np.array([])
     singular = bool(eigenvalues.size and np.min(eigenvalues) <= 1e-10 * max(1.0, float(np.max(eigenvalues))))
     converged = bool(getattr(fit, "converged", False))
     if singular:
-        advisories.append(Advisory(
-            code="singular_random_effect_covariance",
-            message="Estimated random-effect covariance is on or near the singular boundary.",
-            context={"eigenvalues": eigenvalues.tolist()},
-        ))
+        advisories.append(
+            Advisory(
+                code="singular_random_effect_covariance",
+                message="Estimated random-effect covariance is on or near the singular boundary.",
+                context={"eigenvalues": eigenvalues.tolist()},
+            )
+        )
     if not converged:
-        advisories.append(Advisory(code="mixed_model_not_converged", message="Mixed-effects optimizer did not report convergence."))
+        advisories.append(
+            Advisory(
+                code="mixed_model_not_converged",
+                message="Mixed-effects optimizer did not report convergence.",
+            )
+        )
 
     random_intercept_var = float(cov_re.iloc[0, 0]) if cov_re.shape[0] else np.nan
     residual_var = float(fit.scale)
-    icc = random_intercept_var / (random_intercept_var + residual_var) if random_intercept_var >= 0 and residual_var >= 0 and (random_intercept_var + residual_var) > 0 else np.nan
+    icc = (
+        random_intercept_var / (random_intercept_var + residual_var)
+        if random_intercept_var >= 0 and residual_var >= 0 and (random_intercept_var + residual_var) > 0
+        else np.nan
+    )
     summary = {
         "fixed_formula": fixed_formula,
         "random_formula": re_formula,
         "n_complete_case": int(complete.sum()),
-        "n_groups": int(len(group_counts)),
+        "n_groups": len(group_counts),
         "converged": converged,
         "singular_random_effect_covariance": singular,
         "reml": bool(reml),
@@ -263,12 +360,15 @@ def analyze_mixed_effects(
     status = ResultStatus.OK if converged else ResultStatus.DEGENERATE
     reason = None if converged else "mixed_model_not_converged"
     return MixedEffectsResult(
-        status=status, reason=reason,
+        status=status,
+        reason=reason,
         fixed_effects=pd.DataFrame(fixed_rows, columns=FIXED_COLUMNS),
         variance_components=pd.DataFrame(variance_rows, columns=VARIANCE_COLUMNS),
         random_effects=pd.DataFrame(random_rows, columns=RANDOM_EFFECT_COLUMNS),
-        exclusions=exclusions, model_summary=summary,
-        advisories=tuple(advisories), provenance=provenance,
+        exclusions=exclusions,
+        model_summary=summary,
+        advisories=tuple(advisories),
+        provenance=provenance,
     )
 
 

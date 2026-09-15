@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -96,7 +97,7 @@ def _eligible_numeric(profile: pd.Series) -> bool:
 def _finite_values_with_positions(
     series: pd.Series,
 ) -> tuple[np.ndarray, np.ndarray, int, int, int, int]:
-    n_total = int(len(series))
+    n_total = len(series)
     missing = series.isna().to_numpy(dtype=bool)
     numeric = series.to_numpy(dtype=np.float64, na_value=np.nan)
     finite = np.isfinite(numeric)
@@ -135,7 +136,6 @@ def summarize_numeric_quality(
     min_numeric_n: int = 3,
 ) -> pd.DataFrame:
     """Summarize numeric data-quality states without changing source values."""
-
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
     columns = profile_columns(dataset) if columns is None else columns
@@ -146,9 +146,7 @@ def summarize_numeric_quality(
     for _, profile in selected.iterrows():
         column = str(profile["column"])
         role = str(profile["role"])
-        values, _, n_total, n_finite, n_missing, n_non_finite = _finite_values_with_positions(
-            frame[column]
-        )
+        values, _, n_total, n_finite, n_missing, n_non_finite = _finite_values_with_positions(frame[column])
         status, reason = _status_for_numeric(
             values,
             n_total=n_total,
@@ -480,7 +478,6 @@ def summarize_outliers(
     include_flags: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Compute deterministic univariate outlier summaries and optional row flags."""
-
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
     if iqr_multiplier <= 0:
@@ -488,8 +485,7 @@ def summarize_outliers(
     if robust_z_threshold <= 0:
         raise ValueError("robust_z_threshold must be greater than zero.")
     resolved_methods = tuple(
-        method if isinstance(method, OutlierMethod) else OutlierMethod(method)
-        for method in methods
+        method if isinstance(method, OutlierMethod) else OutlierMethod(method) for method in methods
     )
     if not resolved_methods:
         raise ValueError("At least one outlier method must be configured.")
@@ -559,10 +555,8 @@ def analyze_outliers(
     include_flags: bool = False,
 ) -> OutlierResult:
     """Run non-destructive univariate outlier and numeric quality diagnostics."""
-
     resolved_methods = tuple(
-        method if isinstance(method, OutlierMethod) else OutlierMethod(method)
-        for method in methods
+        method if isinstance(method, OutlierMethod) else OutlierMethod(method) for method in methods
     )
     columns = profile_columns(dataset)
     quality = summarize_numeric_quality(

@@ -13,7 +13,9 @@ def test_vif_and_tolerance_match_statsmodels(well_conditioned_features):
     reference = [variance_inflation_factor(design, i) for i in range(1, design.shape[1])]
     result = analyze_collinearity(well_conditioned_features)
     np.testing.assert_allclose(result.features["vif"].to_numpy(), reference, rtol=1e-10, atol=1e-12)
-    np.testing.assert_allclose(result.features["tolerance"].to_numpy(), 1.0 / np.asarray(reference), rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(
+        result.features["tolerance"].to_numpy(), 1.0 / np.asarray(reference), rtol=1e-10, atol=1e-12
+    )
     assert result.status is ResultStatus.OK
     assert result.summary["vif_intercept_policy"] == "included_in_auxiliary_regressions_not_reported"
 
@@ -39,7 +41,10 @@ def test_rank_deficient_design_is_explicit_and_vif_not_fabricated():
 
 def test_constant_feature_has_own_degeneracy_reason():
     rng = np.random.default_rng(1)
-    matrix = FeatureMatrix(np.column_stack([rng.normal(size=30), np.ones(30), rng.normal(size=30)]), feature_names=("a", "constant", "b"))
+    matrix = FeatureMatrix(
+        np.column_stack([rng.normal(size=30), np.ones(30), rng.normal(size=30)]),
+        feature_names=("a", "constant", "b"),
+    )
     result = analyze_collinearity(matrix)
     row = result.features.set_index("feature").loc["constant"]
     assert row["status"] == "degenerate"

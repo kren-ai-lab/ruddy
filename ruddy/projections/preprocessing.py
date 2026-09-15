@@ -105,7 +105,6 @@ def prepare_features(
     minimum_observations: int = 2,
 ) -> PreparedFeatures:
     """Exclude non-finite rows and apply only explicitly requested scaling."""
-
     if minimum_observations < 2:
         raise ValueError("minimum_observations must be at least 2.")
     method = _normalize_scaling(scaling)

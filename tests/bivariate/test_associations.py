@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -36,7 +37,9 @@ def test_fisher_exact_runs_only_for_2x2(mixed_dataset) -> None:
     np.testing.assert_allclose(fisher_2x2["p_value"], ref.pvalue, rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(fisher_2x2["effect_size"], ref.statistic, rtol=1e-12, atol=1e-12)
 
-    fisher_non2x2 = table.query("test == 'fisher_exact' and column_x == 'binary' and column_y == 'three'").iloc[0]
+    fisher_non2x2 = table.query(
+        "test == 'fisher_exact' and column_x == 'binary' and column_y == 'three'"
+    ).iloc[0]
     assert (fisher_non2x2["status"], fisher_non2x2["reason"]) == (
         "skipped",
         "fisher_exact_requires_2x2",

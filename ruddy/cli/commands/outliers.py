@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruddy.cli.commands.descriptive import build_config, load_dataset
 from ruddy.core.io import write_json, write_table
 from ruddy.univariate import OutlierResult, analyze_outliers
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.cli._options import CliArgs
+
 
 def write_outlier_result(result: OutlierResult, output_dir: str | Path) -> Path:
     """Persist structured outlier and quality outputs."""
-
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.summaries, target / "outlier_summaries.csv")
@@ -23,7 +26,8 @@ def write_outlier_result(result: OutlierResult, output_dir: str | Path) -> Path:
     return target
 
 
-def run_outliers(args) -> int:
+def run_outliers(args: CliArgs) -> int:
+    """Run the ``ruddy inspect outliers`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     result = analyze_outliers(dataset, **config.outlier_kwargs())

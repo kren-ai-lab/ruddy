@@ -11,21 +11,14 @@ def _write_group_data(path: Path, feature_path: Path) -> None:
     groups = np.repeat(["A", "B", "C"], 18)
     n = len(groups)
     x = rng.normal(size=n)
-    y = (
-        1.2 * (groups == "B")
-        + 2.5 * (groups == "C")
-        + 0.2 * x
-        + rng.normal(scale=0.6, size=n)
-    )
-    pd.DataFrame({"id": range(n), "group": groups, "x": x, "y": y}).to_csv(
-        path, index=False
-    )
+    y = 1.2 * (groups == "B") + 2.5 * (groups == "C") + 0.2 * x + rng.normal(scale=0.6, size=n)
+    pd.DataFrame({"id": range(n), "group": groups, "x": x, "y": y}).to_csv(path, index=False)
     feat = rng.normal(scale=0.4, size=(n, 3))
     feat[groups == "B", 0] += 2
     feat[groups == "C", 0] += 4
-    pd.DataFrame(
-        {"id": range(n), "f1": feat[:, 0], "f2": feat[:, 1], "f3": feat[:, 2]}
-    ).to_csv(feature_path, index=False)
+    pd.DataFrame({"id": range(n), "f1": feat[:, 0], "f2": feat[:, 1], "f3": feat[:, 2]}).to_csv(
+        feature_path, index=False
+    )
 
 
 def _write_mixed_data(path: Path) -> None:
@@ -37,15 +30,10 @@ def _write_mixed_data(path: Path) -> None:
     condition = np.tile(["A", "B"] * (m // 2), ng)
     x = rng.normal(size=n)
     u = rng.normal(scale=1.2, size=ng)
-    y = (
-        1.5 * (np.asarray(condition) == "B")
-        + 0.5 * x
-        + np.repeat(u, m)
-        + rng.normal(scale=0.5, size=n)
+    y = 1.5 * (np.asarray(condition) == "B") + 0.5 * x + np.repeat(u, m) + rng.normal(scale=0.5, size=n)
+    pd.DataFrame({"id": range(n), "batch": batch, "condition": condition, "x": x, "y": y}).to_csv(
+        path, index=False
     )
-    pd.DataFrame(
-        {"id": range(n), "batch": batch, "condition": condition, "x": x, "y": y}
-    ).to_csv(path, index=False)
 
 
 def test_permanova_cli(tmp_path):

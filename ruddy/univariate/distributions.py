@@ -59,7 +59,6 @@ def summarize_datetime_statistics(
     columns: pd.DataFrame,
 ) -> pd.DataFrame:
     """Summarize eligible datetime variables without time-series interpretation."""
-
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []
     selected = columns.loc[columns.apply(_eligible_datetime, axis=1)]
@@ -67,8 +66,8 @@ def summarize_datetime_statistics(
         column = str(profile["column"])
         series = frame[column]
         present = series.dropna()
-        n_total = int(len(series))
-        n_present = int(len(present))
+        n_total = len(series)
+        n_present = len(present)
         n_missing = int(n_total - n_present)
         minimum = present.min() if n_present else None
         maximum = present.max() if n_present else None
@@ -107,7 +106,6 @@ def summarize_univariate(
     max_category_levels: int = 50,
 ) -> UnivariateTables:
     """Compute all Phase 2 univariate descriptive tables."""
-
     quantiles = validate_quantiles(quantiles)
     numeric = summarize_numeric_statistics(
         dataset,
@@ -139,7 +137,6 @@ def analyze_univariate(
     max_pairwise_columns: int = 200,
 ) -> UnivariateResult:
     """Run profiling and complete univariate descriptive analysis."""
-
     quantiles = validate_quantiles(quantiles)
     profiling = profile_dataset(
         dataset,

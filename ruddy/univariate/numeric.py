@@ -38,7 +38,6 @@ NUMERIC_STATISTICS_BASE_COLUMNS: tuple[str, ...] = (
 
 def quantile_column_name(quantile: float) -> str:
     """Return a stable output column name for a configured quantile."""
-
     percent = float(quantile) * 100.0
     rounded = round(percent)
     if abs(percent - rounded) < 1e-10:
@@ -50,7 +49,6 @@ def quantile_column_name(quantile: float) -> str:
 
 def numeric_statistics_columns(quantiles: tuple[float, ...]) -> tuple[str, ...]:
     """Return the deterministic numerical statistics schema."""
-
     quantile_columns = tuple(quantile_column_name(value) for value in quantiles)
     prefix = NUMERIC_STATISTICS_BASE_COLUMNS[:12]
     suffix = NUMERIC_STATISTICS_BASE_COLUMNS[12:]
@@ -87,7 +85,9 @@ def _safe_float(value: Any) -> float | None:
     return converted if math.isfinite(converted) else None
 
 
-def _status(*, n_present: int, n_finite: int, is_constant: bool, min_numeric_n: int) -> tuple[str, str | None]:
+def _status(
+    *, n_present: int, n_finite: int, is_constant: bool, min_numeric_n: int
+) -> tuple[str, str | None]:
     if n_present == 0:
         return "skipped", "all_missing"
     if n_finite == 0:
@@ -118,7 +118,7 @@ def _numeric_row(
     min_numeric_n: int,
 ) -> dict[str, Any]:
     values = _finite_numeric_values(series)
-    n_total = int(len(series))
+    n_total = len(series)
     n_missing = int(series.isna().sum())
     n_present = n_total - n_missing
     n_finite = int(values.size)
@@ -208,7 +208,6 @@ def summarize_numeric_statistics(
     min_numeric_n: int = 3,
 ) -> pd.DataFrame:
     """Summarize eligible numerical variables using finite observations only."""
-
     quantiles = validate_quantiles(quantiles)
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")

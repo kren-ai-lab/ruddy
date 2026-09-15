@@ -19,6 +19,13 @@ from ruddy.univariate.distributions import (
     summarize_datetime_statistics,
     summarize_univariate,
 )
+from ruddy.univariate.numeric import (
+    NUMERIC_STATISTICS_BASE_COLUMNS,
+    numeric_statistics_columns,
+    quantile_column_name,
+    summarize_numeric_statistics,
+    validate_quantiles,
+)
 from ruddy.univariate.outliers import (
     NUMERIC_QUALITY_COLUMNS,
     OUTLIER_FLAG_COLUMNS,
@@ -28,23 +35,16 @@ from ruddy.univariate.outliers import (
     summarize_numeric_quality,
     summarize_outliers,
 )
-from ruddy.univariate.numeric import (
-    NUMERIC_STATISTICS_BASE_COLUMNS,
-    numeric_statistics_columns,
-    quantile_column_name,
-    summarize_numeric_statistics,
-    validate_quantiles,
-)
 
 __all__ = [
     "CATEGORICAL_FREQUENCY_COLUMNS",
     "CATEGORICAL_STATISTICS_COLUMNS",
     "DATETIME_STATISTICS_COLUMNS",
-    "DistributionDiagnosticsResult",
-    "NUMERIC_STATISTICS_BASE_COLUMNS",
     "NUMERIC_QUALITY_COLUMNS",
+    "NUMERIC_STATISTICS_BASE_COLUMNS",
     "OUTLIER_FLAG_COLUMNS",
     "OUTLIER_SUMMARY_COLUMNS",
+    "DistributionDiagnosticsResult",
     "OutlierResult",
     "UnivariateResult",
     "UnivariateTables",

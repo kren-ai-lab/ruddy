@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Any
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -43,7 +43,6 @@ def analyze_collinearity(
     centered, sample-standardized features without an intercept so scale does not
     dominate the condition number.
     """
-
     if max_features < 2:
         raise ValueError("max_features must be at least 2.")
     if features.n_features < 2:
@@ -74,9 +73,7 @@ def analyze_collinearity(
     if int(usable.sum()) > 0:
         z = (matrix[:, usable] - means[usable]) / std[usable]
         singular_values = np.linalg.svd(z, compute_uv=False)
-        tol = np.finfo(float).eps * max(z.shape) * (
-            singular_values[0] if singular_values.size else 0.0
-        )
+        tol = np.finfo(float).eps * max(z.shape) * (singular_values[0] if singular_values.size else 0.0)
         rank = int(np.sum(singular_values > tol))
         full_rank = bool(rank == int(usable.sum()))
         if singular_values.size and singular_values[-1] > tol:
@@ -112,9 +109,7 @@ def analyze_collinearity(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for local_index, source_index in enumerate(usable_indices, start=1):
-                vif_by_index[int(source_index)] = float(
-                    variance_inflation_factor(design, local_index)
-                )
+                vif_by_index[int(source_index)] = float(variance_inflation_factor(design, local_index))
 
     for index, name in enumerate(names):
         if constant[index]:

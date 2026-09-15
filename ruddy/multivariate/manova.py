@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -38,8 +39,15 @@ def _normalize_columns(values: Iterable[str], label: str) -> tuple[str, ...]:
 def _empty_tests() -> pd.DataFrame:
     return pd.DataFrame(
         columns=(
-            "term", "statistic", "value", "num_df", "den_df", "f_value",
-            "p_value", "status", "reason",
+            "term",
+            "statistic",
+            "value",
+            "num_df",
+            "den_df",
+            "f_value",
+            "p_value",
+            "status",
+            "reason",
         )
     )
 
@@ -59,7 +67,6 @@ def analyze_manova(
     Interactions are intentionally deferred to the factorial engine. Numeric factors
     are treated categorically when their statistical role is ``factor``.
     """
-
     if max_responses < 2:
         raise ValueError("max_responses must be at least 2.")
     if max_factor_levels < 2:
@@ -85,8 +92,7 @@ def analyze_manova(
         raise ValueError(f"MANOVA roles overlap for columns: {sorted(overlap)}.")
 
     unknown = [
-        name for name in (*response_names, *factor_names, *covariate_names)
-        if name not in dataset.columns
+        name for name in (*response_names, *factor_names, *covariate_names) if name not in dataset.columns
     ]
     if unknown:
         raise ValueError(f"Unknown MANOVA columns: {unknown}.")
@@ -141,7 +147,11 @@ def analyze_manova(
                 model_summary={"factor": factor, "n_complete_case": n},
                 provenance=AnalysisProvenance(
                     analysis="manova",
-                    parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
+                    parameters={
+                        "responses": response_names,
+                        "factors": factor_names,
+                        "covariates": covariate_names,
+                    },
                     input_summary={"n_observations": dataset.n_observations, "n_complete_case": n},
                 ),
             )
@@ -155,7 +165,9 @@ def analyze_manova(
                     "factor": factor,
                     "level": level,
                     "n": int(count),
-                    "status": ResultStatus.OK.value if int(count) >= min_level_n else ResultStatus.DEGENERATE.value,
+                    "status": ResultStatus.OK.value
+                    if int(count) >= min_level_n
+                    else ResultStatus.DEGENERATE.value,
                     "reason": None if int(count) >= min_level_n else "level_too_small",
                 }
             )
@@ -176,7 +188,7 @@ def analyze_manova(
             input_summary={
                 "n_observations": dataset.n_observations,
                 "n_complete_case": n,
-                "n_excluded": int(len(excluded_rows)),
+                "n_excluded": len(excluded_rows),
             },
         )
         return MANOVAResult(
@@ -212,7 +224,11 @@ def analyze_manova(
         provenance = AnalysisProvenance(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
-            input_summary={"n_observations": dataset.n_observations, "n_complete_case": n, "response_rank": response_rank},
+            input_summary={
+                "n_observations": dataset.n_observations,
+                "n_complete_case": n,
+                "response_rank": response_rank,
+            },
         )
         return MANOVAResult(
             status=ResultStatus.DEGENERATE,
@@ -235,7 +251,11 @@ def analyze_manova(
         provenance = AnalysisProvenance(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
-            input_summary={"n_observations": dataset.n_observations, "n_complete_case": n, "exog_rank": exog_rank},
+            input_summary={
+                "n_observations": dataset.n_observations,
+                "n_complete_case": n,
+                "exog_rank": exog_rank,
+            },
         )
         return MANOVAResult(
             status=ResultStatus.DEGENERATE,
@@ -243,14 +263,22 @@ def analyze_manova(
             tests=_empty_tests(),
             factor_levels=factor_levels,
             exclusions=exclusions,
-            model_summary={"n_complete_case": n, "exog_rank": exog_rank, "n_design_columns": int(exog.shape[1])},
+            model_summary={
+                "n_complete_case": n,
+                "exog_rank": exog_rank,
+                "n_design_columns": int(exog.shape[1]),
+            },
             provenance=provenance,
         )
     if n <= exog_rank + len(response_names):
         provenance = AnalysisProvenance(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
-            input_summary={"n_observations": dataset.n_observations, "n_complete_case": n, "exog_rank": exog_rank},
+            input_summary={
+                "n_observations": dataset.n_observations,
+                "n_complete_case": n,
+                "exog_rank": exog_rank,
+            },
         )
         return MANOVAResult(
             status=ResultStatus.SKIPPED,
@@ -269,7 +297,11 @@ def analyze_manova(
         provenance = AnalysisProvenance(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
-            input_summary={"n_observations": dataset.n_observations, "n_complete_case": n, "exog_rank": exog_rank},
+            input_summary={
+                "n_observations": dataset.n_observations,
+                "n_complete_case": n,
+                "exog_rank": exog_rank,
+            },
         )
         return MANOVAResult(
             status=ResultStatus.DEGENERATE,
@@ -303,7 +335,7 @@ def analyze_manova(
     model_summary = {
         "formula_basis": "main_effects_only",
         "n_complete_case": int(n),
-        "n_excluded": int(len(excluded_rows)),
+        "n_excluded": len(excluded_rows),
         "n_responses": len(response_names),
         "response_rank": response_rank,
         "n_design_columns": int(exog.shape[1]),
@@ -323,13 +355,16 @@ def analyze_manova(
             "min_level_n": int(min_level_n),
             "interactions": False,
             "test_statistics": (
-                "Wilks' lambda", "Pillai's trace", "Hotelling-Lawley trace", "Roy's greatest root"
+                "Wilks' lambda",
+                "Pillai's trace",
+                "Hotelling-Lawley trace",
+                "Roy's greatest root",
             ),
         },
         input_summary={
             "n_observations": dataset.n_observations,
             "n_complete_case": int(n),
-            "n_excluded": int(len(excluded_rows)),
+            "n_excluded": len(excluded_rows),
             "n_responses": len(response_names),
             "design_rank": exog_rank,
             "response_rank": response_rank,

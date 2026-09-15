@@ -99,26 +99,19 @@ def _safe_float(value: object) -> float | None:
 
 def _welch_anova(groups: tuple[np.ndarray, ...]) -> tuple[float, float, float, float] | None:
     """Welch one-way ANOVA independent of SciPy version-specific APIs."""
-
     k = len(groups)
     if k < 2 or any(len(group) < 2 for group in groups):
         return None
     means = np.asarray([np.mean(group) for group in groups], dtype=np.float64)
     variances = np.asarray([np.var(group, ddof=1) for group in groups], dtype=np.float64)
     sizes = np.asarray([len(group) for group in groups], dtype=np.float64)
-    if (
-        not np.all(np.isfinite(means))
-        or not np.all(np.isfinite(variances))
-        or np.any(variances <= 0.0)
-    ):
+    if not np.all(np.isfinite(means)) or not np.all(np.isfinite(variances)) or np.any(variances <= 0.0):
         return None
     weights = sizes / variances
     weight_sum = float(np.sum(weights))
     weighted_mean = float(np.sum(weights * means) / weight_sum)
     numerator = float(np.sum(weights * (means - weighted_mean) ** 2) / (k - 1))
-    correction_sum = float(
-        np.sum(((1.0 - weights / weight_sum) ** 2) / (sizes - 1.0))
-    )
+    correction_sum = float(np.sum(((1.0 - weights / weight_sum) ** 2) / (sizes - 1.0)))
     if correction_sum <= 0.0:
         return None
     denominator = 1.0 + (2.0 * (k - 2.0) / (k**2 - 1.0)) * correction_sum
@@ -152,7 +145,7 @@ def _base_row(
     group_a: str | None = None,
     group_b: str | None = None,
 ) -> dict[str, Any]:
-    used_sizes = tuple(int(len(values)) for values in arrays)
+    used_sizes = tuple(len(values) for values in arrays)
     n_total = int(sum(group_sizes))
     n_used = int(sum(used_sizes))
     if scope == "pairwise":
@@ -347,7 +340,6 @@ def summarize_numeric_categorical_comparisons(
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
 ) -> pd.DataFrame:
     """Compare selected numeric features across selected categorical group variables."""
-
     if min_group_n < 2:
         raise ValueError("min_group_n must be at least 2.")
     if max_group_levels < 2:
@@ -355,11 +347,7 @@ def summarize_numeric_categorical_comparisons(
     resolved_tests = tuple(
         test if isinstance(test, ComparisonTest) else ComparisonTest(test) for test in tests
     )
-    invalid = [
-        test.value
-        for test in resolved_tests
-        if test not in set(_TWO_GROUP_TESTS + _OMNIBUS_TESTS)
-    ]
+    invalid = [test.value for test in resolved_tests if test not in set(_TWO_GROUP_TESTS + _OMNIBUS_TESTS)]
     if invalid:
         raise ValueError("Numeric comparisons received categorical tests: " + ", ".join(invalid))
     if len(set(resolved_tests)) != len(resolved_tests):
@@ -377,9 +365,7 @@ def summarize_numeric_categorical_comparisons(
     invalid_numeric = [column for column in numeric if column not in eligible_numeric]
     invalid_groups = [column for column in categorical if column not in eligible_categorical]
     if invalid_numeric:
-        raise ValueError(
-            "Selected numeric features are not eligible: " + ", ".join(invalid_numeric)
-        )
+        raise ValueError("Selected numeric features are not eligible: " + ", ".join(invalid_numeric))
     if invalid_groups:
         raise ValueError(
             "Selected group columns are not eligible categorical/factor variables: "

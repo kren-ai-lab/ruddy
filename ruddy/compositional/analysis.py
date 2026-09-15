@@ -69,7 +69,9 @@ def multiplicative_zero_replacement(
 def clr_transform(array: np.ndarray) -> np.ndarray:
     x = closure(array)
     if (x <= 0).any():
-        raise ValueError("CLR requires strictly positive compositions; enable explicit zero replacement first.")
+        raise ValueError(
+            "CLR requires strictly positive compositions; enable explicit zero replacement first."
+        )
     logx = np.log(x)
     return logx - logx.mean(axis=1, keepdims=True)
 
@@ -77,7 +79,9 @@ def clr_transform(array: np.ndarray) -> np.ndarray:
 def alr_transform(array: np.ndarray, *, denominator: int = -1) -> np.ndarray:
     x = closure(array)
     if (x <= 0).any():
-        raise ValueError("ALR requires strictly positive compositions; enable explicit zero replacement first.")
+        raise ValueError(
+            "ALR requires strictly positive compositions; enable explicit zero replacement first."
+        )
     d = x.shape[1]
     denominator = denominator % d
     keep = [i for i in range(d) if i != denominator]
@@ -87,7 +91,9 @@ def alr_transform(array: np.ndarray, *, denominator: int = -1) -> np.ndarray:
 def ilr_transform(array: np.ndarray) -> np.ndarray:
     x = closure(array)
     if (x <= 0).any():
-        raise ValueError("ILR requires strictly positive compositions; enable explicit zero replacement first.")
+        raise ValueError(
+            "ILR requires strictly positive compositions; enable explicit zero replacement first."
+        )
     clr = clr_transform(x)
     basis = helmert(x.shape[1], full=False).T
     return clr @ basis
@@ -121,9 +127,10 @@ def analyze_composition(
     alr_denominator: int = -1,
 ) -> CompositionalResult:
     """Apply explicit log-ratio compositional analysis to a dense feature matrix."""
-
     if features.is_sparse:
-        raise ValueError("Compositional analysis currently requires dense input; Ruddy will not silently densify sparse matrices.")
+        raise ValueError(
+            "Compositional analysis currently requires dense input; Ruddy will not silently densify sparse matrices."
+        )
     raw = features.to_array().astype(float)
     if not np.isfinite(raw).all():
         raise ValueError("Compositional analysis requires finite values in every cell.")
@@ -132,9 +139,18 @@ def analyze_composition(
         prepared, replacement = multiplicative_zero_replacement(closed, fraction=zero_replacement_fraction)
     else:
         prepared = closed
-        replacement = pd.DataFrame({"source_row_index": np.arange(features.n_observations), "zero_count": (closed == 0).sum(axis=1), "delta": 0.0, "replaced": False})
+        replacement = pd.DataFrame(
+            {
+                "source_row_index": np.arange(features.n_observations),
+                "zero_count": (closed == 0).sum(axis=1),
+                "delta": 0.0,
+                "replaced": False,
+            }
+        )
         if (prepared <= 0).any():
-            raise ValueError("Log-ratio transforms require strictly positive compositions; set replace_zeros=True explicitly.")
+            raise ValueError(
+                "Log-ratio transforms require strictly positive compositions; set replace_zeros=True explicitly."
+            )
     transform = str(transform).lower()
     if transform == "clr":
         transformed_array = clr_transform(prepared)
@@ -142,10 +158,14 @@ def analyze_composition(
     elif transform == "alr":
         transformed_array = alr_transform(prepared, denominator=alr_denominator)
         denom = alr_denominator % features.n_features
-        names = tuple(f"alr_{name}_over_{features.feature_names[denom]}" for i, name in enumerate(features.feature_names) if i != denom)
+        names = tuple(
+            f"alr_{name}_over_{features.feature_names[denom]}"
+            for i, name in enumerate(features.feature_names)
+            if i != denom
+        )
     elif transform == "ilr":
         transformed_array = ilr_transform(prepared)
-        names = tuple(f"ILR{i+1}" for i in range(transformed_array.shape[1]))
+        names = tuple(f"ILR{i + 1}" for i in range(transformed_array.shape[1]))
     else:
         raise ValueError("transform must be one of: clr, alr, ilr.")
     transformed = FeatureMatrix(
@@ -162,8 +182,17 @@ def analyze_composition(
     )
     provenance = AnalysisProvenance(
         analysis="compositional",
-        parameters={"transform": transform, "replace_zeros": replace_zeros, "zero_replacement_fraction": zero_replacement_fraction, "alr_denominator": alr_denominator},
-        input_summary={"n_observations": features.n_observations, "n_parts": features.n_features, "rows_with_zeros": int(((closed == 0).any(axis=1)).sum())},
+        parameters={
+            "transform": transform,
+            "replace_zeros": replace_zeros,
+            "zero_replacement_fraction": zero_replacement_fraction,
+            "alr_denominator": alr_denominator,
+        },
+        input_summary={
+            "n_observations": features.n_observations,
+            "n_parts": features.n_features,
+            "rows_with_zeros": int(((closed == 0).any(axis=1)).sum()),
+        },
     )
     return CompositionalResult(
         transformed=transformed,
@@ -175,6 +204,13 @@ def analyze_composition(
 
 
 __all__ = [
-    "CompositionalResult", "aitchison_distance_matrix", "alr_transform", "analyze_composition",
-    "closure", "clr_transform", "ilr_transform", "multiplicative_zero_replacement", "variation_matrix",
+    "CompositionalResult",
+    "aitchison_distance_matrix",
+    "alr_transform",
+    "analyze_composition",
+    "closure",
+    "clr_transform",
+    "ilr_transform",
+    "multiplicative_zero_replacement",
+    "variation_matrix",
 ]

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import warnings
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 from scipy import stats
@@ -63,7 +63,6 @@ def bootstrap_confidence_interval(
     not persist every resampled statistic unless a later specialized workflow requires
     it.
     """
-
     if not 0.0 < confidence_level < 1.0:
         raise ValueError("confidence_level must lie in (0, 1).")
     if n_resamples < 100:

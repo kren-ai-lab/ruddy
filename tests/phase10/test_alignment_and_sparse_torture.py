@@ -36,7 +36,7 @@ def test_partial_annotation_coverage_is_preserved_without_global_row_drop():
 def test_sparse_pca_refuses_hidden_densification():
     matrix = sparse.csr_matrix(np.eye(20))
     features = FeatureMatrix(matrix, observation_ids=range(20))
-    with pytest.raises(ValueError, match="silently densify|dense"):
+    with pytest.raises(ValueError, match=r"silently densify|dense"):
         analyze_pca(features, n_components=2)
 
 
@@ -48,5 +48,5 @@ def test_sparse_feature_matrix_roundtrip_remains_sparse():
 
 
 def test_feature_matrix_duplicate_ids_remain_hard_error():
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017 - the contract is that any hard error is raised
         FeatureMatrix(np.ones((3, 2)), observation_ids=["a", "a", "b"])

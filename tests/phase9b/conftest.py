@@ -41,7 +41,12 @@ def mixed_dataset():
     condition = np.tile(np.array(["A", "B"] * (per_group // 2), dtype=object), n_groups)
     x = rng.normal(size=n)
     random_intercept = rng.normal(scale=1.4, size=n_groups)
-    y = 1.8 * (condition == "B") + 0.6 * x + np.repeat(random_intercept, per_group) + rng.normal(scale=0.5, size=n)
+    y = (
+        1.8 * (condition == "B")
+        + 0.6 * x
+        + np.repeat(random_intercept, per_group)
+        + rng.normal(scale=0.5, size=n)
+    )
     frame = pd.DataFrame({"id": np.arange(n), "condition": condition, "batch": batch, "x": x, "y": y})
     return TabularDataset(
         frame,

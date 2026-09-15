@@ -6,11 +6,11 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ruddy.core.enums import CorrelationMethod, ComparisonTest, PAdjustMethod
-from ruddy.data import TabularDataset
-from ruddy.bivariate.correlations import summarize_correlations
-from ruddy.bivariate.comparisons import summarize_numeric_categorical_comparisons
 from ruddy.bivariate.associations import summarize_categorical_associations
+from ruddy.bivariate.comparisons import summarize_numeric_categorical_comparisons
+from ruddy.bivariate.correlations import summarize_correlations
+from ruddy.core.enums import ComparisonTest, CorrelationMethod, PAdjustMethod
+from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 
 
@@ -49,10 +49,11 @@ def analyze_bivariate(
     pairwise: bool = False,
 ) -> BivariateResult:
     """Run the complete domain-agnostic Phase 3 bivariate layer."""
-
     numeric_tests = tuple(
-        test for test in comparison_tests
-        if ComparisonTest(test) in {
+        test
+        for test in comparison_tests
+        if ComparisonTest(test)
+        in {
             ComparisonTest.WELCH_T,
             ComparisonTest.MANN_WHITNEY,
             ComparisonTest.WELCH_ANOVA,
@@ -60,7 +61,8 @@ def analyze_bivariate(
         }
     )
     categorical_tests = tuple(
-        test for test in comparison_tests
+        test
+        for test in comparison_tests
         if ComparisonTest(test) in {ComparisonTest.CHI_SQUARE, ComparisonTest.FISHER_EXACT}
     )
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)

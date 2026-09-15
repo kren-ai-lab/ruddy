@@ -78,7 +78,6 @@ def profile_columns(dataset: TabularDataset) -> pd.DataFrame:
     kinds come directly from :class:`TabularDataset`, so profiling cannot silently
     reinterpret or coerce the input.
     """
-
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []
 
@@ -87,15 +86,11 @@ def profile_columns(dataset: TabularDataset) -> pd.DataFrame:
         role = dataset.role_of(column)
         kind = dataset.kind_of(column)
 
-        n_total = int(len(series))
+        n_total = len(series)
         n_missing = int(series.isna().sum())
         n_present = n_total - n_missing
         n_unique = _safe_unique_count(series)
-        unique_fraction = (
-            float(n_unique / n_present)
-            if n_unique is not None and n_present > 0
-            else None
-        )
+        unique_fraction = float(n_unique / n_present) if n_unique is not None and n_present > 0 else None
         finite_count, non_finite_count = _finite_counts(series, kind)
         is_all_missing = n_present == 0
         is_constant = bool(n_present > 0 and n_unique is not None and n_unique == 1)

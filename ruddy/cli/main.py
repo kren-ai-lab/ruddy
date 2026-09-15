@@ -10,7 +10,7 @@ import ruddy.cli.analyze as analyze_group
 import ruddy.cli.inspect as inspect_group
 import ruddy.cli.model as model_group
 import ruddy.cli.project as project_group
-from ruddy.cli._console import configure
+from ruddy.cli._console import STATE, configure
 from ruddy.cli._options import CONTEXT_SETTINGS, version_callback
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -33,13 +33,13 @@ app.add_typer(model_group.app, name="model")
 app.add_typer(project_group.app, name="project")
 
 QUIET_OPTION = typer.Option(
-    False,  # noqa: FBT003
+    False,
     "--quiet",
     "-q",
     help="Suppress the Rich run summary on stderr.",
 )
 DEBUG_OPTION = typer.Option(
-    False,  # noqa: FBT003
+    False,
     "--debug",
     help="Re-raise errors with a full traceback instead of a clean message.",
 )
@@ -68,16 +68,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         # Typer handles usage errors, aborts and interrupts itself, then calls
         # sys.exit(); we translate that into a return code for the entry point.
-        typer.main.get_command(app).main(
-            args=None if argv is None else list(argv), prog_name="ruddy"
-        )
+        typer.main.get_command(app).main(args=None if argv is None else list(argv), prog_name="ruddy")
     except SystemExit as exc:
         if exc.code is None:
             return 0
         return exc.code if isinstance(exc.code, int) else 1
-    except Exception as exc:  # noqa: BLE001
-        from ruddy.cli._console import STATE
-
+    except Exception as exc:
         if STATE.debug:
             raise
         typer.echo(f"ERROR: {exc}", err=True)

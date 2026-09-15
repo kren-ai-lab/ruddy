@@ -38,7 +38,6 @@ def analyze_multivariate(
     max_mahalanobis_features: int = 100,
 ) -> MultivariateResult:
     """Run the core Phase-7 multivariate EDA diagnostics on one feature matrix."""
-
     covariance = analyze_covariance_structure(
         features,
         scaling=scaling,

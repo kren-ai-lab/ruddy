@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 import json
+from pathlib import Path
 
 import pandas as pd
-
 
 ROOT = Path(__file__).resolve().parents[2]
 NOTEBOOKS = ROOT / "examples" / "notebooks"
@@ -64,7 +63,8 @@ def test_every_notebook_is_visually_rich() -> None:
     for name in EXPECTED:
         notebook = _load_notebook(NOTEBOOKS / name)
         images = [
-            output for output in _outputs(notebook)
+            output
+            for output in _outputs(notebook)
             if output.get("output_type") in {"display_data", "execute_result"}
             and "image/png" in output.get("data", {})
         ]
@@ -76,7 +76,8 @@ def test_selected_notebooks_include_interactive_plotly_views() -> None:
     for name in INTERACTIVE:
         notebook = _load_notebook(NOTEBOOKS / name)
         plotly = [
-            output for output in _outputs(notebook)
+            output
+            for output in _outputs(notebook)
             if output.get("output_type") in {"display_data", "execute_result"}
             and "application/vnd.plotly.v1+json" in output.get("data", {})
         ]
@@ -86,14 +87,24 @@ def test_selected_notebooks_include_interactive_plotly_views() -> None:
 def test_notebooks_use_ruddy_results_and_comparative_views() -> None:
     for name in EXPECTED:
         notebook = _load_notebook(NOTEBOOKS / name)
-        source = "\n".join("".join(cell.get("source", [])) if isinstance(cell.get("source", ""), list) else cell.get("source", "") for cell in notebook["cells"])
+        source = "\n".join(
+            "".join(cell.get("source", []))
+            if isinstance(cell.get("source", ""), list)
+            else cell.get("source", "")
+            for cell in notebook["cells"]
+        )
         assert "from ruddy import" in source, name
         assert notebook.get("metadata", {}).get("ruddy_demo", {}).get("comparative") is True
 
 
 def test_demo_feature_spaces_share_observation_identity() -> None:
     ids = pd.read_csv(DATA / "tabular_demo.csv", usecols=["id"])["id"].tolist()
-    for name in ("representation_a.csv", "representation_b.csv", "representation_c.csv", "compositional_demo.csv"):
+    for name in (
+        "representation_a.csv",
+        "representation_b.csv",
+        "representation_c.csv",
+        "compositional_demo.csv",
+    ):
         assert pd.read_csv(DATA / name, usecols=["id"])["id"].tolist() == ids
 
 

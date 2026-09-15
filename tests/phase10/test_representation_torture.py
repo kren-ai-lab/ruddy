@@ -21,7 +21,7 @@ def test_identical_representation_all_similarity_metrics_peak():
 def test_cka_is_invariant_to_positive_global_scaling():
     rng = np.random.default_rng(22)
     x = rng.normal(size=(50, 7))
-    assert linear_cka(x, 17.3*x) == pytest.approx(1.0, abs=1e-12)
+    assert linear_cka(x, 17.3 * x) == pytest.approx(1.0, abs=1e-12)
 
 
 def test_orthogonal_rotation_preserves_distance_geometry():
@@ -48,7 +48,13 @@ def test_independent_spaces_do_not_look_identical():
     rng = np.random.default_rng(25)
     x = rng.normal(size=(120, 10))
     y = rng.normal(size=(120, 8))
-    result = analyze_representation_similarity(FeatureMatrix(x, observation_ids=range(120)), FeatureMatrix(y, observation_ids=range(120)), cca_components=2, mantel_permutations=49, random_state=7)
+    result = analyze_representation_similarity(
+        FeatureMatrix(x, observation_ids=range(120)),
+        FeatureMatrix(y, observation_ids=range(120)),
+        cca_components=2,
+        mantel_permutations=49,
+        random_state=7,
+    )
     assert result.cka.loc[0, "cka"] < 0.3
     assert abs(result.distance_similarity.loc[0, "coefficient"]) < 0.3
 
@@ -58,7 +64,12 @@ def test_low_rank_pair_is_guarded():
     base = rng.normal(size=(40, 1))
     x = np.repeat(base, 5, axis=1)
     y = np.repeat(base, 4, axis=1)
-    result = analyze_representation_similarity(FeatureMatrix(x, observation_ids=range(40)), FeatureMatrix(y, observation_ids=range(40)), cca_components=2, mantel_permutations=0)
+    result = analyze_representation_similarity(
+        FeatureMatrix(x, observation_ids=range(40)),
+        FeatureMatrix(y, observation_ids=range(40)),
+        cca_components=2,
+        mantel_permutations=0,
+    )
     assert result.cca.status.value == "skipped"
     assert result.cca.reason == "cca_components_exceed_effective_rank"
 

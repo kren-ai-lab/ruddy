@@ -223,7 +223,9 @@ class AnalysisConfig:
         posthoc_methods = tuple(str(value).strip().lower() for value in self.posthoc_methods)
         marginal_factors = tuple(str(column) for column in self.marginal_factors)
         marginal_covariates = tuple(str(column) for column in self.marginal_covariates)
-        marginal_interactions = tuple(tuple(str(column) for column in term) for term in self.marginal_interactions)
+        marginal_interactions = tuple(
+            tuple(str(column) for column in term) for term in self.marginal_interactions
+        )
         marginal_terms = tuple(tuple(str(column) for column in term) for term in self.marginal_terms)
         mixed_factors = tuple(str(column) for column in self.mixed_factors)
         mixed_covariates = tuple(str(column) for column in self.mixed_covariates)
@@ -242,8 +244,7 @@ class AnalysisConfig:
         factorial_factors = tuple(str(column) for column in self.factorial_factors)
         factorial_covariates = tuple(str(column) for column in self.factorial_covariates)
         factorial_interactions = tuple(
-            tuple(str(column) for column in interaction)
-            for interaction in self.factorial_interactions
+            tuple(str(column) for column in interaction) for interaction in self.factorial_interactions
         )
         if not enabled_blocks:
             raise ValueError("enabled_blocks cannot be empty.")
@@ -274,9 +275,7 @@ class AnalysisConfig:
             raise ValueError("dependence_partial_covariates cannot contain duplicates.")
         overlap = sorted(set(responses) & set(groups))
         if overlap:
-            raise ValueError(
-                f"Columns cannot be configured as both response and group: {overlap}."
-            )
+            raise ValueError(f"Columns cannot be configured as both response and group: {overlap}.")
         quantiles = validate_quantiles(tuple(self.quantiles))
         correlations = tuple(
             value if isinstance(value, CorrelationMethod) else CorrelationMethod(value)
@@ -290,11 +289,7 @@ class AnalysisConfig:
             value if isinstance(value, ComparisonTest) else ComparisonTest(value)
             for value in self.comparison_tests
         )
-        p_adjust = (
-            self.p_adjust
-            if isinstance(self.p_adjust, PAdjustMethod)
-            else PAdjustMethod(self.p_adjust)
-        )
+        p_adjust = self.p_adjust if isinstance(self.p_adjust, PAdjustMethod) else PAdjustMethod(self.p_adjust)
         factorial_p_adjust = (
             self.factorial_p_adjust
             if isinstance(self.factorial_p_adjust, PAdjustMethod)
@@ -425,14 +420,26 @@ class AnalysisConfig:
             raise ValueError("permanova_min_group_n must be at least 2.")
         if self.permanova_max_group_levels < 2:
             raise ValueError("permanova_max_group_levels must be at least 2.")
-        if not posthoc_methods or any(value not in {"tukey_hsd", "games_howell"} for value in posthoc_methods):
+        if not posthoc_methods or any(
+            value not in {"tukey_hsd", "games_howell"} for value in posthoc_methods
+        ):
             raise ValueError("posthoc_methods must contain tukey_hsd and/or games_howell.")
         if len(set(posthoc_methods)) != len(posthoc_methods):
             raise ValueError("posthoc_methods cannot contain duplicates.")
-        for label, values in (("marginal_factors", marginal_factors), ("marginal_covariates", marginal_covariates), ("mixed_factors", mixed_factors), ("mixed_covariates", mixed_covariates), ("mixed_random_slopes", mixed_random_slopes)):
+        for label, values in (
+            ("marginal_factors", marginal_factors),
+            ("marginal_covariates", marginal_covariates),
+            ("mixed_factors", mixed_factors),
+            ("mixed_covariates", mixed_covariates),
+            ("mixed_random_slopes", mixed_random_slopes),
+        ):
             if len(set(values)) != len(values):
                 raise ValueError(f"{label} cannot contain duplicates.")
-        for label, values in (("marginal_interactions", marginal_interactions), ("marginal_terms", marginal_terms), ("mixed_interactions", mixed_interactions)):
+        for label, values in (
+            ("marginal_interactions", marginal_interactions),
+            ("marginal_terms", marginal_terms),
+            ("mixed_interactions", mixed_interactions),
+        ):
             if any(len(term) < 1 for term in values) or len(set(values)) != len(values):
                 raise ValueError(f"{label} contains invalid or duplicate terms.")
         if self.marginal_formula is not None and not str(self.marginal_formula).strip():
@@ -445,7 +452,11 @@ class AnalysisConfig:
             raise ValueError("mixed_optimizer cannot be empty.")
         if self.mixed_max_iter < 1 or self.mixed_min_groups < 2 or self.mixed_min_group_n < 1:
             raise ValueError("Invalid mixed-effects iteration/group controls.")
-        if self.representation_cca_components < 1 or self.representation_cca_max_iter < 1 or self.representation_cca_tol <= 0:
+        if (
+            self.representation_cca_components < 1
+            or self.representation_cca_max_iter < 1
+            or self.representation_cca_tol <= 0
+        ):
             raise ValueError("Invalid CCA controls.")
         if not str(self.representation_distance_metric).strip():
             raise ValueError("representation_distance_metric cannot be empty.")
@@ -457,7 +468,9 @@ class AnalysisConfig:
             raise ValueError("compositional_transform must be clr, alr, or ilr.")
         if not 0 < self.compositional_zero_replacement_fraction < 1:
             raise ValueError("compositional_zero_replacement_fraction must lie in (0, 1).")
-        if len(set(bayesian_variables)) != len(bayesian_variables) or len(set(bayesian_groups)) != len(bayesian_groups):
+        if len(set(bayesian_variables)) != len(bayesian_variables) or len(set(bayesian_groups)) != len(
+            bayesian_groups
+        ):
             raise ValueError("Bayesian variables/groups cannot contain duplicates.")
         if not 0 < self.bayesian_credible_level < 1 or self.bayesian_draws < 100 or self.bayesian_min_n < 2:
             raise ValueError("Invalid Bayesian EDA controls.")
@@ -506,14 +519,38 @@ class AnalysisConfig:
         object.__setattr__(self, "mixed_covariates", mixed_covariates)
         object.__setattr__(self, "mixed_interactions", mixed_interactions)
         object.__setattr__(self, "mixed_random_slopes", mixed_random_slopes)
-        object.__setattr__(self, "permanova_factor", None if self.permanova_factor is None else str(self.permanova_factor).strip())
-        object.__setattr__(self, "posthoc_response", None if self.posthoc_response is None else str(self.posthoc_response).strip())
-        object.__setattr__(self, "posthoc_factor", None if self.posthoc_factor is None else str(self.posthoc_factor).strip())
-        object.__setattr__(self, "marginal_response", None if self.marginal_response is None else str(self.marginal_response).strip())
-        object.__setattr__(self, "marginal_formula", None if self.marginal_formula is None else str(self.marginal_formula).strip())
-        object.__setattr__(self, "mixed_group", None if self.mixed_group is None else str(self.mixed_group).strip())
-        object.__setattr__(self, "mixed_response", None if self.mixed_response is None else str(self.mixed_response).strip())
-        object.__setattr__(self, "mixed_formula", None if self.mixed_formula is None else str(self.mixed_formula).strip())
+        object.__setattr__(
+            self,
+            "permanova_factor",
+            None if self.permanova_factor is None else str(self.permanova_factor).strip(),
+        )
+        object.__setattr__(
+            self,
+            "posthoc_response",
+            None if self.posthoc_response is None else str(self.posthoc_response).strip(),
+        )
+        object.__setattr__(
+            self, "posthoc_factor", None if self.posthoc_factor is None else str(self.posthoc_factor).strip()
+        )
+        object.__setattr__(
+            self,
+            "marginal_response",
+            None if self.marginal_response is None else str(self.marginal_response).strip(),
+        )
+        object.__setattr__(
+            self,
+            "marginal_formula",
+            None if self.marginal_formula is None else str(self.marginal_formula).strip(),
+        )
+        object.__setattr__(
+            self, "mixed_group", None if self.mixed_group is None else str(self.mixed_group).strip()
+        )
+        object.__setattr__(
+            self, "mixed_response", None if self.mixed_response is None else str(self.mixed_response).strip()
+        )
+        object.__setattr__(
+            self, "mixed_formula", None if self.mixed_formula is None else str(self.mixed_formula).strip()
+        )
         object.__setattr__(self, "bayesian_variables", bayesian_variables)
         object.__setattr__(self, "bayesian_groups", bayesian_groups)
         object.__setattr__(self, "anomaly_methods", anomaly_methods)
@@ -528,8 +565,16 @@ class AnalysisConfig:
         object.__setattr__(self, "factorial_factors", factorial_factors)
         object.__setattr__(self, "factorial_covariates", factorial_covariates)
         object.__setattr__(self, "factorial_interactions", factorial_interactions)
-        object.__setattr__(self, "factorial_formula", None if self.factorial_formula is None else str(self.factorial_formula).strip())
-        object.__setattr__(self, "factorial_response", None if self.factorial_response is None else str(self.factorial_response))
+        object.__setattr__(
+            self,
+            "factorial_formula",
+            None if self.factorial_formula is None else str(self.factorial_formula).strip(),
+        )
+        object.__setattr__(
+            self,
+            "factorial_response",
+            None if self.factorial_response is None else str(self.factorial_response),
+        )
         object.__setattr__(self, "kind_overrides", MappingProxyType(kinds))
         object.__setattr__(self, "annotation_alignment", mode)
         object.__setattr__(self, "feature_alignment", feature_mode)
@@ -546,7 +591,6 @@ class AnalysisConfig:
 
     def dataset_kwargs(self) -> dict[str, object]:
         """Return arguments accepted directly by :class:`TabularDataset`."""
-
         return {
             "id_column": self.id_column,
             "role_overrides": dict(self.role_overrides),
@@ -555,7 +599,6 @@ class AnalysisConfig:
 
     def profiling_kwargs(self) -> dict[str, object]:
         """Return controls used by descriptive profiling."""
-
         return {
             "max_missingness_patterns": self.max_missingness_patterns,
             "max_pairwise_columns": self.max_pairwise_columns,
@@ -563,16 +606,15 @@ class AnalysisConfig:
 
     def univariate_kwargs(self) -> dict[str, object]:
         """Return controls used by univariate descriptive analysis."""
-
         return {
             "quantiles": self.quantiles,
             "min_numeric_n": self.min_numeric_n,
             "max_category_levels": self.max_category_levels,
             **self.profiling_kwargs(),
         }
+
     def outlier_kwargs(self) -> dict[str, object]:
         """Return controls used by univariate outlier diagnostics."""
-
         return {
             "methods": self.outlier_methods,
             "min_numeric_n": self.min_numeric_n,
@@ -583,7 +625,6 @@ class AnalysisConfig:
 
     def pca_kwargs(self) -> dict[str, object]:
         """Return controls used by PCA."""
-
         return {
             "n_components": self.projection_n_components,
             "scaling": self.projection_scaling,
@@ -592,7 +633,6 @@ class AnalysisConfig:
 
     def tsne_kwargs(self) -> dict[str, object]:
         """Return controls used by t-SNE."""
-
         return {
             "n_components": self.projection_n_components,
             "scaling": self.projection_scaling,
@@ -604,7 +644,6 @@ class AnalysisConfig:
 
     def umap_kwargs(self) -> dict[str, object]:
         """Return controls used by UMAP."""
-
         return {
             "n_components": self.projection_n_components,
             "scaling": self.projection_scaling,
@@ -616,7 +655,6 @@ class AnalysisConfig:
 
     def multivariate_kwargs(self) -> dict[str, object]:
         """Return controls used by core multivariate feature diagnostics."""
-
         return {
             "scaling": self.multivariate_scaling,
             "include_spearman": self.multivariate_include_spearman,
@@ -631,7 +669,6 @@ class AnalysisConfig:
 
     def manova_kwargs(self) -> dict[str, object]:
         """Return generic dimensionality/sample guards used by MANOVA."""
-
         return {
             "max_responses": self.manova_max_responses,
             "max_factor_levels": self.manova_max_factor_levels,
@@ -640,7 +677,6 @@ class AnalysisConfig:
 
     def factorial_kwargs(self) -> dict[str, object]:
         """Return controls used by factorial ANOVA/ANCOVA."""
-
         return {
             "ss_type": self.factorial_ss_type,
             "p_adjust": self.factorial_p_adjust,
@@ -656,7 +692,6 @@ class AnalysisConfig:
 
     def distribution_diagnostics_kwargs(self) -> dict[str, object]:
         """Return controls for standalone distribution diagnostics."""
-
         return {
             "responses": self.responses,
             "groups": self.groups,
@@ -668,7 +703,6 @@ class AnalysisConfig:
 
     def dependence_kwargs(self) -> dict[str, object]:
         """Return controls for nonlinear and partial dependence analysis."""
-
         return {
             "partial_covariates": self.dependence_partial_covariates,
             "min_complete_pairs": self.dependence_min_complete_pairs,
@@ -681,7 +715,6 @@ class AnalysisConfig:
 
     def contingency_kwargs(self) -> dict[str, object]:
         """Return controls for cell-level contingency diagnostics."""
-
         return {
             "max_category_levels": self.max_category_levels,
             "p_adjust": self.p_adjust,
@@ -689,7 +722,6 @@ class AnalysisConfig:
 
     def interval_kwargs(self) -> dict[str, object]:
         """Return controls for common confidence-interval estimands."""
-
         return {
             "confidence_level": self.confidence_level,
             "correlation_methods": self.interval_correlations,
@@ -781,7 +813,6 @@ class AnalysisConfig:
 
     def grouped_kwargs(self) -> dict[str, object]:
         """Return controls used by response-centric grouped analysis."""
-
         return {
             "responses": self.responses or None,
             "groups": self.groups or None,
@@ -795,7 +826,6 @@ class AnalysisConfig:
 
     def bivariate_kwargs(self) -> dict[str, object]:
         """Return controls used by Phase 3 mixed-type bivariate analysis."""
-
         return {
             "correlations": self.correlations,
             "comparison_tests": self.comparison_tests,

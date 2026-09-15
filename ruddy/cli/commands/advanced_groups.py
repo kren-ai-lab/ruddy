@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruddy.bivariate import analyze_posthoc
 from ruddy.cli.commands.descriptive import build_config, load_dataset
@@ -12,8 +13,17 @@ from ruddy.core.io import write_json, write_table
 from ruddy.factorial import analyze_marginal_means, analyze_mixed_effects
 from ruddy.multivariate import analyze_permutation_group_structure
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from collections.abc import Sequence
 
-def write_permanova_result(result, output_dir: str | Path) -> Path:
+    from ruddy.bivariate import PosthocResult
+    from ruddy.cli._options import CliArgs
+    from ruddy.factorial import MarginalMeansResult, MixedEffectsResult
+    from ruddy.multivariate import PermutationGroupResult
+
+
+def write_permanova_result(result: PermutationGroupResult, output_dir: str | Path) -> Path:
+    """Persist structured PERMANOVA and PERMDISP artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.summary, target / "permutation_group_summary.csv")
@@ -21,9 +31,7 @@ def write_permanova_result(result, output_dir: str | Path) -> Path:
     write_table(result.distances_to_centroid, target / "permdisp_distances.csv")
     write_table(result.exclusions, target / "permutation_group_exclusions.csv")
     write_json(result.alignment.to_dict(), target / "permutation_group_alignment.json")
-    write_json(
-        result.provenance.to_dict(), target / "permutation_group_provenance.json"
-    )
+    write_json(result.provenance.to_dict(), target / "permutation_group_provenance.json")
     if result.advisories:
         write_json(
             {"advisories": [a.to_dict() for a in result.advisories]},
@@ -32,7 +40,8 @@ def write_permanova_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def write_posthoc_result(result, output_dir: str | Path) -> Path:
+def write_posthoc_result(result: PosthocResult, output_dir: str | Path) -> Path:
+    """Persist structured post-hoc comparison artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.comparisons, target / "posthoc_comparisons.csv")
@@ -40,7 +49,8 @@ def write_posthoc_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def write_marginal_means_result(result, output_dir: str | Path) -> Path:
+def write_marginal_means_result(result: MarginalMeansResult, output_dir: str | Path) -> Path:
+    """Persist structured marginal-means artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.means, target / "marginal_means.csv")
@@ -50,7 +60,8 @@ def write_marginal_means_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def write_mixed_effects_result(result, output_dir: str | Path) -> Path:
+def write_mixed_effects_result(result: MixedEffectsResult, output_dir: str | Path) -> Path:
+    """Persist structured mixed-effects artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.fixed_effects, target / "mixed_fixed_effects.csv")
@@ -67,7 +78,8 @@ def write_mixed_effects_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def run_permanova(args) -> int:
+def run_permanova(args: CliArgs) -> int:
+    """Run the ``ruddy model permanova`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     feature_source = args.feature_input or args.input
@@ -81,9 +93,8 @@ def run_permanova(args) -> int:
         args.group[0] if getattr(args, "group", None) and len(args.group) == 1 else None
     )
     if factor is None:
-        raise ValueError(
-            "PERMANOVA CLI requires --permanova-factor or exactly one --group."
-        )
+        msg = "PERMANOVA CLI requires --permanova-factor or exactly one --group."
+        raise ValueError(msg)
     result = analyze_permutation_group_structure(
         features, dataset, factor=factor, **config.permanova_kwargs()
     )
@@ -103,7 +114,8 @@ def run_permanova(args) -> int:
     return 0
 
 
-def run_posthoc(args) -> int:
+def run_posthoc(args: CliArgs) -> int:
+    """Run the ``ruddy analyze posthoc`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     result = analyze_posthoc(
@@ -129,19 +141,16 @@ def run_posthoc(args) -> int:
     return 0
 
 
-def _parse_interactions(values) -> tuple[tuple[str, ...], ...]:
-    return tuple(
-        tuple(part.strip() for part in value.split(":")) for value in (values or ())
-    )
+def _parse_interactions(values: Sequence[str] | None) -> tuple[tuple[str, ...], ...]:
+    return tuple(tuple(part.strip() for part in value.split(":")) for value in (values or ()))
 
 
-def _parse_terms(values) -> tuple[tuple[str, ...], ...]:
-    return tuple(
-        tuple(part.strip() for part in value.split(":")) for value in (values or ())
-    )
+def _parse_terms(values: Sequence[str] | None) -> tuple[tuple[str, ...], ...]:
+    return tuple(tuple(part.strip() for part in value.split(":")) for value in (values or ()))
 
 
-def run_marginal_means(args) -> int:
+def run_marginal_means(args: CliArgs) -> int:
+    """Run the ``ruddy model marginal-means`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     if args.marginal_formula:
@@ -176,14 +185,13 @@ def run_marginal_means(args) -> int:
     return 0
 
 
-def run_mixed_effects(args) -> int:
+def run_mixed_effects(args: CliArgs) -> int:
+    """Run the ``ruddy model mixed-effects`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     kwargs = config.mixed_effects_kwargs()
     if args.mixed_formula:
-        result = analyze_mixed_effects(
-            dataset, group=args.mixed_group, formula=args.mixed_formula, **kwargs
-        )
+        result = analyze_mixed_effects(dataset, group=args.mixed_group, formula=args.mixed_formula, **kwargs)
     else:
         result = analyze_mixed_effects(
             dataset,
@@ -212,12 +220,12 @@ def run_mixed_effects(args) -> int:
 
 
 __all__ = [
-    "run_permanova",
-    "run_posthoc",
     "run_marginal_means",
     "run_mixed_effects",
-    "write_permanova_result",
-    "write_posthoc_result",
+    "run_permanova",
+    "run_posthoc",
     "write_marginal_means_result",
     "write_mixed_effects_result",
+    "write_permanova_result",
+    "write_posthoc_result",
 ]

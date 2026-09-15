@@ -8,9 +8,10 @@ import numpy as np
 from scipy import stats
 
 
-def mean_confidence_interval(values: np.ndarray, confidence_level: float = 0.95) -> tuple[float, float, float, float]:
+def mean_confidence_interval(
+    values: np.ndarray, confidence_level: float = 0.95
+) -> tuple[float, float, float, float]:
     """Return mean, standard error, lower CI, and upper CI using Student's t."""
-
     x = np.asarray(values, dtype=float)
     x = x[np.isfinite(x)]
     if x.size < 2:
@@ -23,7 +24,6 @@ def mean_confidence_interval(values: np.ndarray, confidence_level: float = 0.95)
 
 def pearson_confidence_interval(r: float, n: int, confidence_level: float = 0.95) -> tuple[float, float]:
     """Fisher-z confidence interval for Pearson's correlation."""
-
     if n <= 3 or not np.isfinite(r) or abs(r) >= 1.0:
         return float("nan"), float("nan")
     z = np.arctanh(r)
@@ -38,7 +38,6 @@ def welch_mean_difference_confidence_interval(
     confidence_level: float = 0.95,
 ) -> tuple[float, float, float, float, float]:
     """Welch interval for mean(x) - mean(y)."""
-
     a = np.asarray(x, dtype=float)
     b = np.asarray(y, dtype=float)
     a = a[np.isfinite(a)]
@@ -64,7 +63,6 @@ def odds_ratio_confidence_interval(
     confidence_level: float = 0.95,
 ) -> tuple[float, float, float]:
     """Log-Wald interval for a 2x2 odds ratio without hidden zero-cell correction."""
-
     counts = np.asarray(table, dtype=float)
     if counts.shape != (2, 2) or np.any(counts <= 0.0):
         return float("nan"), float("nan"), float("nan")

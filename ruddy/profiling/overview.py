@@ -35,7 +35,7 @@ def _identifier_summary(dataset: TabularDataset) -> dict[str, Any]:
     return {
         "column": dataset.id_column,
         "source": "column" if dataset.id_column is not None else "index",
-        "n_present": int(len(ids)),
+        "n_present": len(ids),
         "n_missing": 0,
         "n_unique": int(ids.nunique()),
         "n_duplicate_records": int(ids.duplicated(keep=False).sum()),
@@ -45,7 +45,6 @@ def _identifier_summary(dataset: TabularDataset) -> dict[str, Any]:
 
 def summarize_overview(dataset: TabularDataset, columns: pd.DataFrame) -> dict[str, Any]:
     """Create a structured dataset overview from source data and column profiles."""
-
     frame = dataset.to_frame()
     n_records = int(dataset.n_observations)
     n_columns = int(dataset.n_columns)
@@ -55,12 +54,8 @@ def summarize_overview(dataset: TabularDataset, columns: pd.DataFrame) -> dict[s
     duplicated_all = frame.duplicated(keep=False)
     duplicated_extra = frame.duplicated(keep="first")
 
-    role_counts = {
-        role.value: int(columns["role"].eq(role.value).sum()) for role in ColumnRole
-    }
-    kind_counts = {
-        kind.value: int(columns["data_kind"].eq(kind.value).sum()) for kind in ColumnKind
-    }
+    role_counts = {role.value: int(columns["role"].eq(role.value).sum()) for role in ColumnRole}
+    kind_counts = {kind.value: int(columns["data_kind"].eq(kind.value).sum()) for kind in ColumnKind}
 
     numeric_non_finite = (
         columns.loc[columns["data_kind"].eq(ColumnKind.NUMERIC.value), "non_finite_count"]
@@ -106,7 +101,6 @@ def profile_dataset(
     max_pairwise_columns: int = 200,
 ) -> ProfilingResult:
     """Run the complete Phase 2 descriptive profiling block."""
-
     columns = profile_columns(dataset)
     missingness = summarize_missingness(columns)
     pairwise = pairwise_completeness(dataset, max_columns=max_pairwise_columns)

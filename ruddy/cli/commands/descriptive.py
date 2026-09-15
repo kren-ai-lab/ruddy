@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -16,8 +17,11 @@ from ruddy.data import TabularDataset
 from ruddy.profiling import ProfilingResult, profile_dataset
 from ruddy.univariate import UnivariateResult, analyze_univariate
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.cli._options import CliArgs
 
-def _build_role_overrides(args) -> dict[str, ColumnRole]:
+
+def _build_role_overrides(args: CliArgs) -> dict[str, ColumnRole]:
     overrides: dict[str, ColumnRole] = {}
     for attr, role in (
         ("response", ColumnRole.RESPONSE),
@@ -33,15 +37,16 @@ def _build_role_overrides(args) -> dict[str, ColumnRole]:
             values = [values]
         for column in values:
             if column in overrides and overrides[column] is not role:
-                raise ValueError(
+                msg = (
                     f"Column {column!r} was assigned multiple CLI roles: "
                     f"{overrides[column].value!r} and {role.value!r}."
                 )
+                raise ValueError(msg)
             overrides[column] = role
     return overrides
 
 
-def _build_kind_overrides(args) -> dict[str, ColumnKind]:
+def _build_kind_overrides(args: CliArgs) -> dict[str, ColumnKind]:
     overrides: dict[str, ColumnKind] = {}
     for attr, kind in (
         ("numeric", ColumnKind.NUMERIC),
@@ -49,22 +54,20 @@ def _build_kind_overrides(args) -> dict[str, ColumnKind]:
     ):
         for column in getattr(args, attr, None) or []:
             if column in overrides and overrides[column] is not kind:
-                raise ValueError(f"Column {column!r} was assigned multiple CLI kinds.")
+                msg = f"Column {column!r} was assigned multiple CLI kinds."
+                raise ValueError(msg)
             overrides[column] = kind
     return overrides
 
 
-def build_config(args) -> AnalysisConfig:
+def build_config(args: CliArgs) -> AnalysisConfig:
     """Translate CLI options into an AnalysisConfig."""
-
     return AnalysisConfig(
         id_column=args.id_column,
         random_state=getattr(args, "random_state", 0),
         responses=tuple(getattr(args, "response", None) or ()),
         groups=tuple(getattr(args, "group", None) or ()),
-        enabled_blocks=tuple(
-            getattr(args, "enable", None) or ("profiling", "univariate")
-        ),
+        enabled_blocks=tuple(getattr(args, "enable", None) or ("profiling", "univariate")),
         feature_alignment=getattr(args, "feature_alignment", "strict"),
         factorial_response=getattr(args, "factorial_response", None),
         factorial_interactions=tuple(
@@ -102,9 +105,7 @@ def build_config(args) -> AnalysisConfig:
         max_correlation_columns=getattr(args, "max_correlation_columns", 100),
         pairwise=getattr(args, "pairwise", False),
         outlier_methods=(
-            tuple(args.outlier_method)
-            if getattr(args, "outlier_method", None)
-            else ("iqr", "robust_z")
+            tuple(args.outlier_method) if getattr(args, "outlier_method", None) else ("iqr", "robust_z")
         ),
         outlier_iqr_multiplier=getattr(args, "iqr_multiplier", 1.5),
         outlier_robust_z_threshold=getattr(args, "robust_z_threshold", 3.5),
@@ -118,20 +119,12 @@ def build_config(args) -> AnalysisConfig:
         umap_min_dist=getattr(args, "umap_min_dist", 0.1),
         multivariate_scaling=getattr(args, "multivariate_scaling", "none"),
         multivariate_include_spearman=not getattr(args, "no_spearman", False),
-        multivariate_max_covariance_features=getattr(
-            args, "max_covariance_features", 200
-        ),
-        multivariate_max_collinearity_features=getattr(
-            args, "max_collinearity_features", 100
-        ),
-        multivariate_max_mahalanobis_features=getattr(
-            args, "max_mahalanobis_features", 100
-        ),
+        multivariate_max_covariance_features=getattr(args, "max_covariance_features", 200),
+        multivariate_max_collinearity_features=getattr(args, "max_collinearity_features", 100),
+        multivariate_max_mahalanobis_features=getattr(args, "max_mahalanobis_features", 100),
         mahalanobis_threshold_quantile=getattr(args, "mahalanobis_quantile", 0.975),
         mahalanobis_include_robust=not getattr(args, "no_robust_mahalanobis", False),
-        mahalanobis_robust_support_fraction=getattr(
-            args, "robust_support_fraction", None
-        ),
+        mahalanobis_robust_support_fraction=getattr(args, "robust_support_fraction", None),
         manova_max_responses=getattr(args, "manova_max_responses", 20),
         manova_max_factor_levels=getattr(args, "manova_max_factor_levels", 20),
         manova_min_level_n=getattr(args, "manova_min_level_n", 3),
@@ -140,15 +133,11 @@ def build_config(args) -> AnalysisConfig:
             getattr(args, "factorial_p_adjust", "none")
             if getattr(args, "command", None) == "analyze"
             else (
-                getattr(args, "p_adjust", "none")
-                if getattr(args, "command", None) == "factorial"
-                else "none"
+                getattr(args, "p_adjust", "none") if getattr(args, "command", None) == "factorial" else "none"
             )
         ),
         factorial_robust_covariance=(
-            None
-            if getattr(args, "robust_covariance", None) in {None, "none"}
-            else getattr(args, "robust_covariance")
+            None if getattr(args, "robust_covariance", None) in {None, "none"} else args.robust_covariance
         ),
         factorial_min_cell_n=getattr(args, "min_cell_n", 2),
         factorial_max_factor_levels=getattr(args, "max_factor_levels", 20),
@@ -156,37 +145,27 @@ def build_config(args) -> AnalysisConfig:
         factorial_max_design_columns=getattr(args, "max_design_columns", 500),
         factorial_max_interaction_order=getattr(args, "max_interaction_order", 3),
         factorial_diagnostic_alpha=getattr(args, "diagnostic_alpha", 0.05),
-        factorial_condition_number_threshold=getattr(
-            args, "condition_number_threshold", 30.0
-        ),
+        factorial_condition_number_threshold=getattr(args, "condition_number_threshold", 30.0),
         distribution_max_shapiro_n=getattr(args, "max_shapiro_n", 5000),
-        dependence_partial_covariates=tuple(
-            getattr(args, "partial_covariate", None) or ()
-        ),
+        dependence_partial_covariates=tuple(getattr(args, "partial_covariate", None) or ()),
         dependence_min_complete_pairs=getattr(args, "dependence_min_pairs", 5),
         dependence_max_columns=getattr(args, "dependence_max_columns", 50),
         dependence_n_permutations=getattr(args, "dependence_permutations", 199),
         dependence_mi_neighbors=getattr(args, "mi_neighbors", 3),
         confidence_level=getattr(args, "confidence_level", 0.95),
-        interval_correlations=(
-            tuple(getattr(args, "interval_correlation", None) or ()) or ("pearson",)
-        ),
+        interval_correlations=(tuple(getattr(args, "interval_correlation", None) or ()) or ("pearson",)),
         bootstrap_resamples=getattr(args, "bootstrap_resamples", 1000),
         bootstrap_method=getattr(args, "bootstrap_method", "bca"),
         permanova_factor=getattr(args, "permanova_factor", None),
         permanova_metric=getattr(args, "permanova_metric", "euclidean"),
         permanova_permutations=getattr(args, "permanova_permutations", 999),
-        permanova_min_group_n=getattr(
-            args, "permanova_min_group_n", getattr(args, "min_group_n", 3)
-        ),
+        permanova_min_group_n=getattr(args, "permanova_min_group_n", getattr(args, "min_group_n", 3)),
         permanova_max_group_levels=getattr(
             args, "permanova_max_group_levels", getattr(args, "max_group_levels", 20)
         ),
         posthoc_response=getattr(args, "posthoc_response", None),
         posthoc_factor=getattr(args, "posthoc_factor", None),
-        posthoc_methods=tuple(
-            getattr(args, "posthoc_method", None) or ("tukey_hsd", "games_howell")
-        ),
+        posthoc_methods=tuple(getattr(args, "posthoc_method", None) or ("tukey_hsd", "games_howell")),
         marginal_response=getattr(args, "marginal_response", None),
         marginal_factors=tuple(getattr(args, "marginal_factor", None) or ()),
         marginal_covariates=tuple(getattr(args, "marginal_covariate", None) or ()),
@@ -221,15 +200,11 @@ def build_config(args) -> AnalysisConfig:
         representation_cca_max_iter=getattr(args, "cca_max_iter", 1000),
         representation_cca_tol=getattr(args, "cca_tol", 1e-6),
         representation_distance_metric=getattr(args, "distance_metric", "euclidean"),
-        representation_distance_similarity_method=getattr(
-            args, "distance_similarity_method", "spearman"
-        ),
+        representation_distance_similarity_method=getattr(args, "distance_similarity_method", "spearman"),
         representation_mantel_permutations=getattr(args, "mantel_permutations", 999),
         compositional_transform=getattr(args, "compositional_transform", "clr"),
         compositional_replace_zeros=getattr(args, "replace_zeros", False),
-        compositional_zero_replacement_fraction=getattr(
-            args, "zero_replacement_fraction", 0.65
-        ),
+        compositional_zero_replacement_fraction=getattr(args, "zero_replacement_fraction", 0.65),
         compositional_alr_denominator=getattr(args, "alr_denominator", -1),
         bayesian_variables=tuple(getattr(args, "bayesian_variable", None) or ()),
         bayesian_groups=tuple(getattr(args, "bayesian_group", None) or ()),
@@ -240,14 +215,12 @@ def build_config(args) -> AnalysisConfig:
         ),
         bayesian_draws=getattr(args, "bayesian_draws", 5000),
         bayesian_min_n=getattr(args, "bayesian_min_n", 3),
-        anomaly_methods=tuple(
-            getattr(args, "anomaly_method", None) or ("isolation_forest", "lof")
-        ),
+        anomaly_methods=tuple(getattr(args, "anomaly_method", None) or ("isolation_forest", "lof")),
         anomaly_scaling=getattr(args, "anomaly_scaling", "none"),
         anomaly_contamination=(
             getattr(args, "contamination", "auto")
             if getattr(args, "contamination", "auto") == "auto"
-            else float(getattr(args, "contamination"))
+            else float(args.contamination)
         ),
         anomaly_isolation_estimators=getattr(args, "isolation_estimators", 200),
         anomaly_lof_neighbors=getattr(args, "lof_neighbors", 20),
@@ -256,7 +229,6 @@ def build_config(args) -> AnalysisConfig:
 
 def load_dataset(path: str | Path, config: AnalysisConfig) -> TabularDataset:
     """Load a tabular file into Ruddy without scientific transformation."""
-
     frame = read_table(path)
     try:
         dataset = TabularDataset(frame, **config.dataset_kwargs())
@@ -275,7 +247,6 @@ def _write_tables(output_dir: Path, tables: Iterable[tuple[str, pd.DataFrame]]) 
 
 def write_profiling_result(result: ProfilingResult, output_dir: str | Path) -> Path:
     """Persist structured profiling outputs as JSON/CSV artifacts."""
-
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_json(result.overview, target / "overview.json")
@@ -294,7 +265,6 @@ def write_profiling_result(result: ProfilingResult, output_dir: str | Path) -> P
 
 def write_univariate_result(result: UnivariateResult, output_dir: str | Path) -> Path:
     """Persist structured univariate outputs as JSON/CSV artifacts."""
-
     target = write_profiling_result(result.profiling, output_dir)
     write_json(result.provenance.to_dict(), target / "univariate_provenance.json")
     _write_tables(
@@ -309,7 +279,8 @@ def write_univariate_result(result: UnivariateResult, output_dir: str | Path) ->
     return target
 
 
-def run_profile(args) -> int:
+def run_profile(args: CliArgs) -> int:
+    """Run the ``ruddy inspect profile`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     result = profile_dataset(dataset, **config.profiling_kwargs())
@@ -321,7 +292,8 @@ def run_profile(args) -> int:
     return 0
 
 
-def run_univariate(args) -> int:
+def run_univariate(args: CliArgs) -> int:
+    """Run the ``ruddy inspect univariate`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     result = analyze_univariate(dataset, **config.univariate_kwargs())
@@ -331,9 +303,9 @@ def run_univariate(args) -> int:
     else:
         payload = {
             "overview": result.profiling.overview,
-            "numeric_variables": int(len(result.numeric_statistics)),
-            "categorical_variables": int(len(result.categorical_statistics)),
-            "datetime_variables": int(len(result.datetime_statistics)),
+            "numeric_variables": len(result.numeric_statistics),
+            "categorical_variables": len(result.categorical_statistics),
+            "datetime_variables": len(result.datetime_statistics),
         }
         print(json.dumps(payload, indent=2, sort_keys=True))
     return 0

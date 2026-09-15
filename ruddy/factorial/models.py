@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
 import math
-from typing import Any, Iterable
 import warnings
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -20,7 +21,6 @@ from ruddy.factorial.diagnostics import build_factorial_cells, model_diagnostics
 from ruddy.factorial.effects import factorial_effect_sizes
 from ruddy.results import Advisory, AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
-
 
 EFFECT_COLUMNS = (
     "term",
@@ -271,7 +271,6 @@ def analyze_factorial(
     Type III models use sum-to-zero factor contrasts; the same contrast policy is used
     for Type II so changing SS type does not silently change the design coding.
     """
-
     if min_cell_n < 1:
         raise ValueError("min_cell_n must be at least 1.")
     if max_factor_levels < 2:
@@ -350,14 +349,12 @@ def analyze_factorial(
                 design_terms=design_terms,
                 cells=pd.DataFrame(),
                 exclusions=exclusions,
-                model_summary={"n_complete_case": n, "factor": factor, "n_levels": int(len(counts))},
+                model_summary={"n_complete_case": n, "factor": factor, "n_levels": len(counts)},
                 advisories=tuple(advisories),
                 provenance=provenance,
             )
         if len(counts) > max_factor_levels:
-            raise ValueError(
-                f"Factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}."
-            )
+            raise ValueError(f"Factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}.")
 
     cells, cell_summary = build_factorial_cells(
         model_frame,
@@ -437,9 +434,7 @@ def analyze_factorial(
     n_design_columns = int(exog.shape[1])
     residual_df = float(model.df_resid)
     if n_design_columns > max_design_columns:
-        raise ValueError(
-            f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}."
-        )
+        raise ValueError(f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}.")
     if design_rank < n_design_columns:
         return _empty_result(
             status=ResultStatus.DEGENERATE,
@@ -502,9 +497,7 @@ def analyze_factorial(
 
     residual_ss = float(np.sum(np.asarray(model.resid, dtype=float) ** 2))
     mse = residual_ss / residual_df
-    safe_to_original = {
-        _safe_term_expression(term, safe_expression): term for term in design.terms
-    }
+    safe_to_original = {_safe_term_expression(term, safe_expression): term for term in design.terms}
     family_id = f"factorial:{design.response}:type{design.ss_type}"
     effect_rows: list[dict[str, Any]] = []
     for safe_term, term in safe_to_original.items():
@@ -663,7 +656,7 @@ def analyze_factorial(
         "robust_covariance": robust,
         "n_observations": dataset.n_observations,
         "n_complete_case": n,
-        "n_excluded": int(len(excluded_rows)),
+        "n_excluded": len(excluded_rows),
         "n_design_columns": n_design_columns,
         "design_rank": design_rank,
         "residual_df": residual_df,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -30,10 +29,7 @@ def _dataset() -> TabularDataset:
 
 
 def _summary(result, column: str, method: str) -> pd.Series:
-    rows = result.summaries.loc[
-        result.summaries["column"].eq(column)
-        & result.summaries["method"].eq(method)
-    ]
+    rows = result.summaries.loc[result.summaries["column"].eq(column) & result.summaries["method"].eq(method)]
     assert len(rows) == 1
     return rows.iloc[0]
 

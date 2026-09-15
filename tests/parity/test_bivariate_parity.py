@@ -33,8 +33,7 @@ def test_shared_phase3_metrics_match_frozen_puma_reference() -> None:
         p_adjust="fdr_bh",
     )
     observed_correlations = {
-        (row.method, row.column_x, row.column_y): row
-        for row in correlations.itertuples(index=False)
+        (row.method, row.column_x, row.column_y): row for row in correlations.itertuples(index=False)
     }
     for reference in expected["correlations"]:
         key = (reference["method"], reference["column_x"], reference["column_y"])

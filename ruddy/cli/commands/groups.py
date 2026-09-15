@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruddy.bivariate import GroupAnalysisResult, analyze_grouped_responses
 from ruddy.cli.commands.descriptive import build_config, load_dataset
@@ -11,8 +12,11 @@ from ruddy.core import ColumnKind, ColumnRole
 from ruddy.core.io import read_table, write_json, write_table
 from ruddy.data import align_annotation_source
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.cli._options import CliArgs
 
-def _annotation_roles(args) -> dict[str, ColumnRole]:
+
+def _annotation_roles(args: CliArgs) -> dict[str, ColumnRole]:
     roles: dict[str, ColumnRole] = {}
     for attr, role in (
         ("annotation_factor", ColumnRole.FACTOR),
@@ -22,14 +26,13 @@ def _annotation_roles(args) -> dict[str, ColumnRole]:
         for column in getattr(args, attr, None) or []:
             previous = roles.get(column)
             if previous is not None and previous is not role:
-                raise ValueError(
-                    f"Annotation column {column!r} was assigned multiple roles."
-                )
+                msg = f"Annotation column {column!r} was assigned multiple roles."
+                raise ValueError(msg)
             roles[column] = role
     return roles
 
 
-def _annotation_kinds(args) -> dict[str, ColumnKind]:
+def _annotation_kinds(args: CliArgs) -> dict[str, ColumnKind]:
     kinds: dict[str, ColumnKind] = {}
     for attr, kind in (
         ("annotation_numeric", ColumnKind.NUMERIC),
@@ -38,16 +41,14 @@ def _annotation_kinds(args) -> dict[str, ColumnKind]:
         for column in getattr(args, attr, None) or []:
             previous = kinds.get(column)
             if previous is not None and previous is not kind:
-                raise ValueError(
-                    f"Annotation column {column!r} was assigned multiple data kinds."
-                )
+                msg = f"Annotation column {column!r} was assigned multiple data kinds."
+                raise ValueError(msg)
             kinds[column] = kind
     return kinds
 
 
 def write_group_result(result: GroupAnalysisResult, output_dir: str | Path) -> Path:
     """Persist structured grouped-analysis artifacts."""
-
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     tables = {
@@ -65,7 +66,8 @@ def write_group_result(result: GroupAnalysisResult, output_dir: str | Path) -> P
     return target
 
 
-def run_groups(args) -> int:
+def run_groups(args: CliArgs) -> int:
+    """Run the ``ruddy analyze groups`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     sources = ()
@@ -104,13 +106,13 @@ def run_groups(args) -> int:
         print(
             json.dumps(
                 {
-                    "responses": int(len(result.response_catalog)),
-                    "groups": int(len(result.group_coverage)),
-                    "numeric_summary_rows": int(len(result.numeric_summaries)),
-                    "categorical_summary_rows": int(len(result.categorical_summaries)),
-                    "numeric_comparisons": int(len(result.numeric_comparisons)),
-                    "categorical_comparisons": int(len(result.categorical_comparisons)),
-                    "annotation_sources": int(len(result.annotation_coverage)),
+                    "responses": len(result.response_catalog),
+                    "groups": len(result.group_coverage),
+                    "numeric_summary_rows": len(result.numeric_summaries),
+                    "categorical_summary_rows": len(result.categorical_summaries),
+                    "numeric_comparisons": len(result.numeric_comparisons),
+                    "categorical_comparisons": len(result.categorical_comparisons),
+                    "annotation_sources": len(result.annotation_coverage),
                 },
                 indent=2,
                 sort_keys=True,

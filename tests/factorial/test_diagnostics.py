@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import pandas as pd
 import pytest
 
-from ruddy.factorial.diagnostics import build_factorial_cells
 from ruddy import analyze_factorial
+from ruddy.factorial.diagnostics import build_factorial_cells
 
 
 def test_balanced_cell_table_is_complete(balanced_factorial_dataset):
@@ -48,7 +47,9 @@ def test_model_diagnostics_do_not_change_requested_ss_type(balanced_factorial_da
 
 
 def test_diagnostic_table_contains_core_assumption_checks(balanced_factorial_dataset):
-    result = analyze_factorial(balanced_factorial_dataset, formula="response ~ factor_a * factor_b + covariate")
+    result = analyze_factorial(
+        balanced_factorial_dataset, formula="response ~ factor_a * factor_b + covariate"
+    )
     observed = set(result.diagnostics["diagnostic"])
     assert {
         "shapiro_wilk_residual_normality",

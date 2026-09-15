@@ -60,9 +60,7 @@ def _standardized_condition_diagnostics(
                 "mean": float(means[index]),
                 "std": float(std[index]) if np.isfinite(std[index]) else np.nan,
                 "is_constant": bool(constant[index]),
-                "status": (
-                    ResultStatus.DEGENERATE.value if constant[index] else ResultStatus.OK.value
-                ),
+                "status": (ResultStatus.DEGENERATE.value if constant[index] else ResultStatus.OK.value),
                 "reason": "constant_feature" if constant[index] else None,
             }
         )
@@ -70,9 +68,7 @@ def _standardized_condition_diagnostics(
 
     usable = ~constant
     if int(usable.sum()) == 0:
-        spectrum = pd.DataFrame(
-            columns=("component", "singular_value", "condition_index")
-        )
+        spectrum = pd.DataFrame(columns=("component", "singular_value", "condition_index"))
         summary = {
             "n_observations": int(matrix.shape[0]),
             "n_features": int(matrix.shape[1]),
@@ -86,9 +82,7 @@ def _standardized_condition_diagnostics(
 
     z = centered[:, usable] / std[usable]
     singular_values = np.linalg.svd(z, compute_uv=False)
-    tolerance = np.finfo(float).eps * max(z.shape) * (
-        singular_values[0] if singular_values.size else 0.0
-    )
+    tolerance = np.finfo(float).eps * max(z.shape) * (singular_values[0] if singular_values.size else 0.0)
     rank = int(np.sum(singular_values > tolerance))
     if singular_values.size and singular_values[-1] > tolerance:
         condition_number = float(singular_values[0] / singular_values[-1])
@@ -131,7 +125,6 @@ def analyze_covariance_structure(
     correlation matrices themselves use one common complete-case set so they share a
     coherent sample basis.
     """
-
     if max_features < 2:
         raise ValueError("max_features must be at least 2.")
     if features.n_features < 2:
@@ -166,9 +159,7 @@ def analyze_covariance_structure(
     else:
         spearman = np.full((len(names), len(names)), np.nan, dtype=float)
 
-    feature_diagnostics, spectrum, condition_summary = _standardized_condition_diagnostics(
-        matrix, names
-    )
+    feature_diagnostics, spectrum, condition_summary = _standardized_condition_diagnostics(matrix, names)
     n_nonconstant = int((~feature_diagnostics["is_constant"]).sum())
     if n_nonconstant < 2:
         status = ResultStatus.DEGENERATE

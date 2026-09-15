@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from ruddy.analysis.engine import analyze
 from ruddy.bivariate.groups import GroupAnalysisResult, analyze_grouped_responses
 from ruddy.core.enums import ComparisonTest, PAdjustMethod
 from ruddy.data import AlignedAnnotations, TabularDataset
-from ruddy.analysis.engine import analyze
+
+__all__ = ["analyze", "analyze_groups"]
 
 
 def analyze_groups(
@@ -31,7 +33,6 @@ def analyze_groups(
     pairwise: bool = False,
 ) -> GroupAnalysisResult:
     """Run response-centric grouped EDA using statistical roles and data kinds."""
-
     return analyze_grouped_responses(
         dataset,
         responses=responses,

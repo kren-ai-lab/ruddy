@@ -42,9 +42,7 @@ def test_pca_standard_scaling_only_when_requested():
     scaled = analyze_pca(FeatureMatrix(x), n_components=2, scaling="standard")
     expected = PCA(n_components=2).fit_transform(StandardScaler().fit_transform(x))
     assert not np.allclose(raw.scores[["PC1", "PC2"]], scaled.scores[["PC1", "PC2"]])
-    np.testing.assert_allclose(
-        scaled.scores[["PC1", "PC2"]].to_numpy(), expected, rtol=1e-12, atol=1e-12
-    )
+    np.testing.assert_allclose(scaled.scores[["PC1", "PC2"]].to_numpy(), expected, rtol=1e-12, atol=1e-12)
 
 
 def test_full_rank_explained_variance_ratios_sum_to_one():
@@ -57,12 +55,8 @@ def test_full_rank_explained_variance_ratios_sum_to_one():
 def test_pca_exclusions_preserve_row_mapping():
     x = _matrix()[:8]
     x[2, 1] = np.nan
-    result = analyze_pca(
-        FeatureMatrix(x, observation_ids=[f"r{i}" for i in range(8)]), n_components=2
-    )
-    assert result.scores["observation_id"].tolist() == [
-        "r0", "r1", "r3", "r4", "r5", "r6", "r7"
-    ]
+    result = analyze_pca(FeatureMatrix(x, observation_ids=[f"r{i}" for i in range(8)]), n_components=2)
+    assert result.scores["observation_id"].tolist() == ["r0", "r1", "r3", "r4", "r5", "r6", "r7"]
     assert result.exclusions["observation_id"].tolist() == ["r2"]
     assert result.scores["source_row_index"].tolist() == [0, 1, 3, 4, 5, 6, 7]
 

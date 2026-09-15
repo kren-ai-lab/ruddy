@@ -14,9 +14,7 @@ from ruddy.core import RuddyIOError, UnknownColumnError
 
 def _source(tmp_path: Path) -> Path:
     source = tmp_path / "data.csv"
-    pd.DataFrame({"id": ["a", "b", "c"], "x": [1.0, 2.0, 3.0]}).to_csv(
-        source, index=False
-    )
+    pd.DataFrame({"id": ["a", "b", "c"], "x": [1.0, 2.0, 3.0]}).to_csv(source, index=False)
     return source
 
 

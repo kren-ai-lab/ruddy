@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from itertools import combinations
 import json
+from itertools import combinations
 from typing import Any
 
 import numpy as np
@@ -79,7 +79,7 @@ def _contingency(frame: pd.DataFrame, x: str, y: str) -> tuple[list[str], list[s
     for i, x_level in enumerate(x_levels):
         for j, y_level in enumerate(y_levels):
             counts[i, j] = int((x_labels.eq(x_level) & y_labels.eq(y_level)).sum())
-    return x_levels, y_levels, counts, int(len(pair))
+    return x_levels, y_levels, counts, len(pair)
 
 
 def _contingency_payload(x_levels: list[str], y_levels: list[str], counts: np.ndarray) -> str:
@@ -103,7 +103,6 @@ def summarize_categorical_associations(
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
 ) -> pd.DataFrame:
     """Compute selected or all unordered categorical-categorical associations."""
-
     if max_category_levels < 2:
         raise ValueError("max_category_levels must be at least 2.")
     resolved_tests = tuple(
@@ -124,15 +123,10 @@ def summarize_categorical_associations(
         selected_pairs = tuple((str(x), str(y)) for x, y in pairs)
         if len(set(selected_pairs)) != len(selected_pairs):
             raise ValueError("pairs cannot contain duplicates.")
-        invalid = [
-            (x, y)
-            for x, y in selected_pairs
-            if x == y or x not in candidates or y not in candidates
-        ]
+        invalid = [(x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates]
         if invalid:
             raise ValueError(
-                "Selected association pairs must contain distinct eligible categorical "
-                f"columns: {invalid}."
+                f"Selected association pairs must contain distinct eligible categorical columns: {invalid}."
             )
     rows: list[dict[str, Any]] = []
     for column_x, column_y in selected_pairs:

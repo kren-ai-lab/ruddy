@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import pandas as pd
 from pandas.api.types import (
@@ -35,7 +34,6 @@ class ColumnSpec:
 
 def infer_column_kind(series: pd.Series) -> ColumnKind:
     """Infer a statistical kind without coercing or transforming values."""
-
     dtype = series.dtype
     if is_bool_dtype(dtype):
         return ColumnKind.BOOLEAN
@@ -45,9 +43,7 @@ def infer_column_kind(series: pd.Series) -> ColumnKind:
         return ColumnKind.DATETIME
     if is_numeric_dtype(dtype):
         return ColumnKind.NUMERIC
-    if isinstance(dtype, pd.CategoricalDtype) or dtype == object or isinstance(
-        dtype, pd.StringDtype
-    ):
+    if isinstance(dtype, pd.CategoricalDtype) or dtype == object or isinstance(dtype, pd.StringDtype):
         return ColumnKind.CATEGORICAL
     return ColumnKind.UNKNOWN
 
@@ -73,21 +69,16 @@ def resolve_roles(
     overrides: RoleOverrides | None = None,
 ) -> dict[str, ColumnRole]:
     """Resolve one non-overlapping statistical role for each column."""
-
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        raise UnknownColumnError(
-            f"Role overrides reference unknown columns: {unknown}."
-        )
+        raise UnknownColumnError(f"Role overrides reference unknown columns: {unknown}.")
 
-    resolved = {column: ColumnRole.VARIABLE for column in frame.columns}
+    resolved = dict.fromkeys(frame.columns, ColumnRole.VARIABLE)
     for column, role in overrides.items():
         resolved[column] = _coerce_role(role)
 
-    declared_identifiers = [
-        column for column, role in resolved.items() if role is ColumnRole.IDENTIFIER
-    ]
+    declared_identifiers = [column for column, role in resolved.items() if role is ColumnRole.IDENTIFIER]
 
     if id_column is not None:
         if id_column not in frame.columns:
@@ -107,10 +98,7 @@ def resolve_roles(
                 )
         resolved[id_column] = ColumnRole.IDENTIFIER
     elif len(declared_identifiers) > 1:
-        raise RoleConflictError(
-            "Only one identifier column is supported; found "
-            f"{declared_identifiers}."
-        )
+        raise RoleConflictError(f"Only one identifier column is supported; found {declared_identifiers}.")
 
     return resolved
 
@@ -143,13 +131,10 @@ def resolve_kinds(
     overrides: KindOverrides | None = None,
 ) -> dict[str, ColumnKind]:
     """Resolve data kinds, allowing explicit non-coercive overrides."""
-
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        raise UnknownColumnError(
-            f"Kind overrides reference unknown columns: {unknown}."
-        )
+        raise UnknownColumnError(f"Kind overrides reference unknown columns: {unknown}.")
 
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:
@@ -170,7 +155,6 @@ def build_schema(
     kinds: dict[str, ColumnKind],
 ) -> tuple[ColumnSpec, ...]:
     """Build an ordered immutable column schema."""
-
     return tuple(
         ColumnSpec(
             name=str(column),

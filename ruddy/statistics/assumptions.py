@@ -7,7 +7,6 @@ import numpy as np
 
 def expected_count_diagnostics(expected: np.ndarray) -> dict[str, float | int | bool]:
     """Summarize conventional chi-square expected-count diagnostics."""
-
     values = np.asarray(expected, dtype=np.float64)
     if values.size == 0:
         return {

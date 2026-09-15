@@ -15,16 +15,12 @@ from ruddy import (
 from ruddy.cli.main import main
 
 
-def _bundle(tmp_path=None):
+def _bundle():
     rng = np.random.default_rng(22)
     n = 36
     ids = [f"o{i}" for i in range(n)]
-    frame = pd.DataFrame(
-        {"id": ids, "y": rng.normal(size=n), "g": ["A"] * (n // 2) + ["B"] * (n // 2)}
-    )
-    ds = TabularDataset(
-        frame, id_column="id", role_overrides={"y": "response", "g": "factor"}
-    )
+    frame = pd.DataFrame({"id": ids, "y": rng.normal(size=n), "g": ["A"] * (n // 2) + ["B"] * (n // 2)})
+    ds = TabularDataset(frame, id_column="id", role_overrides={"y": "response", "g": "factor"})
     x = rng.normal(size=(n, 3))
     y = x @ rng.normal(size=(3, 4)) + 0.1 * rng.normal(size=(n, 4))
     return (
@@ -55,9 +51,7 @@ def test_unified_representation_matches_standalone():
         random_state=5,
     )
     u = analyze(ds, config=cfg, features=x, comparison_features=y).representation
-    s = analyze_representation_similarity(
-        x, y, cca_components=2, mantel_permutations=9, random_state=5
-    )
+    s = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=9, random_state=5)
     pd.testing.assert_frame_equal(u.cka, s.cka)
     pd.testing.assert_frame_equal(u.mantel, s.mantel)
 
@@ -93,28 +87,22 @@ def test_unified_bayesian_matches_standalone():
         random_state=3,
     )
     u = analyze(ds, config=cfg).bayesian
-    s = analyze_bayesian_eda(
-        ds, variables=("y",), groups=("g",), draws=500, random_state=3
-    )
+    s = analyze_bayesian_eda(ds, variables=("y",), groups=("g",), draws=500, random_state=3)
     pd.testing.assert_frame_equal(u.mean_differences, s.mean_differences)
 
 
 def test_unified_compositional_matches_standalone():
     ds, _, _ = _bundle()
     rng = np.random.default_rng(1)
-    c = FeatureMatrix(
-        np.abs(rng.normal(size=(36, 4))) + 0.1, observation_ids=ds.observation_ids
-    )
-    cfg = AnalysisConfig(
-        enabled_blocks=("compositional",), compositional_transform="ilr"
-    )
+    c = FeatureMatrix(np.abs(rng.normal(size=(36, 4))) + 0.1, observation_ids=ds.observation_ids)
+    cfg = AnalysisConfig(enabled_blocks=("compositional",), compositional_transform="ilr")
     u = analyze(ds, config=cfg, features=c).compositional
     s = analyze_composition(c, transform="ilr")
     np.testing.assert_allclose(u.transformed.to_array(), s.transformed.to_array())
 
 
 def test_representation_cli_writes_artifacts(tmp_path):
-    ds, x, y = _bundle()
+    _ds, x, y = _bundle()
     xa = tmp_path / "x.csv"
     ya = tmp_path / "y.csv"
     out = tmp_path / "out"
@@ -148,20 +136,14 @@ def test_representation_cli_writes_artifacts(tmp_path):
             str(out),
         ]
     )
-    assert (
-        code == 0
-        and (out / "cka.csv").exists()
-        and (out / "cca_correlations.csv").exists()
-    )
+    assert code == 0 and (out / "cka.csv").exists() and (out / "cca_correlations.csv").exists()
 
 
 def test_compositional_cli_writes_artifacts(tmp_path):
     rng = np.random.default_rng(3)
     p = tmp_path / "c.csv"
     out = tmp_path / "c_out"
-    frame = pd.DataFrame(
-        np.abs(rng.normal(size=(20, 3))) + 0.2, columns=["a", "b", "c"]
-    )
+    frame = pd.DataFrame(np.abs(rng.normal(size=(20, 3))) + 0.2, columns=["a", "b", "c"])
     frame.insert(0, "id", [f"o{i}" for i in range(20)])
     frame.to_csv(p, index=False)
     code = main(

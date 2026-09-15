@@ -16,15 +16,37 @@ from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
 
-
 NORMALITY_COLUMNS = (
-    "method", "column", "role", "n_total", "n_finite", "statistic", "p_value",
-    "q_value", "family_id", "family_size", "correction", "status", "reason",
+    "method",
+    "column",
+    "role",
+    "n_total",
+    "n_finite",
+    "statistic",
+    "p_value",
+    "q_value",
+    "family_id",
+    "family_size",
+    "correction",
+    "status",
+    "reason",
 )
 DISPERSION_COLUMNS = (
-    "method", "response", "group", "n_total", "n_used", "n_groups", "group_sizes_json",
-    "statistic", "p_value", "q_value", "family_id", "family_size", "correction",
-    "status", "reason",
+    "method",
+    "response",
+    "group",
+    "n_total",
+    "n_used",
+    "n_groups",
+    "group_sizes_json",
+    "statistic",
+    "p_value",
+    "q_value",
+    "family_id",
+    "family_size",
+    "correction",
+    "status",
+    "reason",
 )
 
 
@@ -67,7 +89,6 @@ def summarize_normality_diagnostics(
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
 ) -> pd.DataFrame:
     """Compute explicit normality diagnostics without altering downstream test choice."""
-
     allowed = {"shapiro", "dagostino", "anderson_darling"}
     methods = tuple(str(method).lower() for method in methods)
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):
@@ -143,7 +164,6 @@ def summarize_dispersion_diagnostics(
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
 ) -> pd.DataFrame:
     """Assess grouped dispersion using explicit robust tests."""
-
     import json
 
     allowed = {"brown_forsythe", "fligner_killeen"}
@@ -172,24 +192,39 @@ def summarize_dispersion_diagnostics(
                 pair = pair[np.isfinite(pair["__value"].to_numpy(dtype=float))]
                 labels = pair[group].map(_category_label).astype(str)
                 levels = sorted(labels.unique().tolist())
-                samples = tuple(pair.loc[labels.eq(level), "__value"].to_numpy(dtype=float) for level in levels)
+                samples = tuple(
+                    pair.loc[labels.eq(level), "__value"].to_numpy(dtype=float) for level in levels
+                )
                 sizes = {level: int(sample.size) for level, sample in zip(levels, samples, strict=True)}
                 row = {
-                    "method": method, "response": response, "group": group,
-                    "n_total": dataset.n_observations, "n_used": int(len(pair)),
-                    "n_groups": len(levels), "group_sizes_json": json.dumps(sizes, sort_keys=True),
-                    "statistic": np.nan, "p_value": np.nan, "q_value": np.nan,
-                    "family_id": family_id, "family_size": 0, "correction": correction.value,
-                    "status": "ok", "reason": None,
+                    "method": method,
+                    "response": response,
+                    "group": group,
+                    "n_total": dataset.n_observations,
+                    "n_used": len(pair),
+                    "n_groups": len(levels),
+                    "group_sizes_json": json.dumps(sizes, sort_keys=True),
+                    "statistic": np.nan,
+                    "p_value": np.nan,
+                    "q_value": np.nan,
+                    "family_id": family_id,
+                    "family_size": 0,
+                    "correction": correction.value,
+                    "status": "ok",
+                    "reason": None,
                 }
                 if len(levels) < 2:
-                    row["status"] = "degenerate"; row["reason"] = "insufficient_group_levels"
+                    row["status"] = "degenerate"
+                    row["reason"] = "insufficient_group_levels"
                 elif len(levels) > max_group_levels:
-                    row["status"] = "skipped"; row["reason"] = "group_levels_exceed_max_group_levels"
+                    row["status"] = "skipped"
+                    row["reason"] = "group_levels_exceed_max_group_levels"
                 elif any(sample.size < min_group_n for sample in samples):
-                    row["status"] = "skipped"; row["reason"] = "group_too_small"
+                    row["status"] = "skipped"
+                    row["reason"] = "group_too_small"
                 elif all(np.ptp(sample) == 0 for sample in samples):
-                    row["status"] = "degenerate"; row["reason"] = "all_groups_constant"
+                    row["status"] = "degenerate"
+                    row["reason"] = "all_groups_constant"
                 else:
                     result = (
                         stats.levene(*samples, center="median")
@@ -214,27 +249,31 @@ def analyze_distribution_diagnostics(
     max_shapiro_n: int = 5000,
 ) -> DistributionDiagnosticsResult:
     """Run standalone distribution diagnostics; results never select another test automatically."""
-
-    normality = summarize_normality_diagnostics(
-        dataset, max_shapiro_n=max_shapiro_n, p_adjust=p_adjust
+    normality = summarize_normality_diagnostics(dataset, max_shapiro_n=max_shapiro_n, p_adjust=p_adjust)
+    dispersion = (
+        summarize_dispersion_diagnostics(
+            dataset,
+            responses=responses,
+            groups=groups,
+            min_group_n=min_group_n,
+            max_group_levels=max_group_levels,
+            p_adjust=p_adjust,
+        )
+        if responses and groups
+        else pd.DataFrame(columns=DISPERSION_COLUMNS)
     )
-    dispersion = summarize_dispersion_diagnostics(
-        dataset,
-        responses=responses,
-        groups=groups,
-        min_group_n=min_group_n,
-        max_group_levels=max_group_levels,
-        p_adjust=p_adjust,
-    ) if responses and groups else pd.DataFrame(columns=DISPERSION_COLUMNS)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     provenance = AnalysisProvenance(
         analysis="distribution_diagnostics",
         parameters={
             "normality_methods": ("shapiro", "dagostino", "anderson_darling"),
             "dispersion_methods": ("brown_forsythe", "fligner_killeen"),
-            "responses": tuple(responses), "groups": tuple(groups),
-            "p_adjust": correction.value, "min_group_n": min_group_n,
-            "max_group_levels": max_group_levels, "max_shapiro_n": max_shapiro_n,
+            "responses": tuple(responses),
+            "groups": tuple(groups),
+            "p_adjust": correction.value,
+            "min_group_n": min_group_n,
+            "max_group_levels": max_group_levels,
+            "max_shapiro_n": max_shapiro_n,
             "automatic_test_selection": False,
         },
         input_summary={"n_observations": dataset.n_observations, "n_columns": dataset.n_columns},

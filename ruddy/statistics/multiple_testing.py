@@ -13,7 +13,6 @@ def adjust_pvalues(
     method: PAdjustMethod | str = PAdjustMethod.FDR_BH,
 ) -> np.ndarray:
     """Adjust one ordered family of finite p-values."""
-
     values = np.asarray(p_values, dtype=np.float64)
     if values.ndim != 1:
         raise ValueError("p_values must be one-dimensional.")
@@ -48,15 +47,11 @@ def family_sizes(
     ok_status: str = "ok",
 ) -> dict[str, int]:
     """Count inferential hypotheses in each explicitly declared family."""
-
     if table.empty:
         return {}
     mask = table[status_column].eq(ok_status)
     families = table.loc[mask, family_column].astype(str)
-    return {
-        family: int((families == family).sum())
-        for family in families.drop_duplicates().tolist()
-    }
+    return {family: int((families == family).sum()) for family in families.drop_duplicates().tolist()}
 
 
 def apply_multiple_testing(
@@ -77,7 +72,6 @@ def apply_multiple_testing(
     permutations) to retain ``status='ok'`` while leaving p/q values missing.
     Non-inferential rows retain missing q-values.
     """
-
     required = {family_column, status_column, p_column, correction_column}
     missing = sorted(required - set(table.columns))
     if missing:

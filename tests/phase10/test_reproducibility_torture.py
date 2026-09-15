@@ -30,12 +30,15 @@ def test_dependence_permutations_same_seed_are_identical(robust_tabular):
 
 
 def test_permanova_same_seed_is_identical():
-    rng = np.random.default_rng(41); n = 45
+    rng = np.random.default_rng(41)
+    n = 45
     labels = np.repeat(["A", "B", "C"], 15)
-    x = rng.normal(size=(n, 4)) + np.repeat([[0,0,0,0],[1,0,0,0],[0,1,0,0]], 15, axis=0)
+    x = rng.normal(size=(n, 4)) + np.repeat([[0, 0, 0, 0], [1, 0, 0, 0], [0, 1, 0, 0]], 15, axis=0)
     ids = [f"o{i}" for i in range(n)]
     f = FeatureMatrix(x, observation_ids=ids)
-    ds = TabularDataset(pd.DataFrame({"id": ids, "g": labels}), id_column="id", role_overrides={"g": "factor"})
+    ds = TabularDataset(
+        pd.DataFrame({"id": ids, "g": labels}), id_column="id", role_overrides={"g": "factor"}
+    )
     a = analyze_permutation_group_structure(f, ds, factor="g", n_permutations=39, random_state=8)
     b = analyze_permutation_group_structure(f, ds, factor="g", n_permutations=39, random_state=8)
     pd.testing.assert_frame_equal(a.summary, b.summary)

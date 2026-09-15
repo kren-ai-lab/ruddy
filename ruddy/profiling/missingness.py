@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from itertools import combinations_with_replacement
 import json
+from itertools import combinations_with_replacement
 
 import pandas as pd
 
@@ -47,7 +47,6 @@ MISSINGNESS_PATTERN_COLUMNS: tuple[str, ...] = (
 
 def summarize_missingness(columns: pd.DataFrame) -> pd.DataFrame:
     """Build deterministic per-column missingness output from column profiles."""
-
     required = {
         "column",
         "role",
@@ -93,7 +92,6 @@ def pairwise_completeness(
     Missingness here means pandas missing values only. Numeric infinities remain
     present observations and are handled separately by numerical analyses.
     """
-
     selected = columns or dataset.columns
     unknown = sorted(set(selected) - set(dataset.columns))
     if unknown:
@@ -131,7 +129,6 @@ def summarize_missingness_patterns(
     max_patterns: int = 20,
 ) -> pd.DataFrame:
     """Summarize common row-level missingness patterns with bounded output."""
-
     if max_patterns < 1:
         raise ValueError("max_patterns must be at least 1.")
 

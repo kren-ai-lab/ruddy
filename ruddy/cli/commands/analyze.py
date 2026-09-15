@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruddy.analysis import analyze
 from ruddy.cli._console import record_blocks
@@ -47,10 +48,13 @@ from ruddy.cli.commands.specialized import (
 from ruddy.core import AnalysisBlock, ResultStatus
 from ruddy.core.io import write_json
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.analysis import UnifiedAnalysisResult
+    from ruddy.cli._options import CliArgs
 
-def write_unified_result(result, output_dir: str | Path) -> Path:
+
+def write_unified_result(result: UnifiedAnalysisResult, output_dir: str | Path) -> Path:
     """Persist each executed component in its own stable subdirectory."""
-
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     writers = {
@@ -86,15 +90,13 @@ def write_unified_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def _block_ok(component) -> bool:
+def _block_ok(component: object) -> bool:
     # Not every block result carries a status; those that do not always ran.
-    return (
-        component is not None
-        and getattr(component, "status", ResultStatus.OK) is ResultStatus.OK
-    )
+    return component is not None and getattr(component, "status", ResultStatus.OK) is ResultStatus.OK
 
 
-def run_analyze(args) -> int:
+def run_analyze(args: CliArgs) -> int:
+    """Run the ``ruddy analyze run`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     feature_blocks = {
@@ -119,9 +121,8 @@ def run_analyze(args) -> int:
     comparison_features = None
     if AnalysisBlock.REPRESENTATION in config.enabled_blocks:
         if not args.comparison_feature_input:
-            raise ValueError(
-                "--comparison-feature-input is required when enabling representation."
-            )
+            msg = "--comparison-feature-input is required when enabling representation."
+        raise ValueError(msg)
         comparison_features = load_feature_matrix(
             args.comparison_feature_input,
             id_column=args.comparison_feature_id_column,
@@ -134,10 +135,7 @@ def run_analyze(args) -> int:
         features=features,
         comparison_features=comparison_features,
     )
-    record_blocks(
-        (block.value, _block_ok(result.component(block)))
-        for block in result.executed_blocks
-    )
+    record_blocks((block.value, _block_ok(result.component(block))) for block in result.executed_blocks)
     if args.output_dir:
         print(write_unified_result(result, args.output_dir))
     else:

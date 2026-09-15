@@ -82,7 +82,7 @@ def _profile(
     series: pd.Series,
     max_category_levels: int,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    n_total = int(len(series))
+    n_total = len(series)
     n_missing = int(series.isna().sum())
     n_present = n_total - n_missing
 
@@ -162,7 +162,6 @@ def summarize_categorical_statistics(
     max_category_levels: int = 50,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Summarize eligible categorical, boolean, and factor variables."""
-
     if max_category_levels < 2:
         raise ValueError("max_category_levels must be at least 2.")
 

@@ -6,7 +6,9 @@ from ruddy.bivariate import analyze_posthoc
 
 
 def test_tukey_matches_statsmodels(group_dataset):
-    result = analyze_posthoc(group_dataset, response="y", factor="group", methods=("tukey_hsd",), min_group_n=2)
+    result = analyze_posthoc(
+        group_dataset, response="y", factor="group", methods=("tukey_hsd",), min_group_n=2
+    )
     frame = group_dataset.select(["y", "group"])
     reference = pairwise_tukeyhsd(frame["y"], frame["group"])
     table = result.comparisons.sort_values(["group_a", "group_b"]).reset_index(drop=True)
@@ -16,7 +18,9 @@ def test_tukey_matches_statsmodels(group_dataset):
 
 
 def test_games_howell_matches_manual_pair(group_dataset):
-    result = analyze_posthoc(group_dataset, response="y", factor="group", methods=("games_howell",), min_group_n=2)
+    result = analyze_posthoc(
+        group_dataset, response="y", factor="group", methods=("games_howell",), min_group_n=2
+    )
     row = result.comparisons.iloc[0]
     frame = group_dataset.select(["y", "group"])
     xa = frame.loc[frame.group == row.group_a, "y"].to_numpy()
@@ -43,4 +47,5 @@ def test_posthoc_rejects_numeric_nonfactor(group_dataset):
     except ValueError as exc:
         assert "factor" in str(exc).lower()
     else:
-        raise AssertionError("Expected ValueError")
+        msg = "Expected ValueError"
+        raise AssertionError(msg)

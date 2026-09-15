@@ -16,13 +16,7 @@ def _write_dataset(path: Path) -> None:
         for b in ("B0", "B1"):
             for index in range(12):
                 x = rng.normal()
-                y = (
-                    1.0
-                    + (a == "A1") * 0.8
-                    + (b == "B1") * 0.5
-                    + 0.4 * x
-                    + rng.normal(scale=0.5)
-                )
+                y = 1.0 + (a == "A1") * 0.8 + (b == "B1") * 0.5 + 0.4 * x + rng.normal(scale=0.5)
                 rows.append((f"{a}_{b}_{index}", y, a, b, x))
     pd.DataFrame(rows, columns=("id", "y", "a", "b", "x")).to_csv(path, index=False)
 
@@ -101,7 +95,5 @@ def test_factorial_cli_explicit_interaction(tmp_path: Path):
 def test_factorial_cli_requires_one_response_without_formula(tmp_path: Path):
     source = tmp_path / "data.csv"
     _write_dataset(source)
-    code = main(
-        ["model", "factorial", str(source), "--id-column", "id", "--factor", "a"]
-    )
+    code = main(["model", "factorial", str(source), "--id-column", "id", "--factor", "a"])
     assert code == 2, "CLI should reject a factorial model without one response."

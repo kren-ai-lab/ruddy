@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy import sparse, stats
+from scipy import stats
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial.distance import pdist, squareform
 from sklearn.cross_decomposition import CCA
@@ -76,7 +75,6 @@ def align_feature_matrices(
     mode: AlignmentMode | str = AlignmentMode.STRICT,
 ) -> AlignedRepresentationPair:
     """Align two dense feature matrices by observation identity and finite rows."""
-
     if x.is_sparse or y.is_sparse:
         raise ValueError(
             "Representation comparison currently requires dense inputs; Ruddy will not silently densify sparse matrices."
@@ -134,7 +132,6 @@ def align_feature_matrices(
 
 def linear_cka(x: np.ndarray, y: np.ndarray) -> float:
     """Linear centered-kernel alignment for two observation-aligned matrices."""
-
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     if x.ndim != 2 or y.ndim != 2 or x.shape[0] != y.shape[0]:
@@ -163,49 +160,141 @@ def _cca_result(
     provenance = AnalysisProvenance(
         analysis="cca",
         parameters={"n_components": n_components, "scaling": str(scaling), "max_iter": max_iter, "tol": tol},
-        input_summary={"n_observations": len(pair.observation_ids), "x_features": pair.x.shape[1], "y_features": pair.y.shape[1]},
+        input_summary={
+            "n_observations": len(pair.observation_ids),
+            "x_features": pair.x.shape[1],
+            "y_features": pair.y.shape[1],
+        },
     )
     x = _scale(pair.x, scaling)
     y = _scale(pair.y, scaling)
     rank_x, rank_y = np.linalg.matrix_rank(x), np.linalg.matrix_rank(y)
     max_components = min(rank_x, rank_y, x.shape[0] - 1, x.shape[1], y.shape[1])
     if max_components < 1:
-        return CCAResult(ResultStatus.DEGENERATE, "zero_rank_representation", pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), (), provenance)
+        return CCAResult(
+            ResultStatus.DEGENERATE,
+            "zero_rank_representation",
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            (),
+            provenance,
+        )
     if n_components < 1 or n_components > max_components:
-        return CCAResult(ResultStatus.SKIPPED, "cca_components_exceed_effective_rank", pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), (), provenance)
+        return CCAResult(
+            ResultStatus.SKIPPED,
+            "cca_components_exceed_effective_rank",
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            (),
+            provenance,
+        )
     model = CCA(n_components=n_components, scale=False, max_iter=max_iter, tol=tol)
     try:
         xs, ys = model.fit_transform(x, y)
     except Exception as exc:
         advisory = Advisory(code="cca_fit_failed", message=str(exc))
-        return CCAResult(ResultStatus.DEGENERATE, "cca_fit_failed", pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), (advisory,), provenance)
+        return CCAResult(
+            ResultStatus.DEGENERATE,
+            "cca_fit_failed",
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            (advisory,),
+            provenance,
+        )
     rows = []
     for i in range(n_components):
         r = float(np.corrcoef(xs[:, i], ys[:, i])[0, 1])
-        rows.append({"component": i + 1, "canonical_correlation": r, "shared_variance": r * r, "status": "ok", "reason": None})
-    cols = [f"CC{i+1}" for i in range(n_components)]
+        rows.append(
+            {
+                "component": i + 1,
+                "canonical_correlation": r,
+                "shared_variance": r * r,
+                "status": "ok",
+                "reason": None,
+            }
+        )
+    cols = [f"CC{i + 1}" for i in range(n_components)]
     x_weights = pd.DataFrame(model.x_weights_, index=x_names, columns=cols).reset_index(names="feature")
     y_weights = pd.DataFrame(model.y_weights_, index=y_names, columns=cols).reset_index(names="feature")
     x_loadings = pd.DataFrame(model.x_loadings_, index=x_names, columns=cols).reset_index(names="feature")
     y_loadings = pd.DataFrame(model.y_loadings_, index=y_names, columns=cols).reset_index(names="feature")
-    x_scores = pd.DataFrame(xs, columns=cols); x_scores.insert(0, "observation_id", pair.observation_ids.to_list())
-    y_scores = pd.DataFrame(ys, columns=cols); y_scores.insert(0, "observation_id", pair.observation_ids.to_list())
-    return CCAResult(ResultStatus.OK, None, pd.DataFrame(rows), x_weights, y_weights, x_loadings, y_loadings, x_scores, y_scores, (), provenance)
+    x_scores = pd.DataFrame(xs, columns=cols)
+    x_scores.insert(0, "observation_id", pair.observation_ids.to_list())
+    y_scores = pd.DataFrame(ys, columns=cols)
+    y_scores.insert(0, "observation_id", pair.observation_ids.to_list())
+    return CCAResult(
+        ResultStatus.OK,
+        None,
+        pd.DataFrame(rows),
+        x_weights,
+        y_weights,
+        x_loadings,
+        y_loadings,
+        x_scores,
+        y_scores,
+        (),
+        provenance,
+    )
 
 
 def _procrustes(pair: AlignedRepresentationPair) -> pd.DataFrame:
     if pair.x.shape[1] != pair.y.shape[1]:
-        return pd.DataFrame([{"disparity": np.nan, "similarity": np.nan, "n_dimensions": np.nan, "status": "skipped", "reason": "procrustes_requires_equal_dimensions"}])
+        return pd.DataFrame(
+            [
+                {
+                    "disparity": np.nan,
+                    "similarity": np.nan,
+                    "n_dimensions": np.nan,
+                    "status": "skipped",
+                    "reason": "procrustes_requires_equal_dimensions",
+                }
+            ]
+        )
     x = pair.x - pair.x.mean(axis=0, keepdims=True)
     y = pair.y - pair.y.mean(axis=0, keepdims=True)
     nx, ny = np.linalg.norm(x), np.linalg.norm(y)
     if nx <= np.finfo(float).eps or ny <= np.finfo(float).eps:
-        return pd.DataFrame([{"disparity": np.nan, "similarity": np.nan, "n_dimensions": pair.x.shape[1], "status": "degenerate", "reason": "zero_variance_representation"}])
+        return pd.DataFrame(
+            [
+                {
+                    "disparity": np.nan,
+                    "similarity": np.nan,
+                    "n_dimensions": pair.x.shape[1],
+                    "status": "degenerate",
+                    "reason": "zero_variance_representation",
+                }
+            ]
+        )
     x, y = x / nx, y / ny
     rotation, scale = orthogonal_procrustes(y, x)
     aligned = y @ rotation * scale
     disparity = float(np.sum((x - aligned) ** 2))
-    return pd.DataFrame([{"disparity": disparity, "similarity": float(max(0.0, 1.0 - disparity)), "n_dimensions": pair.x.shape[1], "status": "ok", "reason": None}])
+    return pd.DataFrame(
+        [
+            {
+                "disparity": disparity,
+                "similarity": float(max(0.0, 1.0 - disparity)),
+                "n_dimensions": pair.x.shape[1],
+                "status": "ok",
+                "reason": None,
+            }
+        ]
+    )
 
 
 def _distance_vectors(pair: AlignedRepresentationPair, metric: str) -> tuple[np.ndarray, np.ndarray]:
@@ -220,10 +309,24 @@ def _distance_similarity(pair: AlignedRepresentationPair, metric: str, method: s
         stat, p = stats.spearmanr(dx, dy)
     else:
         raise ValueError("distance_similarity_method must be 'pearson' or 'spearman'.")
-    return pd.DataFrame([{"metric": metric, "method": method, "coefficient": float(stat), "p_value": float(p), "n_pairs": len(dx), "status": "ok", "reason": None}])
+    return pd.DataFrame(
+        [
+            {
+                "metric": metric,
+                "method": method,
+                "coefficient": float(stat),
+                "p_value": float(p),
+                "n_pairs": len(dx),
+                "status": "ok",
+                "reason": None,
+            }
+        ]
+    )
 
 
-def _mantel(pair: AlignedRepresentationPair, metric: str, permutations: int, random_state: int) -> pd.DataFrame:
+def _mantel(
+    pair: AlignedRepresentationPair, metric: str, permutations: int, random_state: int
+) -> pd.DataFrame:
     if permutations < 0:
         raise ValueError("mantel_permutations must be non-negative.")
     dx = squareform(pdist(pair.x, metric=metric))
@@ -240,7 +343,19 @@ def _mantel(pair: AlignedRepresentationPair, metric: str, permutations: int, ran
             value = float(stats.pearsonr(dx[tri], dy[np.ix_(perm, perm)][tri]).statistic)
             exceed += abs(value) >= abs(observed)
         p = (exceed + 1.0) / (permutations + 1.0)
-    return pd.DataFrame([{"metric": metric, "correlation": observed, "p_value": p, "permutations": permutations, "alternative": "two-sided", "status": "ok", "reason": None}])
+    return pd.DataFrame(
+        [
+            {
+                "metric": metric,
+                "correlation": observed,
+                "p_value": p,
+                "permutations": permutations,
+                "alternative": "two-sided",
+                "status": "ok",
+                "reason": None,
+            }
+        ]
+    )
 
 
 def analyze_representation_similarity(
@@ -258,9 +373,16 @@ def analyze_representation_similarity(
     random_state: int = 0,
 ) -> RepresentationComparisonResult:
     """Compare two numerical representation spaces for the same observations."""
-
     pair = align_feature_matrices(x, y, mode=alignment)
-    cca = _cca_result(pair, x_names=x.feature_names, y_names=y.feature_names, n_components=cca_components, scaling=cca_scaling, max_iter=cca_max_iter, tol=cca_tol)
+    cca = _cca_result(
+        pair,
+        x_names=x.feature_names,
+        y_names=y.feature_names,
+        n_components=cca_components,
+        scaling=cca_scaling,
+        max_iter=cca_max_iter,
+        tol=cca_tol,
+    )
     try:
         cka_value = linear_cka(pair.x, pair.y)
         cka = pd.DataFrame([{"kernel": "linear", "cka": cka_value, "status": "ok", "reason": None}])
@@ -272,17 +394,31 @@ def analyze_representation_similarity(
     provenance = AnalysisProvenance(
         analysis="representation_similarity",
         parameters={
-            "alignment": str(alignment), "cca_components": cca_components, "cca_scaling": str(cca_scaling),
-            "distance_metric": distance_metric, "distance_similarity_method": distance_similarity_method,
+            "alignment": str(alignment),
+            "cca_components": cca_components,
+            "cca_scaling": str(cca_scaling),
+            "distance_metric": distance_metric,
+            "distance_similarity_method": distance_similarity_method,
             "mantel_permutations": mantel_permutations,
         },
-        input_summary={"aligned_observations": len(pair.observation_ids), "x_features": pair.x.shape[1], "y_features": pair.y.shape[1], "excluded_observations": len(pair.exclusions)},
+        input_summary={
+            "aligned_observations": len(pair.observation_ids),
+            "x_features": pair.x.shape[1],
+            "y_features": pair.y.shape[1],
+            "excluded_observations": len(pair.exclusions),
+        },
         random_state=random_state,
     )
-    return RepresentationComparisonResult(cca, cka, procrustes, distance_similarity, mantel, pair.exclusions, pair.alignment, provenance)
+    return RepresentationComparisonResult(
+        cca, cka, procrustes, distance_similarity, mantel, pair.exclusions, pair.alignment, provenance
+    )
 
 
 __all__ = [
-    "AlignedRepresentationPair", "CCAResult", "RepresentationComparisonResult",
-    "align_feature_matrices", "analyze_representation_similarity", "linear_cka",
+    "AlignedRepresentationPair",
+    "CCAResult",
+    "RepresentationComparisonResult",
+    "align_feature_matrices",
+    "analyze_representation_similarity",
+    "linear_cka",
 ]

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from itertools import product
 import math
-from typing import Any, Sequence
+from collections.abc import Sequence
+from itertools import product
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -13,7 +14,6 @@ from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import jarque_bera
 
 from ruddy.core.enums import ResultStatus
-
 
 DIAGNOSTIC_COLUMNS = (
     "diagnostic",
@@ -61,7 +61,6 @@ def build_factorial_cells(
     max_design_cells: int = 5000,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Enumerate observed and structurally empty cells for selected factors."""
-
     if min_cell_n < 1:
         raise ValueError("min_cell_n must be at least 1.")
     if max_design_cells < 1:
@@ -85,9 +84,7 @@ def build_factorial_cells(
         observed = tuple(pd.unique(frame[factor]))
         total_cells *= len(observed)
         if total_cells > max_design_cells:
-            raise ValueError(
-                f"Factorial cell enumeration exceeds max_design_cells={max_design_cells}."
-            )
+            raise ValueError(f"Factorial cell enumeration exceeds max_design_cells={max_design_cells}.")
         levels.append(observed)
 
     observed_counts = frame.groupby(list(factor_names), dropna=False, observed=True).size()
@@ -115,16 +112,8 @@ def build_factorial_cells(
             n=count,
             is_empty=empty,
             below_min_cell_n=small,
-            status=(
-                ResultStatus.DEGENERATE.value
-                if empty or small
-                else ResultStatus.OK.value
-            ),
-            reason=(
-                "empty_factorial_cell"
-                if empty
-                else ("factorial_cell_too_small" if small else None)
-            ),
+            status=(ResultStatus.DEGENERATE.value if empty or small else ResultStatus.OK.value),
+            reason=("empty_factorial_cell" if empty else ("factorial_cell_too_small" if small else None)),
         )
         rows.append(row)
 
@@ -136,8 +125,8 @@ def build_factorial_cells(
     n_small = int(table["below_min_cell_n"].sum()) if not table.empty else 0
     balanced = n_empty == 0 and (len(set(nonempty_counts)) <= 1)
     return table, {
-        "n_design_cells": int(len(table)),
-        "n_observed_cells": int(len(nonempty_counts)),
+        "n_design_cells": len(table),
+        "n_observed_cells": len(nonempty_counts),
         "n_empty_cells": n_empty,
         "n_small_cells": n_small,
         "balanced": bool(balanced),
@@ -155,7 +144,6 @@ def model_diagnostics(
     condition_number_threshold: float = 30.0,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Compute non-decision-making residual/design diagnostics for a fitted OLS model."""
-
     if not 0.0 < alpha < 1.0:
         raise ValueError("diagnostic alpha must lie in (0, 1).")
     if condition_number_threshold <= 0.0:
@@ -330,9 +318,7 @@ def model_diagnostics(
                     "is_high_leverage": (
                         None if leverage_value is None else leverage_value > leverage_threshold
                     ),
-                    "is_influential": (
-                        None if cooks_value is None else cooks_value > cooks_threshold
-                    ),
+                    "is_influential": (None if cooks_value is None else cooks_value > cooks_threshold),
                     "status": ResultStatus.OK.value,
                     "reason": None,
                 }

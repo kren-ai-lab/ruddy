@@ -102,10 +102,8 @@ def _resolve_annotation_roles(
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(columns))
     if unknown:
-        raise UnknownColumnError(
-            f"Annotation role overrides reference unknown columns: {unknown}."
-        )
-    resolved = {column: ColumnRole.ANNOTATION for column in columns}
+        raise UnknownColumnError(f"Annotation role overrides reference unknown columns: {unknown}.")
+    resolved = dict.fromkeys(columns, ColumnRole.ANNOTATION)
     for column, value in overrides.items():
         role = value if isinstance(value, ColumnRole) else ColumnRole(value)
         if role is ColumnRole.IDENTIFIER:
@@ -123,9 +121,7 @@ def _resolve_annotation_kinds(
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        raise UnknownColumnError(
-            f"Annotation kind overrides reference unknown columns: {unknown}."
-        )
+        raise UnknownColumnError(f"Annotation kind overrides reference unknown columns: {unknown}.")
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:
         observed = infer_column_kind(frame[column])
@@ -133,9 +129,7 @@ def _resolve_annotation_kinds(
             resolved[column] = observed
             continue
         requested = (
-            overrides[column]
-            if isinstance(overrides[column], ColumnKind)
-            else ColumnKind(overrides[column])
+            overrides[column] if isinstance(overrides[column], ColumnKind) else ColumnKind(overrides[column])
         )
         if requested is ColumnKind.NUMERIC and observed is not ColumnKind.NUMERIC:
             raise ValueError(
@@ -169,7 +163,6 @@ def align_annotation_source(
     ``annotations=None`` is preserved as an explicit ``ABSENT`` source instead of
     being conflated with an empty or fully missing table.
     """
-
     resolved_mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     if annotations is None:
         empty = pd.DataFrame(index=dataset.observation_ids)
@@ -198,9 +191,7 @@ def align_annotation_source(
 
     roles = _resolve_annotation_roles(aligned.columns, role_overrides)
     kinds = _resolve_annotation_kinds(aligned, kind_overrides)
-    coverage = (
-        AnnotationCoverage.COMPLETE if report.complete else AnnotationCoverage.PARTIAL
-    )
+    coverage = AnnotationCoverage.COMPLETE if report.complete else AnnotationCoverage.PARTIAL
     return AlignedAnnotations(
         source_name=source_name,
         data=aligned,
@@ -220,7 +211,6 @@ def attach_annotations(
     Base observations and their ordering are preserved exactly. Column-name
     collisions are rejected instead of overwritten.
     """
-
     sources = tuple(sources)
     base = dataset.to_frame()
     original_index = base.index.copy()
@@ -238,8 +228,7 @@ def attach_annotations(
         collisions = sorted(set(frame.columns) & set(base.columns))
         if collisions:
             raise ValueError(
-                f"Annotation source {source.source_name!r} collides with existing "
-                f"columns: {collisions}."
+                f"Annotation source {source.source_name!r} collides with existing columns: {collisions}."
             )
         base = base.join(frame, how="left")
         roles.update(source.roles)

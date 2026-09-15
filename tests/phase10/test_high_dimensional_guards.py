@@ -46,7 +46,7 @@ def test_mahalanobis_p_ge_n_refuses_inversion():
 def test_perfect_collinearity_is_detected_before_mahalanobis():
     rng = np.random.default_rng(9)
     x = rng.normal(size=(50, 3))
-    x = np.column_stack([x, 2.0*x[:, 0]])
+    x = np.column_stack([x, 2.0 * x[:, 0]])
     result = analyze_mahalanobis(FeatureMatrix(x), include_robust=False)
     assert result.status.value == "degenerate"
     assert result.methods.loc[0, "reason"] == "singular_covariance"

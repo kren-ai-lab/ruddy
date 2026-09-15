@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from inspect import signature
 from typing import Any
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -59,7 +59,6 @@ def analyze_tsne(
     max_iter: int = 1000,
 ) -> ProjectionResult:
     """Run deterministic t-SNE under a fixed random seed."""
-
     if n_components not in (2, 3):
         raise ValueError("t-SNE supports n_components of 2 or 3 in Ruddy.")
     if perplexity <= 0:
@@ -68,9 +67,7 @@ def analyze_tsne(
         raise ValueError("max_iter must be at least 250.")
     prepared = prepare_features(features, scaling=scaling, minimum_observations=3)
     if perplexity >= prepared.n_observations:
-        raise ValueError(
-            "t-SNE perplexity must be smaller than the number of finite input observations."
-        )
+        raise ValueError("t-SNE perplexity must be smaller than the number of finite input observations.")
     scale = scaling if isinstance(scaling, ScalingMethod) else ScalingMethod(scaling)
     parameters = {
         "n_components": int(n_components),
@@ -137,13 +134,10 @@ def analyze_umap(
     random_state: int = 0,
 ) -> ProjectionResult:
     """Run UMAP when the optional ``umap-learn`` dependency is installed."""
-
     try:
         import umap
     except Exception as exc:  # pragma: no cover - environment dependent
-        raise OptionalDependencyError(
-            "UMAP requires the optional 'umap-learn' dependency."
-        ) from exc
+        raise OptionalDependencyError("UMAP requires the optional 'umap-learn' dependency.") from exc
 
     if n_components < 2:
         raise ValueError("UMAP n_components must be at least 2.")
@@ -153,9 +147,7 @@ def analyze_umap(
         raise ValueError("UMAP min_dist must be between 0 and 1.")
     prepared = prepare_features(features, scaling=scaling, minimum_observations=4)
     if n_neighbors >= prepared.n_observations:
-        raise ValueError(
-            "UMAP n_neighbors must be smaller than the number of finite input observations."
-        )
+        raise ValueError("UMAP n_neighbors must be smaller than the number of finite input observations.")
     scale = scaling if isinstance(scaling, ScalingMethod) else ScalingMethod(scaling)
     parameters = {
         "n_components": int(n_components),
@@ -219,7 +211,6 @@ def analyze_projection(
     **kwargs: Any,
 ) -> ProjectionResult:
     """Dispatch one explicitly exploratory nonlinear projection."""
-
     normalized = method if isinstance(method, ProjectionMethod) else ProjectionMethod(method)
     if normalized is ProjectionMethod.UMAP:
         return analyze_umap(features, **kwargs)

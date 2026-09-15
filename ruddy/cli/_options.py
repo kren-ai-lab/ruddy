@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from ruddy._version import __version__
-from ruddy.cli._console import fail, record_blocks, record_output, render
+from ruddy.cli._console import STATE, fail, record_blocks, record_output, render
 from ruddy.cli._enums import (
     Alignment,
     BootstrapMethod,
@@ -85,12 +85,10 @@ def dispatch(
 
 
 def _blocks_recorded() -> bool:
-    from ruddy.cli._console import STATE
-
     return bool(STATE.blocks)
 
 
-def version_callback(value: bool) -> None:  # noqa: FBT001
+def version_callback(value: bool) -> None:
     """Print the Ruddy version and exit."""
     if value:
         typer.echo(f"ruddy {__version__}")
@@ -100,9 +98,7 @@ def version_callback(value: bool) -> None:  # noqa: FBT001
 # --------------------------------------------------------------------------
 # Tabular input, column roles and kinds
 # --------------------------------------------------------------------------
-TABLE_ARGUMENT = typer.Argument(
-    ..., metavar="INPUT", help="Input .csv, .tsv, .txt, or .parquet table."
-)
+TABLE_ARGUMENT = typer.Argument(..., metavar="INPUT", help="Input .csv, .tsv, .txt, or .parquet table.")
 FEATURES_ARGUMENT = typer.Argument(
     ...,
     metavar="INPUT",
@@ -114,19 +110,13 @@ FACTOR = typer.Option(None, "--factor", help="Factor column; repeatable.")
 COVARIATE = typer.Option(None, "--covariate", help="Covariate column; repeatable.")
 ANNOTATION = typer.Option(None, "--annotation", help="Annotation column; repeatable.")
 EXCLUDE = typer.Option(None, "--exclude", help="Excluded column; repeatable.")
-NUMERIC = typer.Option(
-    None, "--numeric", help="Force numeric kind without coercion; repeatable."
-)
-CATEGORICAL = typer.Option(
-    None, "--categorical", help="Interpret as categorical; repeatable."
-)
+NUMERIC = typer.Option(None, "--numeric", help="Force numeric kind without coercion; repeatable.")
+CATEGORICAL = typer.Option(None, "--categorical", help="Interpret as categorical; repeatable.")
 MIN_NUMERIC_N = typer.Option(3, "--min-numeric-n")
 MAX_CATEGORY_LEVELS = typer.Option(50, "--max-category-levels")
 MAX_MISSINGNESS_PATTERNS = typer.Option(20, "--max-missingness-patterns")
 MAX_PAIRWISE_COLUMNS = typer.Option(200, "--max-pairwise-columns")
-OUTPUT_DIR = typer.Option(
-    None, "--output-dir", help="Write structured CSV/JSON outputs to this directory."
-)
+OUTPUT_DIR = typer.Option(None, "--output-dir", help="Write structured CSV/JSON outputs to this directory.")
 
 # --------------------------------------------------------------------------
 # Shared inference / resampling controls
@@ -156,7 +146,7 @@ MAX_GROUP_LEVELS = typer.Option(20, "--max-group-levels")
 MIN_CORRELATION_PAIRS = typer.Option(3, "--min-correlation-pairs")
 MAX_CORRELATION_COLUMNS = typer.Option(100, "--max-correlation-columns")
 PAIRWISE = typer.Option(
-    False,  # noqa: FBT003
+    False,
     "--pairwise",
     help="Enable pairwise post-hoc tests for multi-group comparisons.",
 )
@@ -174,12 +164,8 @@ COMPARISON_TEST = typer.Option(
 # --------------------------------------------------------------------------
 # Feature-matrix inputs
 # --------------------------------------------------------------------------
-IDS_FILE = typer.Option(
-    None, "--ids-file", help="One observation ID per line for NPY/NPZ inputs."
-)
-FEATURE_COLUMN = typer.Option(
-    None, "--feature-column", help="Feature column for tabular inputs; repeatable."
-)
+IDS_FILE = typer.Option(None, "--ids-file", help="One observation ID per line for NPY/NPZ inputs.")
+FEATURE_COLUMN = typer.Option(None, "--feature-column", help="Feature column for tabular inputs; repeatable.")
 FEATURE_INPUT = typer.Option(
     None,
     "--feature-input",
@@ -201,7 +187,7 @@ OUTLIER_METHOD = typer.Option(
 IQR_MULTIPLIER = typer.Option(1.5, "--iqr-multiplier")
 ROBUST_Z_THRESHOLD = typer.Option(3.5, "--robust-z-threshold")
 INCLUDE_FLAGS = typer.Option(
-    False,  # noqa: FBT003
+    False,
     "--include-flags",
     help="Persist observation-level flags in addition to variable summaries.",
 )
@@ -209,8 +195,8 @@ INCLUDE_FLAGS = typer.Option(
 # --------------------------------------------------------------------------
 # Multivariate / Mahalanobis
 # --------------------------------------------------------------------------
-NO_SPEARMAN = typer.Option(False, "--no-spearman")  # noqa: FBT003
-NO_ROBUST_MAHALANOBIS = typer.Option(False, "--no-robust-mahalanobis")  # noqa: FBT003
+NO_SPEARMAN = typer.Option(False, "--no-spearman")
+NO_ROBUST_MAHALANOBIS = typer.Option(False, "--no-robust-mahalanobis")
 MAHALANOBIS_QUANTILE = typer.Option(0.975, "--mahalanobis-quantile")
 ROBUST_SUPPORT_FRACTION = typer.Option(None, "--robust-support-fraction")
 MAX_COVARIANCE_FEATURES = typer.Option(200, "--max-covariance-features")
@@ -272,7 +258,7 @@ MIXED_INTERACTION = typer.Option(None, "--mixed-interaction")
 MIXED_FORMULA = typer.Option(None, "--mixed-formula")
 MIXED_RANDOM_SLOPE = typer.Option(None, "--mixed-random-slope")
 MIXED_ML = typer.Option(
-    False,  # noqa: FBT003
+    False,
     "--mixed-ml",
     help="Use ML instead of REML.",
 )
@@ -290,15 +276,11 @@ CCA_SCALING = typer.Option(Scaling.standard, "--cca-scaling")
 CCA_MAX_ITER = typer.Option(1000, "--cca-max-iter")
 CCA_TOL = typer.Option(1e-6, "--cca-tol")
 DISTANCE_METRIC = typer.Option("euclidean", "--distance-metric")
-DISTANCE_SIMILARITY_METHOD = typer.Option(
-    SimilarityMethod.spearman, "--distance-similarity-method"
-)
+DISTANCE_SIMILARITY_METHOD = typer.Option(SimilarityMethod.spearman, "--distance-similarity-method")
 MANTEL_PERMUTATIONS = typer.Option(999, "--mantel-permutations")
 
-COMPOSITIONAL_TRANSFORM = typer.Option(
-    CompositionalTransform.clr, "--compositional-transform"
-)
-REPLACE_ZEROS = typer.Option(False, "--replace-zeros")  # noqa: FBT003
+COMPOSITIONAL_TRANSFORM = typer.Option(CompositionalTransform.clr, "--compositional-transform")
+REPLACE_ZEROS = typer.Option(False, "--replace-zeros")
 ZERO_REPLACEMENT_FRACTION = typer.Option(0.65, "--zero-replacement-fraction")
 ALR_DENOMINATOR = typer.Option(-1, "--alr-denominator")
 
@@ -329,9 +311,7 @@ MIN_DIST = typer.Option(0.1, "--min-dist")
 # --------------------------------------------------------------------------
 # External annotation sources (``ruddy analyze groups``)
 # --------------------------------------------------------------------------
-ANNOTATION_FILE = typer.Option(
-    None, "--annotation-file", help="External annotation table to align by ID."
-)
+ANNOTATION_FILE = typer.Option(None, "--annotation-file", help="External annotation table to align by ID.")
 ANNOTATION_NAME = typer.Option("annotations", "--annotation-name")
 ANNOTATION_ID_COLUMN = typer.Option(None, "--annotation-id-column")
 ANNOTATION_ALIGNMENT = typer.Option(Alignment.strict, "--annotation-alignment")
@@ -344,12 +324,8 @@ ANNOTATION_CATEGORICAL = typer.Option(None, "--annotation-categorical")
 # --------------------------------------------------------------------------
 # Paired representation spaces (``ruddy analyze representation``)
 # --------------------------------------------------------------------------
-REPRESENTATION_X_ARGUMENT = typer.Argument(
-    ..., metavar="INPUT_X", help="First representation matrix."
-)
-REPRESENTATION_Y_ARGUMENT = typer.Argument(
-    ..., metavar="INPUT_Y", help="Second representation matrix."
-)
+REPRESENTATION_X_ARGUMENT = typer.Argument(..., metavar="INPUT_X", help="First representation matrix.")
+REPRESENTATION_Y_ARGUMENT = typer.Argument(..., metavar="INPUT_Y", help="Second representation matrix.")
 X_ID_COLUMN = typer.Option(None, "--x-id-column")
 Y_ID_COLUMN = typer.Option(None, "--y-id-column")
 X_IDS_FILE = typer.Option(None, "--x-ids-file")
@@ -363,10 +339,7 @@ Y_FEATURE_COLUMN = typer.Option(None, "--y-feature-column")
 ENABLE = typer.Option(
     None,
     "--enable",
-    help=(
-        "Top-level analysis block to execute; repeatable. "
-        "Defaults to profiling + univariate."
-    ),
+    help=("Top-level analysis block to execute; repeatable. Defaults to profiling + univariate."),
 )
 PROJECTION_N_COMPONENTS = typer.Option(2, "--projection-n-components")
 PROJECTION_SCALING = typer.Option(Scaling.none, "--projection-scaling")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -15,8 +16,16 @@ from ruddy.compositional import analyze_composition
 from ruddy.core.io import write_json, write_table
 from ruddy.representation import analyze_representation_similarity
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.anomaly import AnomalyResult
+    from ruddy.bayesian import BayesianEDAResult
+    from ruddy.cli._options import CliArgs
+    from ruddy.compositional import CompositionalResult
+    from ruddy.representation import RepresentationComparisonResult
 
-def write_representation_result(result, output_dir: str | Path) -> Path:
+
+def write_representation_result(result: RepresentationComparisonResult, output_dir: str | Path) -> Path:
+    """Persist structured representation-comparison artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.cca.correlations, target / "cca_correlations.csv")
@@ -37,26 +46,22 @@ def write_representation_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def write_compositional_result(result, output_dir: str | Path) -> Path:
+def write_compositional_result(result: CompositionalResult, output_dir: str | Path) -> Path:
+    """Persist structured compositional artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    transformed = pd.DataFrame(
-        result.transformed.to_array(), columns=result.transformed.feature_names
-    )
-    transformed.insert(
-        0, "observation_id", result.transformed.observation_ids.to_list()
-    )
+    transformed = pd.DataFrame(result.transformed.to_array(), columns=result.transformed.feature_names)
+    transformed.insert(0, "observation_id", result.transformed.observation_ids.to_list())
     write_table(transformed, target / "compositional_transformed.csv")
     write_table(result.variation_matrix, target / "variation_matrix.csv", index=True)
-    write_table(
-        result.aitchison_distances, target / "aitchison_distances.csv", index=True
-    )
+    write_table(result.aitchison_distances, target / "aitchison_distances.csv", index=True)
     write_table(result.zero_replacement, target / "zero_replacement.csv")
     write_json(result.provenance.to_dict(), target / "compositional_provenance.json")
     return target
 
 
-def write_bayesian_result(result, output_dir: str | Path) -> Path:
+def write_bayesian_result(result: BayesianEDAResult, output_dir: str | Path) -> Path:
+    """Persist structured Bayesian EDA artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.means, target / "bayesian_means.csv")
@@ -65,7 +70,8 @@ def write_bayesian_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def write_anomaly_result(result, output_dir: str | Path) -> Path:
+def write_anomaly_result(result: AnomalyResult, output_dir: str | Path) -> Path:
+    """Persist structured anomaly-scoring artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.scores, target / "anomaly_scores.csv")
@@ -76,7 +82,8 @@ def write_anomaly_result(result, output_dir: str | Path) -> Path:
     return target
 
 
-def run_representation(args) -> int:
+def run_representation(args: CliArgs) -> int:
+    """Run the ``ruddy analyze representation`` command."""
     x = load_feature_matrix(
         args.input_x,
         id_column=args.x_id_column,
@@ -119,7 +126,8 @@ def run_representation(args) -> int:
     return 0
 
 
-def run_compositional(args) -> int:
+def run_compositional(args: CliArgs) -> int:
+    """Run the ``ruddy analyze compositional`` command."""
     features = load_feature_matrix(
         args.input,
         id_column=args.id_column,
@@ -148,7 +156,8 @@ def run_compositional(args) -> int:
     return 0
 
 
-def run_bayesian(args) -> int:
+def run_bayesian(args: CliArgs) -> int:
+    """Run the ``ruddy analyze bayesian`` command."""
     config = build_config(args)
     dataset = load_dataset(args.input, config)
     result = analyze_bayesian_eda(dataset, **config.bayesian_kwargs())
@@ -167,7 +176,8 @@ def run_bayesian(args) -> int:
     return 0
 
 
-def run_anomaly(args) -> int:
+def run_anomaly(args: CliArgs) -> int:
+    """Run the ``ruddy analyze anomaly`` command."""
     features = load_feature_matrix(
         args.input,
         id_column=args.id_column,
@@ -178,11 +188,7 @@ def run_anomaly(args) -> int:
         features,
         methods=tuple(args.anomaly_method or ("isolation_forest", "lof")),
         scaling=args.anomaly_scaling,
-        contamination=(
-            args.contamination
-            if args.contamination == "auto"
-            else float(args.contamination)
-        ),
+        contamination=(args.contamination if args.contamination == "auto" else float(args.contamination)),
         isolation_estimators=args.isolation_estimators,
         lof_neighbors=args.lof_neighbors,
         random_state=args.random_state,

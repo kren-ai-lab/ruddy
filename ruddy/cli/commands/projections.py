@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 from ruddy.cli._console import record_features
 from ruddy.core.io import (
@@ -24,6 +25,9 @@ from ruddy.projections import (
     analyze_umap,
 )
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ruddy.cli._options import CliArgs
+
 
 def _recorded(features: FeatureMatrix) -> FeatureMatrix:
     record_features(features)
@@ -38,7 +42,6 @@ def load_feature_matrix(
     ids_file: str | Path | None = None,
 ) -> FeatureMatrix:
     """Load a feature matrix without implicit scientific transformations."""
-
     source = Path(path)
     suffix = source.suffix.lower()
     ids = None if ids_file is None else read_ids(ids_file)
@@ -47,16 +50,19 @@ def load_feature_matrix(
         frame = read_table(source)
         if id_column is not None:
             if id_column not in frame.columns:
-                raise ValueError(f"Unknown feature-matrix ID column: {id_column!r}.")
+                msg = f"Unknown feature-matrix ID column: {id_column!r}."
+                raise ValueError(msg)
             if ids is not None:
-                raise ValueError("Use either --id-column or --ids-file, not both.")
+                msg = "Use either --id-column or --ids-file, not both."
+                raise ValueError(msg)
             ids = frame[id_column].tolist()
         selected = list(feature_columns)
         if not selected:
             selected = [column for column in frame.columns if column != id_column]
         missing = [column for column in selected if column not in frame.columns]
         if missing:
-            raise ValueError(f"Unknown feature columns: {missing!r}.")
+            msg = f"Unknown feature columns: {missing!r}."
+            raise ValueError(msg)
         return _recorded(
             FeatureMatrix(
                 frame[selected],
@@ -69,6 +75,7 @@ def load_feature_matrix(
 
 
 def write_pca_result(result: PCAResult, output_dir: str | Path) -> Path:
+    """Persist structured PCA artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.scores, target / "pca_scores.csv")
@@ -88,6 +95,7 @@ def write_pca_result(result: PCAResult, output_dir: str | Path) -> Path:
 
 
 def write_projection_result(result: ProjectionResult, output_dir: str | Path) -> Path:
+    """Persist structured nonlinear projection artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.coordinates, target / "projection_coordinates.csv")
@@ -108,7 +116,8 @@ def write_projection_result(result: ProjectionResult, output_dir: str | Path) ->
     return target
 
 
-def run_project(args) -> int:
+def run_project(args: CliArgs) -> int:
+    """Run the ``ruddy project`` command."""
     features = load_feature_matrix(
         args.input,
         id_column=args.id_column,

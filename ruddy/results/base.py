@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from ruddy.core.enums import AdvisoryLevel, ResultStatus
 from ruddy.core.exceptions import ResultContractError
@@ -21,11 +22,7 @@ class Advisory:
     context: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        level = (
-            self.level
-            if isinstance(self.level, AdvisoryLevel)
-            else AdvisoryLevel(self.level)
-        )
+        level = self.level if isinstance(self.level, AdvisoryLevel) else AdvisoryLevel(self.level)
         object.__setattr__(self, "level", level)
         object.__setattr__(self, "context", MappingProxyType(dict(self.context)))
 
@@ -48,21 +45,12 @@ class AnalysisResult:
     provenance: AnalysisProvenance | None = None
 
     def __post_init__(self) -> None:
-        status = (
-            self.status
-            if isinstance(self.status, ResultStatus)
-            else ResultStatus(self.status)
-        )
+        status = self.status if isinstance(self.status, ResultStatus) else ResultStatus(self.status)
         object.__setattr__(self, "status", status)
         if self.status is ResultStatus.OK and self.reason is not None:
             raise ResultContractError("An OK result cannot carry a degeneracy reason.")
-        if (
-            self.status in {ResultStatus.DEGENERATE, ResultStatus.SKIPPED}
-            and not self.reason
-        ):
-            raise ResultContractError(
-                f"A {self.status.value} result must provide an explicit reason."
-            )
+        if self.status in {ResultStatus.DEGENERATE, ResultStatus.SKIPPED} and not self.reason:
+            raise ResultContractError(f"A {self.status.value} result must provide an explicit reason.")
 
     @classmethod
     def ok(
@@ -70,7 +58,7 @@ class AnalysisResult:
         *,
         advisories: tuple[Advisory, ...] = (),
         provenance: AnalysisProvenance | None = None,
-    ) -> "AnalysisResult":
+    ) -> AnalysisResult:
         return cls(
             status=ResultStatus.OK,
             advisories=advisories,
@@ -84,7 +72,7 @@ class AnalysisResult:
         *,
         advisories: tuple[Advisory, ...] = (),
         provenance: AnalysisProvenance | None = None,
-    ) -> "AnalysisResult":
+    ) -> AnalysisResult:
         return cls(
             status=ResultStatus.DEGENERATE,
             reason=reason,
@@ -99,7 +87,7 @@ class AnalysisResult:
         *,
         advisories: tuple[Advisory, ...] = (),
         provenance: AnalysisProvenance | None = None,
-    ) -> "AnalysisResult":
+    ) -> AnalysisResult:
         return cls(
             status=ResultStatus.SKIPPED,
             reason=reason,
@@ -112,7 +100,5 @@ class AnalysisResult:
             "status": self.status.value,
             "reason": self.reason,
             "advisories": [advisory.to_dict() for advisory in self.advisories],
-            "provenance": (
-                None if self.provenance is None else self.provenance.to_dict()
-            ),
+            "provenance": (None if self.provenance is None else self.provenance.to_dict()),
         }

@@ -4,14 +4,15 @@ Default ``python`` mode executes all code cells in an isolated Python process pe
 notebook with a non-interactive Matplotlib backend. ``jupyter`` mode performs a
 full notebook execution through nbconvert and can optionally persist outputs.
 """
+
 from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import nbformat
 
@@ -30,8 +31,14 @@ def _python_gate(notebook: Path, root: Path, timeout: int) -> int:
     env["MPLBACKEND"] = "Agg"
     try:
         completed = subprocess.run(
-            [sys.executable, str(script)], cwd=root, env=env, timeout=timeout,
-            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+            [sys.executable, str(script)],
+            cwd=root,
+            env=env,
+            timeout=timeout,
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
         )
     except subprocess.TimeoutExpired:
         print(f"FAILED: {notebook.name}: Python execution timed out", file=sys.stderr)
@@ -43,12 +50,18 @@ def _python_gate(notebook: Path, root: Path, timeout: int) -> int:
     return completed.returncode
 
 
-def _jupyter_gate(notebook: Path, root: Path, timeout: int, inplace: bool) -> int:
+def _jupyter_gate(notebook: Path, root: Path, timeout: int, *, inplace: bool) -> int:
     env = os.environ.copy()
     src = str(root)
     env["PYTHONPATH"] = src + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     command = [
-        sys.executable, "-m", "jupyter", "nbconvert", "--to", "notebook", "--execute",
+        sys.executable,
+        "-m",
+        "jupyter",
+        "nbconvert",
+        "--to",
+        "notebook",
+        "--execute",
         f"--ExecutePreprocessor.timeout={timeout}",
     ]
     if inplace:
@@ -68,10 +81,13 @@ def _jupyter_gate(notebook: Path, root: Path, timeout: int, inplace: bool) -> in
 
 
 def main() -> int:
+    """Run the notebook execution gate and return a process exit code."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--timeout", type=int, default=240, help="Execution timeout in seconds.")
     parser.add_argument("--mode", choices=("python", "jupyter"), default="python")
-    parser.add_argument("--inplace", action="store_true", help="With --mode jupyter, persist freshly executed outputs.")
+    parser.add_argument(
+        "--inplace", action="store_true", help="With --mode jupyter, persist freshly executed outputs."
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -85,7 +101,7 @@ def main() -> int:
         if args.mode == "python":
             code = _python_gate(notebook, root, args.timeout)
         else:
-            code = _jupyter_gate(notebook, root, args.timeout, args.inplace)
+            code = _jupyter_gate(notebook, root, args.timeout, inplace=args.inplace)
         if code:
             return code
 

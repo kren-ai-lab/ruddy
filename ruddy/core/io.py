@@ -35,9 +35,7 @@ def _existing(path: str | Path, *, kind: str) -> Path:
 
 
 def _unsupported(suffix: str, supported: Iterable[str]) -> RuddyIOError:
-    return RuddyIOError(
-        f"Unsupported file extension {suffix!r}. Supported: {sorted(supported)}."
-    )
+    return RuddyIOError(f"Unsupported file extension {suffix!r}. Supported: {sorted(supported)}.")
 
 
 def read_table(path: str | Path) -> pd.DataFrame:

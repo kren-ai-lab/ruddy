@@ -32,17 +32,13 @@ class PCAResult:
     @property
     def inferential_allowed(self) -> bool:
         """PCA scores are explicit linear derived variables."""
-
         return self.status is ResultStatus.OK
 
     def to_feature_matrix(self) -> FeatureMatrix:
         """Return PCA scores as an explicitly derived feature matrix."""
-
         if self.status is not ResultStatus.OK:
             raise ValueError("Only a successful PCA result can be converted to FeatureMatrix.")
-        component_columns = [
-            column for column in self.scores.columns if column.startswith("PC")
-        ]
+        component_columns = [column for column in self.scores.columns if column.startswith("PC")]
         return FeatureMatrix(
             self.scores[component_columns],
             observation_ids=self.scores["observation_id"].to_list(),
@@ -90,7 +86,6 @@ def analyze_pca(
     random_state: int = 0,
 ) -> PCAResult:
     """Run PCA with explicit scaling, row exclusion, and component provenance."""
-
     if n_components < 1:
         raise ValueError("n_components must be at least 1.")
     prepared = prepare_features(features, scaling=scaling, minimum_observations=2)

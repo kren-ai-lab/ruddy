@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy import sparse
 from scipy.stats import f_oneway
 from sklearn.metrics import pairwise_distances
 
@@ -16,15 +15,28 @@ from ruddy.data import FeatureMatrix, TabularDataset
 from ruddy.data.validation import AlignmentReport, align_annotations
 from ruddy.results import Advisory, AnalysisProvenance
 
-
 SUMMARY_COLUMNS = (
-    "analysis", "factor", "statistic", "value", "df_between", "df_within",
-    "r_squared", "p_value", "n_permutations", "status", "reason",
+    "analysis",
+    "factor",
+    "statistic",
+    "value",
+    "df_between",
+    "df_within",
+    "r_squared",
+    "p_value",
+    "n_permutations",
+    "status",
+    "reason",
 )
 GROUP_COLUMNS = ("factor", "level", "n", "mean_distance_to_centroid")
 CENTROID_COLUMNS = (
-    "source_row_index", "observation_id", "factor", "level",
-    "distance_to_centroid", "status", "reason",
+    "source_row_index",
+    "observation_id",
+    "factor",
+    "level",
+    "distance_to_centroid",
+    "status",
+    "reason",
 )
 EXCLUSION_COLUMNS = ("source_row_index", "observation_id", "stage", "reason")
 
@@ -102,7 +114,7 @@ def _pcoa(distance_matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarr
     d = np.asarray(distance_matrix, dtype=float)
     n = d.shape[0]
     j = np.eye(n) - np.ones((n, n)) / n
-    b = -0.5 * j @ (d ** 2) @ j
+    b = -0.5 * j @ (d**2) @ j
     eigenvalues, eigenvectors = np.linalg.eigh(b)
     order = np.argsort(eigenvalues)[::-1]
     eigenvalues = eigenvalues[order]
@@ -143,7 +155,6 @@ def analyze_permutation_group_structure(
     alignment: AlignmentMode | str = AlignmentMode.STRICT,
 ) -> PermutationGroupResult:
     """Run PERMANOVA and PERMDISP together on one feature-space grouping factor."""
-
     if n_permutations < 0:
         raise ValueError("n_permutations cannot be negative.")
     if min_group_n < 2:
@@ -161,12 +172,14 @@ def analyze_permutation_group_structure(
     exclusions_rows: list[dict[str, Any]] = []
     for row in np.flatnonzero(~keep):
         reason = "non_finite_feature_row" if not valid_features[row] else "missing_group_value"
-        exclusions_rows.append({
-            "source_row_index": int(row),
-            "observation_id": ids[row],
-            "stage": "permutation_group_complete_case",
-            "reason": reason,
-        })
+        exclusions_rows.append(
+            {
+                "source_row_index": int(row),
+                "observation_id": ids[row],
+                "stage": "permutation_group_complete_case",
+                "reason": reason,
+            }
+        )
     exclusions = pd.DataFrame(exclusions_rows, columns=EXCLUSION_COLUMNS)
 
     labels = group_series.to_numpy()[keep]
@@ -193,26 +206,89 @@ def analyze_permutation_group_structure(
     empty_groups = pd.DataFrame(columns=GROUP_COLUMNS)
     empty_dist = pd.DataFrame(columns=CENTROID_COLUMNS)
     if len(levels) < 2:
-        return PermutationGroupResult(ResultStatus.DEGENERATE, "factor_has_fewer_than_two_levels", empty_summary, empty_groups, empty_dist, exclusions, report, (), provenance)
+        return PermutationGroupResult(
+            ResultStatus.DEGENERATE,
+            "factor_has_fewer_than_two_levels",
+            empty_summary,
+            empty_groups,
+            empty_dist,
+            exclusions,
+            report,
+            (),
+            provenance,
+        )
     if len(levels) > max_group_levels:
         raise ValueError(f"Factor {factor!r} has {len(levels)} levels; maximum is {max_group_levels}.")
     if np.any(counts < min_group_n):
-        groups = pd.DataFrame({"factor": factor, "level": levels, "n": counts, "mean_distance_to_centroid": np.nan}, columns=GROUP_COLUMNS)
-        return PermutationGroupResult(ResultStatus.DEGENERATE, "group_too_small", empty_summary, groups, empty_dist, exclusions, report, (), provenance)
+        groups = pd.DataFrame(
+            {"factor": factor, "level": levels, "n": counts, "mean_distance_to_centroid": np.nan},
+            columns=GROUP_COLUMNS,
+        )
+        return PermutationGroupResult(
+            ResultStatus.DEGENERATE,
+            "group_too_small",
+            empty_summary,
+            groups,
+            empty_dist,
+            exclusions,
+            report,
+            (),
+            provenance,
+        )
     if keep.sum() <= len(levels):
-        return PermutationGroupResult(ResultStatus.SKIPPED, "insufficient_residual_degrees_of_freedom", empty_summary, empty_groups, empty_dist, exclusions, report, (), provenance)
+        return PermutationGroupResult(
+            ResultStatus.SKIPPED,
+            "insufficient_residual_degrees_of_freedom",
+            empty_summary,
+            empty_groups,
+            empty_dist,
+            exclusions,
+            report,
+            (),
+            provenance,
+        )
 
     matrix = features.to_sparse()[keep] if features.is_sparse else features.to_array()[keep]
     distance_matrix = pairwise_distances(matrix, metric=metric)
     if not np.isfinite(distance_matrix).all():
-        return PermutationGroupResult(ResultStatus.DEGENERATE, "non_finite_distance_matrix", empty_summary, empty_groups, empty_dist, exclusions, report, (), provenance)
+        return PermutationGroupResult(
+            ResultStatus.DEGENERATE,
+            "non_finite_distance_matrix",
+            empty_summary,
+            empty_groups,
+            empty_dist,
+            exclusions,
+            report,
+            (),
+            provenance,
+        )
     if np.allclose(distance_matrix, 0.0):
-        return PermutationGroupResult(ResultStatus.DEGENERATE, "zero_distance_space", empty_summary, empty_groups, empty_dist, exclusions, report, (), provenance)
+        return PermutationGroupResult(
+            ResultStatus.DEGENERATE,
+            "zero_distance_space",
+            empty_summary,
+            empty_groups,
+            empty_dist,
+            exclusions,
+            report,
+            (),
+            provenance,
+        )
 
     permanova_f, r_squared, df_between, df_within = _permanova_statistic(distance_matrix, labels)
     coords, eigenvalues, positive = _pcoa(distance_matrix)
     if coords.shape[1] == 0:
-        return PermutationGroupResult(ResultStatus.DEGENERATE, "zero_rank_distance_space", empty_summary, empty_groups, empty_dist, exclusions, report, (), provenance)
+        return PermutationGroupResult(
+            ResultStatus.DEGENERATE,
+            "zero_rank_distance_space",
+            empty_summary,
+            empty_groups,
+            empty_dist,
+            exclusions,
+            report,
+            (),
+            provenance,
+        )
     centroid_distances = _distances_to_group_centroids(coords, labels)
     permdisp_f = _dispersion_f(centroid_distances, labels)
 
@@ -233,41 +309,66 @@ def analyze_permutation_group_structure(
             return None
         return float((1 + np.sum(finite >= observed)) / (1 + len(finite)))
 
-    summary = pd.DataFrame([
-        {
-            "analysis": "permanova", "factor": factor, "statistic": "pseudo_f",
-            "value": permanova_f, "df_between": df_between, "df_within": df_within,
-            "r_squared": r_squared, "p_value": perm_p(permanova_f, perm_f),
-            "n_permutations": n_permutations,
-            "status": ResultStatus.OK.value if np.isfinite(permanova_f) else ResultStatus.DEGENERATE.value,
-            "reason": None if np.isfinite(permanova_f) else "non_estimable_permanova",
-        },
-        {
-            "analysis": "permdisp", "factor": factor, "statistic": "f_value",
-            "value": permdisp_f, "df_between": df_between, "df_within": df_within,
-            "r_squared": np.nan, "p_value": perm_p(permdisp_f, perm_disp),
-            "n_permutations": n_permutations,
-            "status": ResultStatus.OK.value if np.isfinite(permdisp_f) else ResultStatus.DEGENERATE.value,
-            "reason": None if np.isfinite(permdisp_f) else "non_estimable_permdisp",
-        },
-    ], columns=SUMMARY_COLUMNS)
+    summary = pd.DataFrame(
+        [
+            {
+                "analysis": "permanova",
+                "factor": factor,
+                "statistic": "pseudo_f",
+                "value": permanova_f,
+                "df_between": df_between,
+                "df_within": df_within,
+                "r_squared": r_squared,
+                "p_value": perm_p(permanova_f, perm_f),
+                "n_permutations": n_permutations,
+                "status": ResultStatus.OK.value
+                if np.isfinite(permanova_f)
+                else ResultStatus.DEGENERATE.value,
+                "reason": None if np.isfinite(permanova_f) else "non_estimable_permanova",
+            },
+            {
+                "analysis": "permdisp",
+                "factor": factor,
+                "statistic": "f_value",
+                "value": permdisp_f,
+                "df_between": df_between,
+                "df_within": df_within,
+                "r_squared": np.nan,
+                "p_value": perm_p(permdisp_f, perm_disp),
+                "n_permutations": n_permutations,
+                "status": ResultStatus.OK.value if np.isfinite(permdisp_f) else ResultStatus.DEGENERATE.value,
+                "reason": None if np.isfinite(permdisp_f) else "non_estimable_permdisp",
+            },
+        ],
+        columns=SUMMARY_COLUMNS,
+    )
 
     kept_ids = ids[keep]
     dist_rows = []
     group_rows = []
     for level in levels:
         mask = labels == level
-        group_rows.append({
-            "factor": factor, "level": level, "n": int(mask.sum()),
-            "mean_distance_to_centroid": float(centroid_distances[mask].mean()),
-        })
+        group_rows.append(
+            {
+                "factor": factor,
+                "level": level,
+                "n": int(mask.sum()),
+                "mean_distance_to_centroid": float(centroid_distances[mask].mean()),
+            }
+        )
     for row, (obs_id, level, distance) in enumerate(zip(kept_ids, labels, centroid_distances, strict=True)):
         source_row = int(np.flatnonzero(keep)[row])
-        dist_rows.append({
-            "source_row_index": source_row, "observation_id": obs_id,
-            "factor": factor, "level": level, "distance_to_centroid": float(distance),
-            "status": ResultStatus.OK.value, "reason": None,
-        })
+        dist_rows.append(
+            {
+                "source_row_index": source_row,
+                "observation_id": obs_id,
+                "factor": factor,
+                "level": level,
+                "distance_to_centroid": float(distance),
+                "status": ResultStatus.OK.value,
+                "reason": None,
+            }
+        )
     groups = pd.DataFrame(group_rows, columns=GROUP_COLUMNS)
     distances_df = pd.DataFrame(dist_rows, columns=CENTROID_COLUMNS)
 
@@ -276,11 +377,13 @@ def analyze_permutation_group_structure(
     total_abs = float(np.abs(eigenvalues).sum())
     negative_fraction = float(np.abs(negative).sum() / total_abs) if total_abs else 0.0
     if negative_fraction > 1e-8:
-        advisories.append(Advisory(
-            code="negative_pcoa_eigenvalues",
-            message="PERMDISP PCoA contained negative eigenvalues; distances use the positive-coordinate subspace.",
-            context={"negative_eigenvalue_fraction": negative_fraction, "metric": metric},
-        ))
+        advisories.append(
+            Advisory(
+                code="negative_pcoa_eigenvalues",
+                message="PERMDISP PCoA contained negative eigenvalues; distances use the positive-coordinate subspace.",
+                context={"negative_eigenvalue_fraction": negative_fraction, "metric": metric},
+            )
+        )
     return PermutationGroupResult(
         status=ResultStatus.OK,
         reason=None,

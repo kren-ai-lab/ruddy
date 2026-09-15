@@ -19,7 +19,7 @@ def test_correlations_match_scipy_with_pairwise_finite_values(mixed_dataset) -> 
         "spearman": stats.spearmanr(x, y),
         "kendall": stats.kendalltau(x, y),
     }
-    for method, ref in refs.items():
+    for method, ref in refs.items():  # noqa: B007, PERF102 - `method` is read by the query below
         row = table.query("method == @method and column_x == 'x' and column_y == 'y'").iloc[0]
         assert row["status"] == "ok"
         assert row["n_complete"] == 10
