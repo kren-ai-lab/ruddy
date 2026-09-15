@@ -49,3 +49,7 @@ class OptionalDependencyError(RuddyError):
 
 class ResultContractError(ContractError):
     """Raised when an analysis result violates the global result contract."""
+
+
+class RuddyIOError(RuddyError):
+    """Raised when an input/output path cannot be read or written."""

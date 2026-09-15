@@ -2,18 +2,18 @@
 
 from ruddy.core.enums import (
     AdvisoryLevel,
+    AlignmentMode,
     AnalysisBlock,
     AnnotationCoverage,
-    AlignmentMode,
     ColumnKind,
     ColumnRole,
     ComparisonTest,
     CorrelationMethod,
     OutlierMethod,
-    ProjectionMethod,
-    ScalingMethod,
     PAdjustMethod,
+    ProjectionMethod,
     ResultStatus,
+    ScalingMethod,
 )
 from ruddy.core.exceptions import (
     AlignmentError,
@@ -27,6 +27,7 @@ from ruddy.core.exceptions import (
     ResultContractError,
     RoleConflictError,
     RuddyError,
+    RuddyIOError,
     UnknownColumnError,
 )
 
@@ -55,5 +56,6 @@ __all__ = [
     "ResultStatus",
     "RoleConflictError",
     "RuddyError",
+    "RuddyIOError",
     "UnknownColumnError",
 ]
