@@ -4,7 +4,7 @@
 
 Ruddy separates **scientific computation** from **visual rendering**. The core library produces structured, traceable results; visualization is demonstrated externally in the example notebooks and is intentionally not a dependency of the scientific core.
 
-> Current status: scientific MVP feature-complete and tested. Product hardening, a richer CLI, and a local visual application remain future productization work.
+> Current status: scientific MVP feature-complete and tested. Product hardening, configuration files, and a local visual application remain future productization work.
 
 ## What Ruddy provides
 
@@ -35,7 +35,7 @@ Ruddy currently implements the following analysis families.
 | Bayesian EDA | posterior means, binary-group mean differences, credible intervals, probability of direction, ROPE |
 | Multivariate anomaly diagnostics | Isolation Forest and Local Outlier Factor |
 | Orchestration | explicit block-based `ruddy.analyze()` pipeline with common configuration and provenance |
-| CLI | standalone commands for all major scientific blocks plus unified `ruddy analyze` |
+| CLI | grouped commands for all major scientific blocks plus the unified `ruddy analyze run` |
 | Visualization demos | 13 executed notebooks demonstrating rich static and interactive visualizations outside the core |
 
 ## Design principles
@@ -61,7 +61,7 @@ Ruddy currently targets Python 3.11–3.13.
 python -m pip install -e .
 ```
 
-Core dependencies are NumPy, pandas, SciPy, scikit-learn, statsmodels and Pydantic.
+Core dependencies are NumPy, pandas, SciPy, scikit-learn, statsmodels, Typer and Rich.
 
 UMAP is optional:
 
@@ -186,37 +186,21 @@ ruddy --help
 ruddy --version
 ```
 
-Current top-level commands include:
+Commands are grouped by intent:
 
 ```text
-analyze
-profile
-univariate
-diagnostics
-bivariate
-dependence
-contingency
-intervals
-groups
-outliers
-posthoc
-factorial
-marginal-means
-mixed-effects
-project
-multivariate
-manova
-permanova
-representation
-compositional
-bayesian
-anomaly
+ruddy inspect    profile · univariate · diagnostics · outliers · multivariate
+ruddy analyze    run · bivariate · dependence · contingency · intervals ·
+                 groups · posthoc · representation · compositional ·
+                 bayesian · anomaly
+ruddy model      factorial · marginal-means · mixed-effects · manova · permanova
+ruddy project    pca · tsne · umap
 ```
 
 For example:
 
 ```bash
-ruddy bivariate data.csv \
+ruddy analyze bivariate data.csv \
   --id-column id \
   --factor family \
   --exclude sequence \
@@ -226,15 +210,18 @@ ruddy bivariate data.csv \
 or:
 
 ```bash
-ruddy project embeddings.csv \
-  --method pca \
+ruddy project pca embeddings.csv \
   --id-column id \
   --n-components 20 \
   --scaling standard \
   --output-dir results
 ```
 
-The current CLI is functional but intentionally basic. A polished CLI is future productization work rather than part of the scientific core.
+Each command closes with a run summary on stderr and reports user errors
+without a traceback, exiting with code `2`. Commands that emit JSON keep
+stdout clean for piping. See `docs/CLI_REFERENCE.md` for the full reference.
+
+Configuration files and progress reporting remain future productization work rather than part of the scientific core.
 
 ## Results and scientific states
 
