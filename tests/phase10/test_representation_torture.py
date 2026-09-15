@@ -34,7 +34,7 @@ def test_orthogonal_rotation_preserves_distance_geometry():
     result = analyze_representation_similarity(a, b, cca_components=3, mantel_permutations=29, random_state=8)
     assert result.cka.loc[0, "cka"] == pytest.approx(1.0, abs=1e-12)
     assert result.distance_similarity.loc[0, "coefficient"] == pytest.approx(1.0, abs=1e-12)
-    assert result.procrustes.loc[0, "disparity"] < 1e-12
+    assert result.procrustes.loc[0, "disparity"] < 1e-12  # pyrefly: ignore[unsupported-operation]
 
 
 def test_feature_permutation_preserves_linear_cka():
@@ -55,8 +55,8 @@ def test_independent_spaces_do_not_look_identical():
         mantel_permutations=49,
         random_state=7,
     )
-    assert result.cka.loc[0, "cka"] < 0.3
-    assert abs(result.distance_similarity.loc[0, "coefficient"]) < 0.3
+    assert result.cka.loc[0, "cka"] < 0.3  # pyrefly: ignore[unsupported-operation]
+    assert abs(result.distance_similarity.loc[0, "coefficient"]) < 0.3  # pyrefly: ignore[bad-argument-type, unsupported-operation]
 
 
 def test_low_rank_pair_is_guarded():

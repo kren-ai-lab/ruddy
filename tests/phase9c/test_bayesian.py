@@ -46,5 +46,5 @@ def test_nonbinary_group_is_skipped_for_difference():
 
 def test_rope_probability_bounded():
     r = analyze_bayesian_eda(_dataset(delta=0.0), groups=("g",), draws=1000, rope=(-0.5, 0.5))
-    p = float(r.mean_differences.loc[0, "rope_probability"])
+    p = float(r.mean_differences.loc[0, "rope_probability"])  # pyrefly: ignore[bad-argument-type]
     assert 0 <= p <= 1

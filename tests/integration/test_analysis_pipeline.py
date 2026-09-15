@@ -219,7 +219,7 @@ def test_component_mapping_contains_only_executed_blocks(pipeline_dataset):
     result = analyze(pipeline_dataset, config=AnalysisConfig(enabled_blocks=("profiling", "outliers")))
     assert tuple(result.components) == (AnalysisBlock.PROFILING, AnalysisBlock.OUTLIERS)
     with pytest.raises(TypeError):
-        result.components[AnalysisBlock.BIVARIATE] = None  # ty: ignore[invalid-assignment]
+        result.components[AnalysisBlock.BIVARIATE] = None  # pyrefly: ignore[unsupported-operation]
 
 
 def test_component_accessor_accepts_string(pipeline_dataset):

@@ -85,7 +85,7 @@ class FeatureMatrix:
             return matrix, data.index.copy(), tuple(str(c) for c in data.columns)
 
         if sparse.issparse(data):
-            matrix = cast("sparse.spmatrix", data).copy()  # ty: ignore[unresolved-attribute]
+            matrix = cast("sparse.spmatrix", data).copy()  # pyrefly: ignore[missing-attribute]
             if matrix.ndim != 2:
                 raise FeatureMatrixValidationError("FeatureMatrix must be two-dimensional.")
             if not np.issubdtype(matrix.dtype, np.number):

@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from patsy import dmatrices  # ty: ignore[unresolved-import]
+from patsy import dmatrices  # pyrefly: ignore[missing-module-attribute]
 from statsmodels.multivariate.manova import MANOVA
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus

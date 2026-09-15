@@ -21,7 +21,7 @@ def _dataset() -> TabularDataset:
             "factor_code": [1, 1, 2, 2],
             "measurement": [1.0, np.nan, np.inf, 4.0],
             "flag": [True, False, True, False],
-            "when": pd.to_datetime(["2026-01-01", "2026-01-02", None, "2026-01-04"]),
+            "when": pd.to_datetime(["2026-01-01", "2026-01-02", None, "2026-01-04"]),  # pyrefly: ignore[no-matching-overload]
             "constant": [7, 7, 7, 7],
             "all_missing": [np.nan, np.nan, np.nan, np.nan],
             "excluded": ["x", "y", "z", "q"],

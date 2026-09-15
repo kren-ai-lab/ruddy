@@ -20,7 +20,9 @@ import nbformat
 def _python_gate(notebook: Path, root: Path, timeout: int) -> int:
     document = nbformat.read(notebook, as_version=4)
     source = "\n\n# ---- notebook cell ----\n\n".join(
-        cell.source for cell in document.cells if cell.cell_type == "code"
+        cell.source
+        for cell in document.cells  # pyrefly: ignore[missing-attribute]
+        if cell.cell_type == "code"  # pyrefly: ignore[missing-attribute]
     )
     with tempfile.NamedTemporaryFile("w", suffix=".py", encoding="utf-8", delete=False) as handle:
         handle.write(source)

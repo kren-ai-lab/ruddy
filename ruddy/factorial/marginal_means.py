@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from patsy import build_design_matrices, dmatrices  # ty: ignore[unresolved-import]
+from patsy import build_design_matrices, dmatrices  # pyrefly: ignore[missing-module-attribute]
 from scipy.stats import t as student_t
 from statsmodels.api import OLS
 

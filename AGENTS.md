@@ -51,7 +51,7 @@ ruddy/
 
 Package management is `uv`; task running is `taskipy`. See `DEVELOPMENT.md`
 for the full command list (`uv sync --all-extras`, `uv run task
-format|lint|lint-fix|test|test-v|test-cov|ty|pyrefly`).
+format|lint|lint-fix|test|test-v|test-cov|pyrefly`).
 
 ## Scientific Invariants (read before touching any scientific module)
 

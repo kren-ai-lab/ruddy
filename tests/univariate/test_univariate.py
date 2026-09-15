@@ -29,7 +29,7 @@ def _dataset() -> TabularDataset:
             "factor_code": [1, 1, 1, 2, 2, 3, 3, 3],
             "constant_category": ["only"] * 8,
             "all_missing_category": pd.Series([None] * 8, dtype="object"),
-            "when": pd.to_datetime(
+            "when": pd.to_datetime(  # pyrefly: ignore[no-matching-overload]
                 [
                     "2026-01-01",
                     "2026-01-02",

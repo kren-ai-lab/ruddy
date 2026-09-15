@@ -89,7 +89,7 @@ def analyze_tsne(
     }
     iteration_parameter = "max_iter" if "max_iter" in signature(TSNE).parameters else "n_iter"
     tsne_kwargs[iteration_parameter] = int(max_iter)
-    estimator = TSNE(**tsne_kwargs)
+    estimator = TSNE(**tsne_kwargs)  # pyrefly: ignore[bad-argument-type]
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         values = estimator.fit_transform(prepared.matrix)

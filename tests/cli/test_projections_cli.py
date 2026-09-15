@@ -10,7 +10,7 @@ def test_project_pca_cli_writes_structured_outputs(tmp_path):
     rng = np.random.default_rng(8)
     source = tmp_path / "features.csv"
     frame = pd.DataFrame(rng.normal(size=(14, 4)), columns=pd.Index(["f1", "f2", "f3", "f4"]))
-    frame.insert(0, "id", [f"s{i}" for i in range(14)])  # ty: ignore[invalid-argument-type]
+    frame.insert(0, "id", [f"s{i}" for i in range(14)])
     frame.to_csv(source, index=False)
     output = tmp_path / "out"
     assert (

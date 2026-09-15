@@ -336,7 +336,7 @@ def analyze_mixed_effects(
             )
         )
 
-    random_intercept_var = float(cov_re.iloc[0, 0]) if cov_re.shape[0] else np.nan
+    random_intercept_var = float(cov_re.iloc[0, 0]) if cov_re.shape[0] else np.nan  # pyrefly: ignore[bad-argument-type]
     residual_var = float(fit.scale)
     icc = (
         random_intercept_var / (random_intercept_var + residual_var)

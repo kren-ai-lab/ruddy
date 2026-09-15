@@ -85,7 +85,7 @@ def analyze_contingency_diagnostics(
     cells: list[dict[str, Any]] = []
     for x, y in selected_pairs:
         x_levels, y_levels, counts, n_used = _contingency(frame, x, y)
-        base = {
+        base: dict[str, Any] = {
             "column_x": x,
             "column_y": y,
             "n_total": dataset.n_observations,

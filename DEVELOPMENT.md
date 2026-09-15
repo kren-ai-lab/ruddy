@@ -22,7 +22,6 @@ uv run task lint-fix  # ruff check --fix
 uv run task test      # pytest -q
 uv run task test-v    # pytest -v
 uv run task test-cov  # pytest + HTML coverage report
-uv run task ty        # ty check
 uv run task pyrefly   # pyrefly check
 ```
 

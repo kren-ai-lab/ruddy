@@ -33,11 +33,13 @@ def test_type_ii_matches_statsmodels_reference(balanced_factorial_dataset):
     observed = result.effects.set_index("term")
     for term, ref_term in mapping.items():
         assert observed.loc[term, "sum_sq"] == pytest.approx(
-            float(reference.loc[ref_term, "sum_sq"]), rel=1e-10
+            float(reference.loc[ref_term, "sum_sq"]),  # pyrefly: ignore[bad-argument-type]
+            rel=1e-10,  # pyrefly: ignore[bad-argument-type]
         )
-        assert observed.loc[term, "f_value"] == pytest.approx(float(reference.loc[ref_term, "F"]), rel=1e-10)
+        assert observed.loc[term, "f_value"] == pytest.approx(float(reference.loc[ref_term, "F"]), rel=1e-10)  # pyrefly: ignore[bad-argument-type]
         assert observed.loc[term, "p_value"] == pytest.approx(
-            float(reference.loc[ref_term, "PR(>F)"]), rel=1e-10
+            float(reference.loc[ref_term, "PR(>F)"]),  # pyrefly: ignore[bad-argument-type]
+            rel=1e-10,  # pyrefly: ignore[bad-argument-type]
         )
     assert result.status is ResultStatus.OK
 
@@ -58,10 +60,12 @@ def test_type_iii_unbalanced_matches_sum_contrast_reference(unbalanced_factorial
     }
     for term, ref_term in mapping.items():
         assert observed.loc[term, "sum_sq"] == pytest.approx(
-            float(reference.loc[ref_term, "sum_sq"]), rel=1e-10
+            float(reference.loc[ref_term, "sum_sq"]),  # pyrefly: ignore[bad-argument-type]
+            rel=1e-10,  # pyrefly: ignore[bad-argument-type]
         )
         assert observed.loc[term, "p_value"] == pytest.approx(
-            float(reference.loc[ref_term, "PR(>F)"]), rel=1e-10
+            float(reference.loc[ref_term, "PR(>F)"]),  # pyrefly: ignore[bad-argument-type]
+            rel=1e-10,  # pyrefly: ignore[bad-argument-type]
         )
     assert "unbalanced_factorial_design" in {advisory.code for advisory in result.advisories}
     assert result.model_summary["factor_contrasts"] == "sum_to_zero"
@@ -102,7 +106,7 @@ def test_ancova_coefficient_and_effect_are_reported(balanced_factorial_dataset):
     )
     assert "covariate" in set(result.effects["term"])
     assert "covariate" in set(result.coefficients["parameter"])
-    assert result.effects.set_index("term").loc["covariate", "p_value"] < 0.01
+    assert result.effects.set_index("term").loc["covariate", "p_value"] < 0.01  # pyrefly: ignore[unsupported-operation]
 
 
 def test_robust_hc3_matches_statsmodels_reference(unbalanced_factorial_dataset):
@@ -115,7 +119,8 @@ def test_robust_hc3_matches_statsmodels_reference(unbalanced_factorial_dataset):
     reference = _reference_table(unbalanced_factorial_dataset, 3, robust="hc3")
     observed = result.effects.set_index("term")
     assert observed.loc["factor_a", "f_value"] == pytest.approx(
-        float(reference.loc["C(A, Sum)", "F"]), rel=1e-10
+        float(reference.loc["C(A, Sum)", "F"]),  # pyrefly: ignore[bad-argument-type]
+        rel=1e-10,  # pyrefly: ignore[bad-argument-type]
     )
     assert result.model_summary["robust_covariance"] == "hc3"
 

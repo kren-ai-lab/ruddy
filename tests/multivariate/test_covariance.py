@@ -67,7 +67,7 @@ def test_constant_features_are_reported_not_hidden():
     row = result.feature_diagnostics.set_index("feature").loc["constant"]
     assert row["status"] == "degenerate"
     assert row["reason"] == "constant_feature"
-    assert np.isnan(result.pearson.loc["constant", "x"])
+    assert np.isnan(result.pearson.loc["constant", "x"])  # pyrefly: ignore[no-matching-overload]
 
 
 def test_covariance_rejects_high_dimensional_request_without_reduction():

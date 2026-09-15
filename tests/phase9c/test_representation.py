@@ -34,8 +34,8 @@ def test_representation_related_spaces_have_high_cca_and_cka():
     r = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=19, random_state=7)
     assert r.cca.status.value == "ok"
     assert r.cca.correlations["canonical_correlation"].min() > 0.95
-    assert 0 <= r.cka.loc[0, "cka"] <= 1
-    assert r.cka.loc[0, "cka"] > 0.6
+    assert 0 <= r.cka.loc[0, "cka"] <= 1  # pyrefly: ignore[unsupported-operation]
+    assert r.cka.loc[0, "cka"] > 0.6  # pyrefly: ignore[unsupported-operation]
 
 
 def test_mantel_is_deterministic():
@@ -59,7 +59,7 @@ def test_procrustes_identical_equal_dimension_is_near_zero():
     x = FeatureMatrix(a, observation_ids=ids)
     y = FeatureMatrix(a.copy(), observation_ids=ids)
     r = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=0)
-    assert r.procrustes.loc[0, "disparity"] < 1e-12
+    assert r.procrustes.loc[0, "disparity"] < 1e-12  # pyrefly: ignore[unsupported-operation]
 
 
 def test_strict_alignment_rejects_mismatch():

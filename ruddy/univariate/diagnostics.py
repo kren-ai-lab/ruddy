@@ -108,7 +108,7 @@ def summarize_normality_diagnostics(
         family_id = f"normality:{method}"
         for column in selected:
             x = _finite(frame[column])
-            row = {
+            row: dict[str, Any] = {
                 "method": method,
                 "column": column,
                 "role": dataset.role_of(column).value,
@@ -196,7 +196,7 @@ def summarize_dispersion_diagnostics(
                     pair.loc[labels.eq(level), "__value"].to_numpy(dtype=float) for level in levels
                 )
                 sizes = {level: int(sample.size) for level, sample in zip(levels, samples, strict=True)}
-                row = {
+                row: dict[str, Any] = {
                     "method": method,
                     "response": response,
                     "group": group,

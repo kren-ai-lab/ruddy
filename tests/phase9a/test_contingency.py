@@ -13,7 +13,7 @@ def _dataset() -> TabularDataset:
     for (a, b), n in counts.items():
         rows.extend([(a, b)] * n)
     frame = pd.DataFrame(rows, columns=pd.Index(["a", "b"]))
-    frame.insert(0, "id", range(len(frame)))  # ty: ignore[invalid-argument-type]
+    frame.insert(0, "id", range(len(frame)))
     return TabularDataset(frame, id_column="id")
 
 

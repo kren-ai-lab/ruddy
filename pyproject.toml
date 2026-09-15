@@ -69,7 +69,6 @@ dev = [
     "pytest>=9.0",
     "pytest-cov>=7.1",
     "ruff>=0.16",
-    "ty",
     "pyrefly",
     "taskipy>=1.14",
     "prek",
@@ -189,6 +188,12 @@ ignore = [
     "T201",    # examples print result snippets by design
 ]
 
+[tool.pyrefly]
+# Without a config section Pyrefly falls back to the `basic` preset, which
+# silences most of its checks; `default` is the real baseline.
+preset = "default"
+project-includes = ["ruddy", "tests", "tools"]
+
 [tool.taskipy.tasks]
 sort-imports = "ruff check --fix --select I,F401 ruddy/ tests/ tools/"
 format = "task sort-imports && ruff format ruddy/ tests/ tools/"
@@ -197,5 +202,4 @@ lint-fix = "ruff check --fix ruddy/ tests/ tools/"
 test = "pytest -q"
 test-v = "pytest -v"
 test-cov = "pytest --cov=ruddy --cov-report=html"
-ty = "ty check ruddy/ tests/ tools/"
 pyrefly = "pyrefly check ruddy/ tests/ tools/"

@@ -58,7 +58,7 @@ class PermutationGroupResult:
 
 def _feature_valid_rows(features: FeatureMatrix) -> np.ndarray:
     if features.is_sparse:
-        matrix = features.to_sparse().tocsr()  # ty: ignore[unresolved-attribute]
+        matrix = features.to_sparse().tocsr()  # pyrefly: ignore[missing-attribute]
         valid = np.ones(matrix.shape[0], dtype=bool)
         for row in range(matrix.shape[0]):
             values = matrix.data[matrix.indptr[row] : matrix.indptr[row + 1]]
@@ -175,7 +175,7 @@ def analyze_permutation_group_structure(
         exclusions_rows.append(
             {
                 "source_row_index": int(row),
-                "observation_id": ids[row],
+                "observation_id": ids[row],  # pyrefly: ignore[bad-index]
                 "stage": "permutation_group_complete_case",
                 "reason": reason,
             }
@@ -248,7 +248,7 @@ def analyze_permutation_group_structure(
             provenance,
         )
 
-    matrix = features.to_sparse()[keep] if features.is_sparse else features.to_array()[keep]  # ty: ignore[not-subscriptable]
+    matrix = features.to_sparse()[keep] if features.is_sparse else features.to_array()[keep]  # pyrefly: ignore[bad-index]
     distance_matrix = pairwise_distances(matrix, metric=metric)
     if not np.isfinite(distance_matrix).all():
         return PermutationGroupResult(

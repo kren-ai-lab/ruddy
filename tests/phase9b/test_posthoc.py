@@ -12,9 +12,9 @@ def test_tukey_matches_statsmodels(group_dataset):
     frame = group_dataset.select(["y", "group"])
     reference = pairwise_tukeyhsd(frame["y"], frame["group"])
     table = result.comparisons.sort_values(["group_a", "group_b"]).reset_index(drop=True)
-    assert np.allclose(table["mean_difference"], reference.meandiffs, atol=1e-12)
-    assert np.allclose(table["p_value"], reference.pvalues, atol=1e-10)
-    assert np.allclose(table[["ci_lower", "ci_upper"]], reference.confint, atol=1e-10)
+    assert np.allclose(table["mean_difference"], reference.meandiffs, atol=1e-12)  # pyrefly: ignore[bad-argument-type]
+    assert np.allclose(table["p_value"], reference.pvalues, atol=1e-10)  # pyrefly: ignore[bad-argument-type]
+    assert np.allclose(table[["ci_lower", "ci_upper"]], reference.confint, atol=1e-10)  # pyrefly: ignore[bad-argument-type]
 
 
 def test_games_howell_matches_manual_pair(group_dataset):

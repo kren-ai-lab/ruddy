@@ -122,7 +122,7 @@ def run_analyze(args: CliArgs) -> int:
     if AnalysisBlock.REPRESENTATION in config.enabled_blocks:
         if not args.comparison_feature_input:
             msg = "--comparison-feature-input is required when enabling representation."
-        raise ValueError(msg)
+            raise ValueError(msg)
         comparison_features = load_feature_matrix(
             args.comparison_feature_input,
             id_column=args.comparison_feature_id_column,

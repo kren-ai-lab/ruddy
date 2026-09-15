@@ -149,7 +149,7 @@ def test_compositional_cli_writes_artifacts(tmp_path):
     p = tmp_path / "c.csv"
     out = tmp_path / "c_out"
     frame = pd.DataFrame(np.abs(rng.normal(size=(20, 3))) + 0.2, columns=pd.Index(["a", "b", "c"]))
-    frame.insert(0, "id", [f"o{i}" for i in range(20)])  # ty: ignore[invalid-argument-type]
+    frame.insert(0, "id", [f"o{i}" for i in range(20)])
     frame.to_csv(p, index=False)
     code = main(
         [

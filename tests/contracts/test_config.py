@@ -20,7 +20,7 @@ def test_analysis_config_normalizes_and_freezes_overrides() -> None:
     assert config.dataset_kwargs()["id_column"] == "id"
 
     with pytest.raises(TypeError):
-        config.role_overrides["x"] = ColumnRole.RESPONSE  # ty: ignore[invalid-assignment]
+        config.role_overrides["x"] = ColumnRole.RESPONSE  # pyrefly: ignore[unsupported-operation]
 
 
 def test_phase2_config_validates_descriptive_controls() -> None:

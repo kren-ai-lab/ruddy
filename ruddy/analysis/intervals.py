@@ -110,7 +110,7 @@ def analyze_confidence_intervals(
             values = frame[[x_name, y_name]].to_numpy(dtype=float)
             values = values[np.all(np.isfinite(values), axis=1)]
             n = int(values.shape[0])
-            row = {
+            row: dict[str, Any] = {
                 "method": method.value,
                 "column_x": x_name,
                 "column_y": y_name,
@@ -168,7 +168,7 @@ def analyze_confidence_intervals(
             pair = pair[np.isfinite(pair["__value"].to_numpy(dtype=float))]
             a = pair.loc[pair["__group"].eq(levels[0]), "__value"].to_numpy(dtype=float)
             b = pair.loc[pair["__group"].eq(levels[1]), "__value"].to_numpy(dtype=float)
-            base = {
+            base: dict[str, Any] = {
                 "response": response,
                 "group": group,
                 "level_a": levels[0],

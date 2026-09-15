@@ -306,7 +306,7 @@ def _procrustes(pair: AlignedRepresentationPair) -> pd.DataFrame:
 
 
 def _distance_vectors(pair: AlignedRepresentationPair, metric: str) -> tuple[np.ndarray, np.ndarray]:
-    return pdist(pair.x, metric=metric), pdist(pair.y, metric=metric)  # ty: ignore[no-matching-overload]
+    return pdist(pair.x, metric=metric), pdist(pair.y, metric=metric)  # pyrefly: ignore[no-matching-overload]
 
 
 def _distance_similarity(pair: AlignedRepresentationPair, metric: str, method: str) -> pd.DataFrame:
@@ -337,8 +337,8 @@ def _mantel(
 ) -> pd.DataFrame:
     if permutations < 0:
         raise ValueError("mantel_permutations must be non-negative.")
-    dx = squareform(pdist(pair.x, metric=metric))  # ty: ignore[no-matching-overload]
-    dy = squareform(pdist(pair.y, metric=metric))  # ty: ignore[no-matching-overload]
+    dx = squareform(pdist(pair.x, metric=metric))  # pyrefly: ignore[no-matching-overload]
+    dy = squareform(pdist(pair.y, metric=metric))  # pyrefly: ignore[no-matching-overload]
     tri = np.triu_indices(dx.shape[0], k=1)
     observed = float(stats.pearsonr(dx[tri], dy[tri]).statistic)
     if permutations == 0:

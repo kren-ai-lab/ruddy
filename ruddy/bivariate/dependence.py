@@ -158,7 +158,7 @@ def summarize_partial_correlations(
             mask = np.all(np.isfinite(matrix), axis=1)
             complete = matrix[mask]
             n = int(complete.shape[0])
-            row = {
+            row: dict[str, Any] = {
                 "method": method.value,
                 "column_x": x_name,
                 "column_y": y_name,
@@ -333,7 +333,7 @@ def summarize_general_dependence(
             pair = pair[np.isfinite(pair[y_name].to_numpy(dtype=float))]
         n = len(pair)
         for method in methods:
-            row = {
+            row: dict[str, Any] = {
                 "method": method,
                 "column_x": x_name,
                 "column_y": y_name,

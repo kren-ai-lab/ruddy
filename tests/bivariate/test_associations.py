@@ -19,7 +19,7 @@ def test_chi_square_and_cramers_v_match_scipy(mixed_dataset) -> None:
     chi2, p_value, dof, _ = stats.chi2_contingency(counts, correction=False)
     np.testing.assert_allclose(row["statistic"], chi2, rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(row["p_value"], p_value, rtol=1e-12, atol=1e-12)
-    np.testing.assert_allclose(  # ty: ignore[no-matching-overload]
+    np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
         row["effect_size"],
         bias_corrected_cramers_v(chi2, int(counts.sum()), *counts.shape),
         rtol=1e-12,

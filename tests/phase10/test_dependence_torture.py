@@ -21,9 +21,9 @@ def test_linear_dependence_detected_by_distance_and_mi():
     x = rng.normal(size=160)
     y = 2 * x + rng.normal(0, 0.1, 160)
     r = analyze_dependence(_dataset(x, y), n_permutations=49, random_state=2)
-    assert r.distance_correlations.loc[0, "statistic"] > 0.95
-    assert r.distance_correlations.loc[0, "p_value"] <= 0.05
-    assert r.mutual_information.loc[0, "statistic"] > 1.0
+    assert r.distance_correlations.loc[0, "statistic"] > 0.95  # pyrefly: ignore[unsupported-operation]
+    assert r.distance_correlations.loc[0, "p_value"] <= 0.05  # pyrefly: ignore[unsupported-operation]
+    assert r.mutual_information.loc[0, "statistic"] > 1.0  # pyrefly: ignore[unsupported-operation]
 
 
 def test_quadratic_dependence_detected_when_linear_correlation_is_small():
@@ -33,8 +33,8 @@ def test_quadratic_dependence_detected_when_linear_correlation_is_small():
     pearson = abs(np.corrcoef(x, y)[0, 1])
     r = analyze_dependence(_dataset(x, y), n_permutations=49, random_state=3)
     assert pearson < 0.15
-    assert r.distance_correlations.loc[0, "statistic"] > 0.4
-    assert r.distance_correlations.loc[0, "p_value"] <= 0.05
+    assert r.distance_correlations.loc[0, "statistic"] > 0.4  # pyrefly: ignore[unsupported-operation]
+    assert r.distance_correlations.loc[0, "p_value"] <= 0.05  # pyrefly: ignore[unsupported-operation]
 
 
 def test_partial_correlation_removes_common_driver():
@@ -52,8 +52,8 @@ def test_independent_variables_have_low_general_dependence():
     x = rng.normal(size=300)
     y = rng.normal(size=300)
     r = analyze_dependence(_dataset(x, y), n_permutations=49, random_state=4)
-    assert r.distance_correlations.loc[0, "statistic"] < 0.2
-    assert r.mutual_information.loc[0, "statistic"] < 0.2
+    assert r.distance_correlations.loc[0, "statistic"] < 0.2  # pyrefly: ignore[unsupported-operation]
+    assert r.mutual_information.loc[0, "statistic"] < 0.2  # pyrefly: ignore[unsupported-operation]
 
 
 def test_constant_variable_is_degenerate_not_exception():

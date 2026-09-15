@@ -145,7 +145,7 @@ def analyze_pca(
         estimator.components_.T,
         columns=pd.Index(component_names),
     )
-    loadings.insert(0, "feature", list(prepared.feature_names))  # ty: ignore[invalid-argument-type]
+    loadings.insert(0, "feature", list(prepared.feature_names))
 
     ratios = np.asarray(estimator.explained_variance_ratio_, dtype=np.float64)
     variance = pd.DataFrame(
