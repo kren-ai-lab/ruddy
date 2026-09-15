@@ -130,8 +130,7 @@ def test_unified_cli_writes_phase9a_subdirectories(tmp_path: Path) -> None:
     _write_dataset(source)
     code = main(
         [
-            "analyze",
-            "run",
+            "pipeline",
             str(source),
             "--id-column",
             "id",

@@ -139,8 +139,7 @@ def test_actual_cli_roundtrip_matches_standalone_univariate(tmp_path):
     assert (
         main(
             [
-                "analyze",
-                "run",
+                "pipeline",
                 str(source),
                 "--id-column",
                 "id",

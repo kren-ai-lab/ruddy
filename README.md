@@ -35,7 +35,7 @@ Ruddy currently implements the following analysis families.
 | Bayesian EDA | posterior means, binary-group mean differences, credible intervals, probability of direction, ROPE |
 | Multivariate anomaly diagnostics | Isolation Forest and Local Outlier Factor |
 | Orchestration | explicit block-based `ruddy.analyze()` pipeline with common configuration and provenance |
-| CLI | grouped commands for all major scientific blocks plus the unified `ruddy analyze run` |
+| CLI | grouped commands for all major scientific blocks plus the unified `ruddy pipeline` |
 | Visualization demos | 13 executed notebooks demonstrating rich static and interactive visualizations outside the core |
 
 ## Design principles
@@ -189,8 +189,9 @@ ruddy --version
 Commands are grouped by intent:
 
 ```text
+ruddy pipeline   the unified run; blocks selected with --enable
 ruddy inspect    profile · univariate · diagnostics · outliers · multivariate
-ruddy analyze    run · bivariate · dependence · contingency · intervals ·
+ruddy analyze    bivariate · dependence · contingency · intervals ·
                  groups · posthoc · representation · compositional ·
                  bayesian · anomaly
 ruddy model      factorial · marginal-means · mixed-effects · manova · permanova

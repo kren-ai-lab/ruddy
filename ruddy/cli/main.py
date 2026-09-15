@@ -9,6 +9,7 @@ import typer
 import ruddy.cli.analyze as analyze_group
 import ruddy.cli.inspect as inspect_group
 import ruddy.cli.model as model_group
+import ruddy.cli.pipeline as pipeline_command
 import ruddy.cli.project as project_group
 from ruddy.cli._console import STATE, configure
 from ruddy.cli._options import CONTEXT_SETTINGS, version_callback
@@ -27,6 +28,7 @@ app = typer.Typer(
     ),
 )
 
+app.command("pipeline", context_settings=CONTEXT_SETTINGS)(pipeline_command.pipeline)
 app.add_typer(inspect_group.app, name="inspect")
 app.add_typer(analyze_group.app, name="analyze")
 app.add_typer(model_group.app, name="model")

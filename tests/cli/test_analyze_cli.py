@@ -31,7 +31,7 @@ def _write_data(path: Path) -> pd.DataFrame:
 def test_analyze_cli_default_is_descriptive_only(tmp_path, capsys):
     source = tmp_path / "data.csv"
     _write_data(source)
-    assert main(["analyze", "run", str(source), "--id-column", "id"]) == 0
+    assert main(["pipeline", str(source), "--id-column", "id"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["executed_blocks"] == ["profiling", "univariate"]
     assert set(payload["components"]) == {"profiling", "univariate"}
@@ -44,8 +44,7 @@ def test_analyze_cli_explicit_blocks_write_separate_artifacts(tmp_path):
     assert (
         main(
             [
-                "analyze",
-                "run",
+                "pipeline",
                 str(source),
                 "--id-column",
                 "id",
@@ -81,8 +80,7 @@ def test_analyze_cli_pca_uses_explicit_feature_columns(tmp_path):
     assert (
         main(
             [
-                "analyze",
-                "run",
+                "pipeline",
                 str(source),
                 "--id-column",
                 "id",
@@ -115,8 +113,7 @@ def test_analyze_cli_factorial_formula(tmp_path):
     assert (
         main(
             [
-                "analyze",
-                "run",
+                "pipeline",
                 str(source),
                 "--id-column",
                 "id",
@@ -148,8 +145,7 @@ def test_analyze_cli_bivariate_only_does_not_write_descriptive_dirs(tmp_path):
     assert (
         main(
             [
-                "analyze",
-                "run",
+                "pipeline",
                 str(source),
                 "--id-column",
                 "id",

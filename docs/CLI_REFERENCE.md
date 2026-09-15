@@ -27,7 +27,13 @@ code `2`. Messages are actionable: an unknown column lists the available ones,
 and an unsupported extension lists the supported ones. Invoking `ruddy` with no
 command prints the help and exits with code `2`.
 
-## Command groups
+## Commands
+
+### `ruddy pipeline` — the unified run
+
+A single top-level command rather than a group: it orchestrates blocks from
+every group, selected explicitly with `--enable`, under one configuration and
+one provenance record.
 
 ### `ruddy inspect` — profiling and dataset diagnostics
 
@@ -39,11 +45,10 @@ command prints the help and exits with code `2`.
 | `outliers` | IQR/robust-Z outlier and numeric-quality diagnostics |
 | `multivariate` | Covariance, VIF/condition, Mahalanobis |
 
-### `ruddy analyze` — the unified pipeline and standalone blocks
+### `ruddy analyze` — standalone analysis blocks
 
 | Command | Purpose |
 | --- | --- |
-| `run` | Run the explicitly configured unified pipeline |
 | `bivariate` | Mixed-type bivariate associations and comparisons |
 | `dependence` | Partial correlations, distance correlation, mutual information |
 | `contingency` | Cell-level contingency diagnostics |
@@ -73,8 +78,8 @@ command prints the help and exits with code `2`.
 | `tsne` | Exploratory t-SNE projection |
 | `umap` | Exploratory UMAP projection |
 
-Run `ruddy <group> <command> --help` for the exact options supported by the
-installed version.
+Run `ruddy pipeline --help` or `ruddy <group> <command> --help` for the exact
+options supported by the installed version.
 
 ## Accepted input formats
 
@@ -154,10 +159,10 @@ ruddy analyze representation space_a.csv space_b.csv \
 
 ## Unified CLI
 
-The `analyze run` command exposes multiple `AnalysisBlock` values in one run. Blocks are enabled explicitly.
+The `pipeline` command exposes multiple `AnalysisBlock` values in one run. Blocks are enabled explicitly.
 
 ```bash
-ruddy analyze run data.csv \
+ruddy pipeline data.csv \
   --id-column id \
   --response activity \
   --group family \
@@ -172,7 +177,7 @@ ruddy analyze run data.csv \
 Feature-space blocks can be added with a feature input:
 
 ```bash
-ruddy analyze run metadata.csv \
+ruddy pipeline metadata.csv \
   --id-column id \
   --enable pca \
   --enable multivariate \

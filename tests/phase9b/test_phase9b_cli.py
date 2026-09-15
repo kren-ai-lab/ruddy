@@ -161,8 +161,7 @@ def test_unified_cli_phase9b_blocks(tmp_path):
     _write_group_data(data, feat)
     code = main(
         [
-            "analyze",
-            "run",
+            "pipeline",
             str(data),
             "--id-column",
             "id",

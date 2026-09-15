@@ -88,8 +88,7 @@ def test_representation_block_runs_with_a_comparison_matrix(tmp_path: Path) -> N
 
     code = main(
         [
-            "analyze",
-            "run",
+            "pipeline",
             str(table),
             "--id-column",
             "id",
@@ -119,8 +118,7 @@ def test_representation_block_requires_a_comparison_matrix(
 ) -> None:
     code = main(
         [
-            "analyze",
-            "run",
+            "pipeline",
             str(_source(tmp_path)),
             "--id-column",
             "id",
