@@ -25,6 +25,7 @@ The documentation is code-oriented and describes the current public behavior, no
 | [`VISUALIZATION_NOTEBOOKS.md`](VISUALIZATION_NOTEBOOKS.md) | External visualization examples and what each notebook demonstrates |
 | [`TESTING_AND_REPRODUCIBILITY.md`](TESTING_AND_REPRODUCIBILITY.md) | Tests, torture gates, deterministic stochastic analyses and scientific freeze |
 | [`PUBLIC_API.md`](PUBLIC_API.md) | Generated inventory of current public Python call signatures |
+| [`RUDDY_PHASE14_HANDOFF_DIEGO.md`](RUDDY_PHASE14_HANDOFF_DIEGO.md) | Productization, local-app and CLI 2.0 handoff specification (post scientific-freeze) |
 
 ## Current scientific layers
 
@@ -53,4 +54,4 @@ FeatureMatrix A ───── representation comparison ───── Featur
 
 ## Core versus visualization
 
-The current scientific package under `src/ruddy` produces data structures and numerical results only. Visualization examples are intentionally kept under `examples/notebooks`. This boundary protects the statistical core from plotting dependencies while giving downstream interfaces a clear structured contract to consume.
+The current scientific package under `ruddy/` produces data structures and numerical results only. Visualization examples are intentionally kept under `examples/notebooks`. This boundary protects the statistical core from plotting dependencies while giving downstream interfaces a clear structured contract to consume.

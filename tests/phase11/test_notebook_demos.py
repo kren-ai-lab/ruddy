@@ -99,6 +99,8 @@ def test_demo_feature_spaces_share_observation_identity() -> None:
 
 def test_visualization_dependencies_do_not_leak_into_core() -> None:
     forbidden = ("import matplotlib", "from matplotlib", "import plotly", "from plotly")
-    for path in (ROOT / "src" / "ruddy").rglob("*.py"):
+    package = ROOT / "ruddy"
+    assert package.is_dir(), package
+    for path in package.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
         assert not any(token in text for token in forbidden), path
