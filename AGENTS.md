@@ -25,27 +25,7 @@ task commands.
 
 ## Package Layout
 
-The package is a **flat layout** at `ruddy/` (migrated from `src/ruddy/`):
-
-```text
-ruddy/
-├── core/            # Statistical roles/kinds, shared configuration
-├── data/            # TabularDataset, FeatureMatrix, alignment
-├── profiling/       # Dataset overview, missingness
-├── univariate/      # Numeric/categorical/datetime summaries, diagnostics
-├── bivariate/       # Correlations, group comparisons, contingency, post-hoc
-├── statistics/      # Confidence intervals, dependence, shared stats helpers
-├── multivariate/    # Covariance/VIF, Mahalanobis, MANOVA, PERMANOVA
-├── factorial/       # ANOVA/ANCOVA, marginal means, mixed effects
-├── projections/     # PCA, t-SNE, UMAP
-├── analysis/        # ruddy.analyze() orchestrator, AnalysisConfig
-├── results/         # Result/status/provenance contracts
-├── anomaly/         # Isolation Forest, LOF
-├── bayesian/        # Bayesian EDA
-├── compositional/   # CLR/ALR/ILR, Aitchison geometry
-├── representation/  # CCA, CKA, Procrustes, Mantel
-└── cli/             # Command-line interface
-```
+The package is a **flat layout** at `ruddy/` (migrated from `src/ruddy/`).
 
 ## Development Workflow
 
