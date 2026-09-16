@@ -787,4 +787,3 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 16 | `zero_mad_nonconstant` |
 | 17 | `status` |
 | 18 | `reason` |
-

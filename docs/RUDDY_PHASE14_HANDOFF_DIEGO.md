@@ -1,10 +1,10 @@
 # Ruddy — Phase 14
 ## Especificación de productización, interfaz local y handoff a Diego
 
-**Estado del documento:** especificación operacional de implementación posterior al freeze científico  
-**Idioma:** español  
-**Responsable del diseño científico y funcional:** equipo Ruddy  
-**Responsable principal de implementación/productización:** Diego  
+**Estado del documento:** especificación operacional de implementación posterior al freeze científico
+**Idioma:** español
+**Responsable del diseño científico y funcional:** equipo Ruddy
+**Responsable principal de implementación/productización:** Diego
 **Naturaleza de esta fase:** diseño y handoff. Este documento no implica que el equipo científico deba implementar los elementos descritos aquí.
 
 ---
