@@ -22,10 +22,9 @@ The documentation is code-oriented and describes the current public behavior, no
 | [`OUTPUT_SCHEMAS.md`](OUTPUT_SCHEMAS.md) | Exact declared column schemas for tabular outputs |
 | [`UNIFIED_ANALYSIS.md`](UNIFIED_ANALYSIS.md) | `AnalysisConfig`, `AnalysisBlock` and `ruddy.analyze()` |
 | [`CLI_REFERENCE.md`](CLI_REFERENCE.md) | Current functional CLI and command-to-analysis mapping |
-| [`VISUALIZATION_NOTEBOOKS.md`](VISUALIZATION_NOTEBOOKS.md) | External visualization examples and what each notebook demonstrates |
-| [`TESTING_AND_REPRODUCIBILITY.md`](TESTING_AND_REPRODUCIBILITY.md) | Tests, torture gates, deterministic stochastic analyses and scientific freeze |
+| [`VISUALIZATION_EXAMPLES.md`](VISUALIZATION_EXAMPLES.md) | External visualization examples and what each one demonstrates |
+| [`TESTING_AND_REPRODUCIBILITY.md`](TESTING_AND_REPRODUCIBILITY.md) | Test layout, robustness suite, deterministic stochastic analyses and feature freeze |
 | [`PUBLIC_API.md`](PUBLIC_API.md) | Generated inventory of current public Python call signatures |
-| [`RUDDY_PHASE14_HANDOFF_DIEGO.md`](RUDDY_PHASE14_HANDOFF_DIEGO.md) | Productization, local-app and CLI 2.0 handoff specification (post scientific-freeze) |
 
 ## Current scientific layers
 
@@ -54,4 +53,4 @@ FeatureMatrix A ───── representation comparison ───── Featur
 
 ## Core versus visualization
 
-The current scientific package under `ruddy/` produces data structures and numerical results only. Visualization examples are intentionally kept under `examples/notebooks`. This boundary protects the statistical core from plotting dependencies while giving downstream interfaces a clear structured contract to consume.
+The current scientific package under `ruddy/` produces data structures and numerical results only. Visualization examples are intentionally kept under `examples/`. This boundary protects the statistical core from plotting dependencies while giving downstream interfaces a clear structured contract to consume.

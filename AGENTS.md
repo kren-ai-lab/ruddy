@@ -25,7 +25,9 @@ task commands.
 
 ## Package Layout
 
-The package is a **flat layout** at `ruddy/` (migrated from `src/ruddy/`).
+The package is a **flat layout** at `ruddy/`. `tests/` mirrors it one directory
+per package, plus the cross-cutting suites `integration/`, `robustness/` and
+`parity/`.
 
 ## Development Workflow
 
@@ -36,9 +38,7 @@ format|lint|lint-fix|test|test-v|test-cov|pyrefly`).
 ## Scientific Invariants (read before touching any scientific module)
 
 These are the most important rules for an agent working in this repository.
-They come from the "Design principles" section of `README.md` and the
-scientific-freeze rule in `docs/` (originally `RUDDY_PHASE14_HANDOFF_DIEGO.md`
-section 4.1).
+They come from the "Design principles" section of `README.md`.
 
 - **No silent coercion, row deletion, scaling, or dimensionality reduction.**
   Anything that changes what data is used or how it's transformed must be
@@ -55,16 +55,16 @@ section 4.1).
 - **Structured provenance.** Parameters, input summaries, seeds, and the
   Ruddy version are retained in result contracts.
 
-**Scientific freeze.** The statistical/scientific modules are considered
-frozen for the MVP. They may only be modified for a **reproducible bug**,
-following: a failing test that demonstrates the bug → a minimal fix → the
-full scientific test suite passing → documentation of the change. Do not
-refactor or "clean up" scientific modules for stylistic reasons alone.
+**Feature freeze until the first release.** The set of scientific methods is
+closed: do not add new analyses until the release. The code itself is not
+frozen — refactors, cleanups and fixes are welcome as long as the invariants
+above hold and the test suite passes. A change that alters numerical results
+needs a test that pins the new behavior.
 
 ## Core vs. Visualization
 
 The scientific core (`ruddy/`) has no dependency on plotting libraries
 (Matplotlib, Plotly, etc.) and must never import one. It returns structured,
 traceable result objects only. All visualization lives externally, in the
-example notebooks under `examples/notebooks/`, which consume those result
+marimo examples under `examples/`, which consume those result
 objects — they never recompute statistics themselves.

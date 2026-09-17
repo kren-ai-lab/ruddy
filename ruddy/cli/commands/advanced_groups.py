@@ -1,4 +1,4 @@
-"""CLI commands for Phase 9B advanced group/inference capabilities."""
+"""CLI commands for PERMANOVA, post-hoc, marginal means and mixed effects."""
 
 from __future__ import annotations
 

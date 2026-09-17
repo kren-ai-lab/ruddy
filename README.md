@@ -36,7 +36,7 @@ Ruddy currently implements the following analysis families.
 | Multivariate anomaly diagnostics | Isolation Forest and Local Outlier Factor |
 | Orchestration | explicit block-based `ruddy.analyze()` pipeline with common configuration and provenance |
 | CLI | grouped commands for all major scientific blocks plus the unified `ruddy pipeline` |
-| Visualization demos | 13 executed notebooks demonstrating rich static and interactive visualizations outside the core |
+| Visualization examples | 13 marimo examples demonstrating rich static and interactive visualizations outside the core |
 
 ## Design principles
 
@@ -55,7 +55,7 @@ Ruddy is intentionally conservative about scientific automation.
 
 ## Installation
 
-Ruddy currently targets Python 3.11–3.13.
+Ruddy currently targets Python 3.11–3.14.
 
 ```bash
 python -m pip install -e .
@@ -69,10 +69,10 @@ UMAP is optional:
 python -m pip install -e ".[manifold]"
 ```
 
-The visualization notebooks deliberately use dependencies outside the core:
+The visualization examples deliberately use dependencies outside the core:
 
 ```bash
-python -m pip install -r examples/notebooks/requirements-notebooks.txt
+uv sync --group examples
 ```
 
 ## Minimal tabular workflow
@@ -234,17 +234,21 @@ Many analyses use the explicit scientific status contract:
 
 A `reason` accompanies non-`ok` states, and non-fatal scientific conditions are reported through advisories. Missing values, non-finite values, excluded rows, rank problems and coverage mismatches are designed to remain observable rather than being converted into generic `NaN` outputs.
 
-## Visualization notebooks
+## Visualization examples
 
-The scientific core contains no Matplotlib or Plotly dependency. Rich visualization demonstrations live under:
+The scientific core contains no Matplotlib or Plotly dependency. Rich visualization demonstrations live under `examples/`.
 
-```text
-examples/notebooks/
+Each example is a [marimo](https://marimo.io) notebook stored as a plain Python file. Run it as a script, or open it interactively:
+
+```bash
+uv sync --group examples
+MPLBACKEND=Agg uv run python examples/01_profiling_univariate.py   # script
+uv run marimo edit examples/01_profiling_univariate.py             # notebook
 ```
 
 The current gallery covers distributions by group, nonlinear dependence, post-hoc comparisons, effect sizes, factorial interactions, marginal means, PCA/t-SNE, PERMANOVA/PERMDISP, CKA/CCA/Procrustes/Mantel, compositional geometry, anomaly-method agreement, Bayesian uncertainty and an end-to-end numerical-representation workflow.
 
-See [examples/notebooks/README.md](examples/notebooks/README.md) and [docs/VISUALIZATION_NOTEBOOKS.md](docs/VISUALIZATION_NOTEBOOKS.md).
+See [examples/README.md](examples/README.md) and [docs/VISUALIZATION_EXAMPLES.md](docs/VISUALIZATION_EXAMPLES.md).
 
 ## Documentation
 
@@ -259,8 +263,8 @@ Detailed technical documentation is available in [`docs/`](docs/README.md):
 - [Output schema reference](docs/OUTPUT_SCHEMAS.md)
 - [Unified analysis and configuration](docs/UNIFIED_ANALYSIS.md)
 - [CLI reference](docs/CLI_REFERENCE.md)
-- [Visualization notebooks](docs/VISUALIZATION_NOTEBOOKS.md)
-- [Testing and scientific freeze](docs/TESTING_AND_REPRODUCIBILITY.md)
+- [Visualization examples](docs/VISUALIZATION_EXAMPLES.md)
+- [Testing and feature freeze](docs/TESTING_AND_REPRODUCIBILITY.md)
 - [Public Python API inventory](docs/PUBLIC_API.md)
 
 ## Validation
@@ -268,17 +272,10 @@ Detailed technical documentation is available in [`docs/`](docs/README.md):
 The scientific core is covered by unit, integration, parity, pathological-data and reproducibility tests. To validate a working checkout:
 
 ```bash
-python -m compileall -q src tests
 pytest -q
 ```
 
-The dedicated scientific freeze gate is:
-
-```bash
-python tools/run_scientific_freeze_gate.py
-```
-
-The Phase 11 notebook demos have their own validation gates under `tests/phase11`.
+The examples are executed in CI by `examples/run_ci_examples.sh`.
 
 ## Scope boundary
 

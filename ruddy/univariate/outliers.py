@@ -78,7 +78,7 @@ NUMERIC_QUALITY_COLUMNS: tuple[str, ...] = (
 
 @dataclass(frozen=True, slots=True)
 class OutlierResult:
-    """Complete Phase 5 univariate outlier and quality output."""
+    """Complete univariate outlier and quality output."""
 
     summaries: pd.DataFrame
     flags: pd.DataFrame

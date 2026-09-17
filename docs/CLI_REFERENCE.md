@@ -198,16 +198,36 @@ The CLI should not be treated as permission to rely on row order when identities
 
 The CLI writes CSV and JSON files. Major artifact families currently include:
 
-### Profiling/univariate
+### Profiling
 
 ```text
 overview.json
 provenance.json
+columns.csv
+missingness.csv
+pairwise_completeness.csv
+missingness_patterns.csv
+```
+
+### Univariate
+
+Everything written by profiling, plus:
+
+```text
+univariate_provenance.json
 numeric_statistics.csv
 categorical_statistics.csv
 categorical_frequencies.csv
 datetime_statistics.csv
+```
+
+### Outliers
+
+```text
+outlier_summaries.csv
 numeric_quality.csv
+outlier_flags.csv          # only when flags are requested
+outlier_provenance.json
 ```
 
 ### Bivariate/dependence
@@ -342,6 +362,3 @@ errors are in place. Remaining productization gaps include:
 - reusable configuration files;
 - progress reporting for long runs;
 - richer artifact summaries beyond the output path.
-
-Those items should be specified in the later handoff/product-design phase
-rather than being mixed into the scientific implementation.

@@ -10,9 +10,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from ruddy.bivariate.associations import _eligible_categorical
 from ruddy.core.enums import (
-    ColumnKind,
-    ColumnRole,
     ComparisonTest,
     PAdjustMethod,
 )
@@ -25,6 +24,7 @@ from ruddy.statistics import (
     hedges_g,
 )
 from ruddy.univariate.categorical import _category_label
+from ruddy.univariate.diagnostics import _eligible_numeric
 
 COMPARISON_COLUMNS: tuple[str, ...] = (
     "group_column",
@@ -60,28 +60,6 @@ COMPARISON_COLUMNS: tuple[str, ...] = (
 _TWO_GROUP_TESTS = (ComparisonTest.WELCH_T, ComparisonTest.MANN_WHITNEY)
 _OMNIBUS_TESTS = (ComparisonTest.WELCH_ANOVA, ComparisonTest.KRUSKAL_WALLIS)
 _DEFAULT_TESTS = _TWO_GROUP_TESTS + _OMNIBUS_TESTS
-
-
-def _eligible_numeric(dataset: TabularDataset) -> tuple[str, ...]:
-    return tuple(
-        spec.name
-        for spec in dataset.schema
-        if spec.kind is ColumnKind.NUMERIC
-        and spec.role not in {ColumnRole.IDENTIFIER, ColumnRole.EXCLUDED, ColumnRole.FACTOR}
-    )
-
-
-def _eligible_categorical(dataset: TabularDataset) -> tuple[str, ...]:
-    selected: list[str] = []
-    for spec in dataset.schema:
-        if spec.role in {ColumnRole.IDENTIFIER, ColumnRole.EXCLUDED}:
-            continue
-        if spec.role is ColumnRole.FACTOR or spec.kind in {
-            ColumnKind.CATEGORICAL,
-            ColumnKind.BOOLEAN,
-        }:
-            selected.append(spec.name)
-    return tuple(selected)
 
 
 def _finite_values(series: pd.Series) -> np.ndarray:

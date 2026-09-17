@@ -21,14 +21,14 @@ from ruddy.cli.commands.descriptive import (
     write_profiling_result,
     write_univariate_result,
 )
-from ruddy.cli.commands.extensions import (
+from ruddy.cli.commands.factorial import write_factorial_result
+from ruddy.cli.commands.groups import write_group_result
+from ruddy.cli.commands.inference import (
     write_confidence_interval_result,
     write_contingency_diagnostics_result,
     write_dependence_result,
     write_distribution_diagnostics_result,
 )
-from ruddy.cli.commands.factorial import write_factorial_result
-from ruddy.cli.commands.groups import write_group_result
 from ruddy.cli.commands.multivariate import (
     write_manova_result,
     write_multivariate_result,

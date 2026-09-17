@@ -16,7 +16,7 @@ from ruddy.results import AnalysisProvenance
 
 @dataclass(frozen=True, slots=True)
 class BivariateResult:
-    """Complete Phase 3 mixed-type bivariate output."""
+    """Complete mixed-type bivariate output."""
 
     correlations: pd.DataFrame
     comparisons: pd.DataFrame
@@ -48,7 +48,7 @@ def analyze_bivariate(
     max_category_levels: int = 50,
     pairwise: bool = False,
 ) -> BivariateResult:
-    """Run the complete domain-agnostic Phase 3 bivariate layer."""
+    """Run the complete domain-agnostic bivariate layer."""
     numeric_tests = tuple(
         test
         for test in comparison_tests

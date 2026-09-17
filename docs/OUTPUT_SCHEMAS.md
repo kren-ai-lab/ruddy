@@ -2,7 +2,7 @@
 
 This document inventories the stable tabular column schemas explicitly declared by the current Ruddy implementation. It is intended for downstream visualization/export/application work. Some result objects also contain dictionaries, matrices or tables whose columns are constructed dynamically; those are documented in `RESULTS_AND_PROVENANCE.md` and `METHODS.md`.
 
-## `src/ruddy/bivariate/associations.py`
+## `ruddy/bivariate/associations.py`
 
 ### `ASSOCIATION_COLUMNS`
 
@@ -35,7 +35,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 25 | `status` |
 | 26 | `reason` |
 
-## `src/ruddy/bivariate/comparisons.py`
+## `ruddy/bivariate/comparisons.py`
 
 ### `COMPARISON_COLUMNS`
 
@@ -70,7 +70,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 27 | `status` |
 | 28 | `reason` |
 
-## `src/ruddy/bivariate/contingency.py`
+## `ruddy/bivariate/contingency.py`
 
 ### `SUMMARY_COLUMNS`
 
@@ -115,7 +115,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 13 | `status` |
 | 14 | `reason` |
 
-## `src/ruddy/bivariate/correlations.py`
+## `ruddy/bivariate/correlations.py`
 
 ### `CORRELATION_COLUMNS`
 
@@ -137,7 +137,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 14 | `status` |
 | 15 | `reason` |
 
-## `src/ruddy/bivariate/dependence.py`
+## `ruddy/bivariate/dependence.py`
 
 ### `PARTIAL_COLUMNS`
 
@@ -182,7 +182,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 15 | `status` |
 | 16 | `reason` |
 
-## `src/ruddy/bivariate/groups.py`
+## `ruddy/bivariate/groups.py`
 
 ### `GROUP_COVERAGE_COLUMNS`
 
@@ -272,7 +272,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 8 | `n_unmatched_ids` |
 | 9 | `columns_json` |
 
-## `src/ruddy/bivariate/posthoc.py`
+## `ruddy/bivariate/posthoc.py`
 
 ### `PAIRWISE_COLUMNS`
 
@@ -300,7 +300,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 20 | `status` |
 | 21 | `reason` |
 
-## `src/ruddy/factorial/diagnostics.py`
+## `ruddy/factorial/diagnostics.py`
 
 ### `DIAGNOSTIC_COLUMNS`
 
@@ -335,7 +335,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 14 | `status` |
 | 15 | `reason` |
 
-## `src/ruddy/factorial/marginal_means.py`
+## `ruddy/factorial/marginal_means.py`
 
 ### `MEAN_COLUMNS`
 
@@ -385,7 +385,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 3 | `stage` |
 | 4 | `reason` |
 
-## `src/ruddy/factorial/mixed_effects.py`
+## `ruddy/factorial/mixed_effects.py`
 
 ### `FIXED_COLUMNS`
 
@@ -431,7 +431,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 3 | `stage` |
 | 4 | `reason` |
 
-## `src/ruddy/factorial/models.py`
+## `ruddy/factorial/models.py`
 
 ### `EFFECT_COLUMNS`
 
@@ -490,7 +490,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 4 | `components_json` |
 | 5 | `component_kinds_json` |
 
-## `src/ruddy/multivariate/permutation.py`
+## `ruddy/multivariate/permutation.py`
 
 ### `SUMMARY_COLUMNS`
 
@@ -538,7 +538,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 3 | `stage` |
 | 4 | `reason` |
 
-## `src/ruddy/profiling/columns.py`
+## `ruddy/profiling/columns.py`
 
 ### `COLUMN_PROFILE_COLUMNS`
 
@@ -561,7 +561,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 15 | `is_all_missing` |
 | 16 | `is_constant` |
 
-## `src/ruddy/profiling/missingness.py`
+## `ruddy/profiling/missingness.py`
 
 ### `MISSINGNESS_COLUMNS`
 
@@ -604,7 +604,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 8 | `unreported_count` |
 | 9 | `unreported_fraction` |
 
-## `src/ruddy/univariate/categorical.py`
+## `ruddy/univariate/categorical.py`
 
 ### `CATEGORICAL_STATISTICS_COLUMNS`
 
@@ -640,7 +640,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 5 | `fraction` |
 | 6 | `rank` |
 
-## `src/ruddy/univariate/diagnostics.py`
+## `ruddy/univariate/diagnostics.py`
 
 ### `NORMALITY_COLUMNS`
 
@@ -680,7 +680,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 14 | `status` |
 | 15 | `reason` |
 
-## `src/ruddy/univariate/distributions.py`
+## `ruddy/univariate/distributions.py`
 
 ### `DATETIME_STATISTICS_COLUMNS`
 
@@ -697,7 +697,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 9 | `status` |
 | 10 | `reason` |
 
-## `src/ruddy/univariate/numeric.py`
+## `ruddy/univariate/numeric.py`
 
 ### `NUMERIC_STATISTICS_BASE_COLUMNS`
 
@@ -725,7 +725,7 @@ This document inventories the stable tabular column schemas explicitly declared 
 | 20 | `status` |
 | 21 | `reason` |
 
-## `src/ruddy/univariate/outliers.py`
+## `ruddy/univariate/outliers.py`
 
 ### `OUTLIER_SUMMARY_COLUMNS`
 

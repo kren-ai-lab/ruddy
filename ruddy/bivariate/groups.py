@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -12,7 +11,11 @@ import numpy as np
 import pandas as pd
 
 from ruddy.bivariate.associations import ASSOCIATION_COLUMNS, summarize_categorical_associations
-from ruddy.bivariate.comparisons import COMPARISON_COLUMNS, summarize_numeric_categorical_comparisons
+from ruddy.bivariate.comparisons import (
+    COMPARISON_COLUMNS,
+    _safe_float,
+    summarize_numeric_categorical_comparisons,
+)
 from ruddy.core.enums import ColumnKind, ColumnRole, ComparisonTest, PAdjustMethod
 from ruddy.data import AlignedAnnotations, TabularDataset, attach_annotations
 from ruddy.results import AnalysisProvenance
@@ -299,14 +302,6 @@ def summarize_response_catalog(
             }
         )
     return pd.DataFrame(rows, columns=pd.Index(RESPONSE_CATALOG_COLUMNS))
-
-
-def _safe_float(value: Any) -> float | None:
-    try:
-        converted = float(value)
-    except (TypeError, ValueError):
-        return None
-    return converted if math.isfinite(converted) else None
 
 
 def summarize_grouped_numeric_responses(

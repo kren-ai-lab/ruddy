@@ -1051,7 +1051,7 @@ This design supports two important guarantees:
 
 ## 37. Methods deliberately not implemented in the current MVP
 
-The following methods are not part of the current scientific freeze:
+The following methods are outside the scope of the first release:
 
 - PLS;
 - clustering algorithms;

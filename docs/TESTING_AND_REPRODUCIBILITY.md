@@ -1,31 +1,28 @@
-# Testing, reproducibility and scientific freeze
+# Testing, reproducibility and feature freeze
 
-Ruddy's current scientific MVP is protected by unit, integration, parity, pathological-data and notebook validation tests.
+Ruddy's current scientific MVP is protected by unit, integration, parity and pathological-data tests, and by executing the examples in CI.
 
 ## Core validation commands
 
 From a working checkout:
 
 ```bash
-python -m compileall -q ruddy tests
-pytest -q
+uv run pytest -q
 ```
 
-The reconstructed Phase 11 codebase used to prepare this documentation passes the complete test suite before documentation-only additions.
+## Test layout
 
-## Scientific freeze gate
+`tests/` has one directory per `ruddy/` package (`tests/bivariate`, `tests/factorial`, ...) plus four cross-cutting suites:
 
-Phase 10 introduced:
+| Directory | Purpose |
+| --- | --- |
+| `tests/integration` | Unified `analyze()` blocks versus their standalone APIs |
+| `tests/robustness` | Pathological data, high-dimensional guards and invariants (see below) |
+| `tests/parity` | Frozen numerical references for univariate and bivariate statistics |
 
-```bash
-python tools/run_scientific_freeze_gate.py
-```
+## What the robustness suite targets
 
-The gate runs compilation, the dedicated Phase 10 torture suite and the global suite.
-
-## What the torture suite targets
-
-The scientific freeze is not based only on ordinary happy-path unit tests. It deliberately exercises conditions such as:
+The test suite is not based only on ordinary happy-path unit tests. It deliberately exercises conditions such as:
 
 ### Pathological tabular data
 
@@ -131,30 +128,15 @@ Permutation analyses retain the requested permutation count in provenance/output
 
 Benjamini–Hochberg correction uses deterministic stable sorting. `family_id`, `family_size` and `correction` are included in outputs so adjusted values can be audited.
 
-## Notebook validation
+## Example validation
 
-Phase 11 adds tests under:
+The CI `examples` job runs `examples/run_ci_examples.sh`, which regenerates the demo data and executes every marimo example as a script; any failing cell fails the job. `tests/test_public_api.py` additionally checks that `ruddy` never imports Matplotlib or Plotly.
 
-```text
-tests/phase11/
-```
+## Feature freeze
 
-These verify that the rich demo notebooks:
+Until the first release, the set of method families is closed: no new analyses are added. The code is not frozen — refactors, cleanups and fixes are expected — and future versions may add new scientific methods.
 
-- exist and are executed;
-- contain no error outputs;
-- contain multiple rendered visualizations;
-- use real Ruddy APIs/results;
-- retain aligned demo observation IDs;
-- keep plotting dependencies out of `ruddy`.
-
-The notebooks can also be executed using the notebook gate tooling under `tools/`.
-
-## Scientific freeze meaning
-
-"Scientific freeze" means that the MVP method families and their core behavior are considered stable enough to stop adding features while documentation/product design proceeds. It does **not** mean that future versions can never add scientific methods.
-
-After freeze, a change should be treated carefully if it alters:
+A change should be treated carefully if it alters:
 
 - numerical definitions;
 - default statistical policies;
@@ -166,4 +148,4 @@ After freeze, a change should be treated carefully if it alters:
 - result schemas;
 - provenance semantics.
 
-Such changes can invalidate notebooks, downstream applications or scientific reproducibility and should therefore receive dedicated tests and release notes.
+Such changes can invalidate examples, downstream applications or scientific reproducibility and should therefore receive dedicated tests and release notes.

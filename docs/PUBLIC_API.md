@@ -208,7 +208,7 @@ Structured random-intercept / numeric random-slope mixed-model result.
 BivariateResult(correlations: 'pd.DataFrame', comparisons: 'pd.DataFrame', categorical_associations: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-Complete Phase 3 mixed-type bivariate output.
+Complete mixed-type bivariate output.
 
 ## `BootstrapResult`
 
@@ -376,7 +376,7 @@ Structured exploratory coordinates with explicit non-inferential semantics.
 ProfilingResult(overview: 'dict[str, Any]', columns: 'pd.DataFrame', missingness: 'pd.DataFrame', pairwise_completeness: 'pd.DataFrame', missingness_patterns: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-Complete Phase 2 descriptive profiling output.
+Complete descriptive profiling output.
 
 ## `ResultStatus`
 
@@ -408,7 +408,7 @@ Immutable-by-contract wrapper around a pandas DataFrame.
 OutlierResult(summaries: 'pd.DataFrame', flags: 'pd.DataFrame', quality: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-Complete Phase 5 univariate outlier and quality output.
+Complete univariate outlier and quality output.
 
 ## `UnivariateResult`
 
@@ -448,7 +448,7 @@ Execute only the top-level analysis blocks explicitly enabled in ``config``.
 analyze_bivariate(dataset: 'TabularDataset', *, correlations: 'tuple[CorrelationMethod | str, ...]' = (<CorrelationMethod.PEARSON: 'pearson'>, <CorrelationMethod.SPEARMAN: 'spearman'>, <CorrelationMethod.KENDALL: 'kendall'>), comparison_tests: 'tuple[ComparisonTest | str, ...]' = (<ComparisonTest.WELCH_T: 'welch_t'>, <ComparisonTest.MANN_WHITNEY: 'mann_whitney'>, <ComparisonTest.WELCH_ANOVA: 'welch_anova'>, <ComparisonTest.KRUSKAL_WALLIS: 'kruskal_wallis'>, <ComparisonTest.CHI_SQUARE: 'chi_square'>, <ComparisonTest.FISHER_EXACT: 'fisher_exact'>), p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>, min_group_n: 'int' = 3, min_correlation_pairs: 'int' = 3, max_group_levels: 'int' = 20, max_correlation_columns: 'int' = 100, max_category_levels: 'int' = 50, pairwise: 'bool' = False) -> 'BivariateResult'
 ```
 
-Run the complete domain-agnostic Phase 3 bivariate layer.
+Run the complete domain-agnostic bivariate layer.
 
 ## `analyze_confidence_intervals`
 
@@ -576,7 +576,7 @@ Fit a main-effects MANOVA on explicitly selected responses/factors/covariates.
 analyze_multivariate(features: 'FeatureMatrix', *, scaling: 'ScalingMethod | str' = <ScalingMethod.NONE: 'none'>, include_spearman: 'bool' = True, include_robust_mahalanobis: 'bool' = True, mahalanobis_threshold_quantile: 'float' = 0.975, robust_support_fraction: 'float | None' = None, random_state: 'int' = 0, max_covariance_features: 'int' = 200, max_collinearity_features: 'int' = 100, max_mahalanobis_features: 'int' = 100) -> 'MultivariateResult'
 ```
 
-Run the core Phase-7 multivariate EDA diagnostics on one feature matrix.
+Run the core multivariate EDA diagnostics on one feature matrix.
 
 ## `analyze_permutation_group_structure`
 
@@ -728,7 +728,7 @@ Resolve statistically analysable response columns.
 profile_dataset(dataset: 'TabularDataset', *, max_missingness_patterns: 'int' = 20, max_pairwise_columns: 'int' = 200) -> 'ProfilingResult'
 ```
 
-Run the complete Phase 2 descriptive profiling block.
+Run the complete descriptive profiling block.
 
 ## `summarize_annotation_coverage`
 
@@ -896,7 +896,7 @@ Describe selected response variables and their usable observations.
 summarize_univariate(dataset: 'TabularDataset', columns: 'pd.DataFrame', *, quantiles: 'tuple[float, ...]' = (0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99), min_numeric_n: 'int' = 3, max_category_levels: 'int' = 50) -> 'UnivariateTables'
 ```
 
-Compute all Phase 2 univariate descriptive tables.
+Compute all univariate descriptive tables.
 
 ## `welch_mean_difference_confidence_interval`
 
