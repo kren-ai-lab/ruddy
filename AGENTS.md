@@ -26,8 +26,8 @@ task commands.
 ## Package Layout
 
 The package is a **flat layout** at `ruddy/`. `tests/` mirrors it one directory
-per package, plus the cross-cutting suites `integration/`, `robustness/`,
-`parity/` and `examples/`.
+per package, plus the cross-cutting suites `integration/`, `robustness/` and
+`parity/`.
 
 ## Development Workflow
 

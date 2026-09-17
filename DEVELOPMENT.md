@@ -50,7 +50,7 @@ See `AGENTS.md` for the full package layout under `ruddy/`.
 
 ```text
 ruddy/       # Flat package layout
-tests/       # One directory per ruddy/ package + integration, robustness, parity, examples
+tests/       # One directory per ruddy/ package + integration, robustness, parity
 examples/    # marimo examples (plain .py) and demo data
 docs/        # Technical documentation
 ```
