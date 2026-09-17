@@ -1,46 +1,103 @@
 # CLI reference
 
-Ruddy exposes a functional command-line interface through the `ruddy` entry point. The current CLI is intentionally scientific-first and visually basic; a polished CLI belongs to later productization work.
+Ruddy exposes its scientific core through the `ruddy` entry point, built on
+Typer with Rich terminal output. Commands are grouped by intent: inspecting a
+dataset, analyzing it, fitting an explicit model, or projecting a feature
+space.
 
-## Top-level commands
+## Global options
+
+| Option | Effect |
+| --- | --- |
+| `-h`, `--help` | Show help for the current command or group |
+| `-v`, `--version` | Print `ruddy <version>` and exit |
+| `-q`, `--quiet` | Suppress the Rich run summary |
+| `--debug` | Re-raise errors with a full traceback instead of a clean message |
+
+Global options are declared before the group, for example
+`ruddy --quiet inspect profile data.csv`.
+
+Every command ends with a run summary on **stderr**: the dataset or feature
+matrix shape, the blocks that ran with `OK` or `WARN`, and where the artifacts
+were written. Commands that print machine-readable JSON write it to **stdout**,
+so that stream stays free of decoration and can be piped into `jq`.
+
+A user-facing error is reported on stderr without a traceback and exits with
+code `2`. Messages are actionable: an unknown column lists the available ones,
+and an unsupported extension lists the supported ones. Invoking `ruddy` with no
+command prints the help and exits with code `2`.
+
+## Commands
+
+### `ruddy pipeline` — the unified run
+
+A single top-level command rather than a group: it orchestrates blocks from
+every group, selected explicitly with `--enable`, under one configuration and
+one provenance record.
+
+### `ruddy inspect` — profiling and dataset diagnostics
 
 | Command | Purpose |
 | --- | --- |
-| `analyze` | Run the explicitly configured unified pipeline |
 | `profile` | Profile a tabular dataset |
-| `univariate` | Profiling + univariate statistics |
+| `univariate` | Profiling plus univariate statistics |
 | `diagnostics` | Normality and grouped dispersion diagnostics |
+| `outliers` | IQR/robust-Z outlier and numeric-quality diagnostics |
+| `multivariate` | Covariance, VIF/condition, Mahalanobis |
+
+### `ruddy analyze` — standalone analysis blocks
+
+| Command | Purpose |
+| --- | --- |
 | `bivariate` | Mixed-type bivariate associations and comparisons |
 | `dependence` | Partial correlations, distance correlation, mutual information |
 | `contingency` | Cell-level contingency diagnostics |
 | `intervals` | Confidence intervals for common estimands |
 | `groups` | Response-centric grouped analysis |
-| `outliers` | IQR/robust-Z outlier and numeric-quality diagnostics |
-| `posthoc` | Tukey–Kramer and Games–Howell |
-| `factorial` | Factorial ANOVA/ANCOVA |
-| `marginal-means` | Estimated marginal means and contrasts |
-| `mixed-effects` | Scoped random-intercept/random-slope mixed model |
-| `project` | PCA, t-SNE or UMAP |
-| `multivariate` | Covariance, VIF/condition, Mahalanobis |
-| `manova` | Main-effects MANOVA |
-| `permanova` | PERMANOVA + PERMDISP |
+| `posthoc` | Tukey-Kramer and Games-Howell |
 | `representation` | CCA, CKA, Procrustes, distance similarity, Mantel |
 | `compositional` | Log-ratio compositional analysis |
 | `bayesian` | Scoped Bayesian exploratory estimation |
 | `anomaly` | Isolation Forest and/or LOF |
 
-Run `ruddy <command> --help` for the exact options supported by the installed version.
+### `ruddy model` — explicit inferential models
+
+| Command | Purpose |
+| --- | --- |
+| `factorial` | Factorial ANOVA/ANCOVA |
+| `marginal-means` | Estimated marginal means and contrasts |
+| `mixed-effects` | Scoped random-intercept/random-slope mixed model |
+| `manova` | Main-effects MANOVA |
+| `permanova` | PERMANOVA + PERMDISP |
+
+### `ruddy project` — feature-space projections
+
+| Command | Purpose |
+| --- | --- |
+| `pca` | Principal component analysis |
+| `tsne` | Exploratory t-SNE projection |
+| `umap` | Exploratory UMAP projection |
+
+Run `ruddy pipeline --help` or `ruddy <group> <command> --help` for the exact
+options supported by the installed version.
+
+## Accepted input formats
+
+Tabular inputs are read by extension: `.csv`, `.tsv`, `.txt` as tab-separated,
+and `.parquet`. Feature matrices additionally accept `.npy` for dense arrays
+and `.npz` for SciPy sparse matrices. Every read and write goes through
+`ruddy.core.io`, so the supported set is the same for every command.
 
 ## Basic examples
 
 ```bash
-ruddy profile data.csv \
+ruddy inspect profile data.csv \
   --id-column id \
   --output-dir results/profile
 ```
 
 ```bash
-ruddy univariate data.csv \
+ruddy inspect univariate data.csv \
   --id-column id \
   --response activity \
   --factor family \
@@ -49,7 +106,7 @@ ruddy univariate data.csv \
 ```
 
 ```bash
-ruddy dependence data.csv \
+ruddy analyze dependence data.csv \
   --id-column id \
   --partial-covariate length \
   --dependence-permutations 999 \
@@ -57,7 +114,7 @@ ruddy dependence data.csv \
 ```
 
 ```bash
-ruddy factorial data.csv \
+ruddy model factorial data.csv \
   --id-column id \
   --response activity \
   --factor family \
@@ -69,8 +126,7 @@ ruddy factorial data.csv \
 ```
 
 ```bash
-ruddy project embeddings.csv \
-  --method pca \
+ruddy project pca embeddings.csv \
   --id-column id \
   --n-components 20 \
   --scaling standard \
@@ -78,7 +134,7 @@ ruddy project embeddings.csv \
 ```
 
 ```bash
-ruddy permanova metadata.csv \
+ruddy model permanova metadata.csv \
   --id-column id \
   --permanova-factor family \
   --feature-input embeddings.csv \
@@ -90,7 +146,7 @@ ruddy permanova metadata.csv \
 ```
 
 ```bash
-ruddy representation space_a.csv space_b.csv \
+ruddy analyze representation space_a.csv space_b.csv \
   --x-id-column id \
   --y-id-column id \
   --cca-components 5 \
@@ -103,10 +159,10 @@ ruddy representation space_a.csv space_b.csv \
 
 ## Unified CLI
 
-The `analyze` command exposes multiple `AnalysisBlock` values in one run. Blocks are enabled explicitly.
+The `pipeline` command exposes multiple `AnalysisBlock` values in one run. Blocks are enabled explicitly.
 
 ```bash
-ruddy analyze data.csv \
+ruddy pipeline data.csv \
   --id-column id \
   --response activity \
   --group family \
@@ -121,7 +177,7 @@ ruddy analyze data.csv \
 Feature-space blocks can be added with a feature input:
 
 ```bash
-ruddy analyze metadata.csv \
+ruddy pipeline metadata.csv \
   --id-column id \
   --enable pca \
   --enable multivariate \
@@ -278,15 +334,14 @@ anomaly_methods.csv
 anomaly_exclusions.csv
 ```
 
-## Current limitation of the CLI layer
+## Current limitations of the CLI layer
 
-The CLI is feature-complete enough to expose the scientific core, but it is not yet the desired final user experience. Current productization gaps include:
+The grouped hierarchy, the Rich run summary and the clean reporting of user
+errors are in place. Remaining productization gaps include:
 
-- richer terminal formatting;
-- clearer progress/report summaries;
-- better grouped command hierarchy;
-- reusable config files;
-- visual feedback for warnings/degeneracies;
-- improved artifact summaries.
+- reusable configuration files;
+- progress reporting for long runs;
+- richer artifact summaries beyond the output path.
 
-Those items should be specified in the later handoff/product-design phase rather than being mixed into the scientific implementation.
+Those items should be specified in the later handoff/product-design phase
+rather than being mixed into the scientific implementation.

@@ -2,7 +2,7 @@
 
 Phase 11 is the demonstration layer for Ruddy. These notebooks intentionally go beyond smoke-test plots: each notebook combines structured Ruddy results with raw observations where appropriate to show distributions, group differences, uncertainty, nonlinear dependence, multivariate geometry, representation similarity and anomaly structure.
 
-Visualization dependencies remain entirely outside `src/ruddy`. The scientific core produces structured results; the notebooks demonstrate how a future local visual application can render those results.
+Visualization dependencies remain entirely outside `ruddy`. The scientific core produces structured results; the notebooks demonstrate how a future local visual application can render those results.
 
 ## Notebook catalog
 

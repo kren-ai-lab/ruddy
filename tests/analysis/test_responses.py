@@ -27,12 +27,8 @@ def test_multiple_responses_dispatch_independently_by_statistical_kind(
     assert set(result.categorical_comparisons["response"]) == {"class_response"}
 
     assert result.numeric_comparisons["family_id"].str.contains("activity").all()
-    assert result.categorical_comparisons["family_id"].str.contains(
-        "class_response"
-    ).all()
-    assert result.provenance.parameters["response_dispatch"] == (
-        "observed_or_declared_statistical_kind"
-    )
+    assert result.categorical_comparisons["family_id"].str.contains("class_response").all()
+    assert result.provenance.parameters["response_dispatch"] == ("observed_or_declared_statistical_kind")
 
 
 def test_partial_external_group_has_traceable_row_coverage_and_no_mutation(

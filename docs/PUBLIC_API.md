@@ -995,4 +995,3 @@ multiplicative_zero_replacement(array: 'np.ndarray', *, fraction: 'float' = 0.65
 ```python
 variation_matrix(array: 'np.ndarray', feature_names: 'tuple[str, ...]') -> 'pd.DataFrame'
 ```
-

@@ -29,7 +29,9 @@ def test_threshold_policy_is_recorded_and_flags_reference_chi_square():
     rng = np.random.default_rng(10)
     values = rng.normal(size=(60, 2))
     values[-1] = [12.0, 12.0]
-    result = analyze_mahalanobis(FeatureMatrix(values, feature_names=("x", "y")), include_robust=False, threshold_quantile=0.99)
+    result = analyze_mahalanobis(
+        FeatureMatrix(values, feature_names=("x", "y")), include_robust=False, threshold_quantile=0.99
+    )
     rows = result.distances.query("method == 'classical'")
     expected = stats.chi2.ppf(0.99, df=2)
     assert rows["threshold_squared"].iloc[0] == pytest.approx(expected)

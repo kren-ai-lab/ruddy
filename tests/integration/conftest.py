@@ -17,17 +17,19 @@ def pipeline_frame() -> pd.DataFrame:
     z = rng.normal(size=n)
     y1 = 1.2 * x + (factor == "B") * 1.5 + rng.normal(scale=0.45, size=n)
     y2 = -0.7 * x + (batch == "Y") * 1.0 + rng.normal(scale=0.5, size=n)
-    return pd.DataFrame({
-        "id": [f"obs_{i:03d}" for i in range(n)],
-        "x": x,
-        "z": z,
-        "y1": y1,
-        "y2": y2,
-        "factor": factor,
-        "batch": batch,
-        "label": np.where(x > 0, "high", "low"),
-        "sequence": ["AAAA"] * n,
-    })
+    return pd.DataFrame(
+        {
+            "id": [f"obs_{i:03d}" for i in range(n)],
+            "x": x,
+            "z": z,
+            "y1": y1,
+            "y2": y2,
+            "factor": factor,
+            "batch": batch,
+            "label": np.where(x > 0, "high", "low"),
+            "sequence": ["AAAA"] * n,
+        }
+    )
 
 
 @pytest.fixture
@@ -48,12 +50,14 @@ def pipeline_dataset(pipeline_frame: pd.DataFrame) -> TabularDataset:
 
 @pytest.fixture
 def pipeline_features(pipeline_frame: pd.DataFrame) -> FeatureMatrix:
-    matrix = np.column_stack([
-        pipeline_frame["x"].to_numpy(),
-        pipeline_frame["z"].to_numpy(),
-        pipeline_frame["y1"].to_numpy(),
-        pipeline_frame["y2"].to_numpy(),
-    ])
+    matrix = np.column_stack(
+        [
+            pipeline_frame["x"].to_numpy(),
+            pipeline_frame["z"].to_numpy(),
+            pipeline_frame["y1"].to_numpy(),
+            pipeline_frame["y2"].to_numpy(),
+        ]
+    )
     return FeatureMatrix(
         matrix,
         observation_ids=pipeline_frame["id"].tolist(),

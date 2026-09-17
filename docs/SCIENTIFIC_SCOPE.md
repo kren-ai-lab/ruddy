@@ -61,7 +61,7 @@ Ruddy currently does not aim to be a general-purpose modeling environment. The f
 - domain-specific feature generation;
 - automatic biological or chemical interpretation;
 - automatic report generation;
-- plotting inside `src/ruddy`.
+- plotting inside `ruddy`.
 
 Some of these may be future extensions, but they are not implicit promises of the current API.
 

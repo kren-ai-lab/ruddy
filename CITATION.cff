@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use Ruddy in your research, please cite it as below."
+title: "Ruddy: Domain-Agnostic Statistical Exploratory Data Analysis for Tabular Datasets and Feature Representations"
+abstract: "Domain-agnostic statistical exploratory data analysis for tabular datasets and numerical feature representations."
+type: software
+version: 0.1.0.dev0
+license: MIT
+authors:
+  - name: "Kren AI Lab"
+    email: "krenai@umag.cl"
+    address: "Universidad de Magallanes"
+repository-code: "https://github.com/kren-ai-lab/ruddy"
+url: "https://github.com/kren-ai-lab/ruddy"
+keywords:
+  - exploratory-data-analysis
+  - statistics
+  - tabular-data
+  - multivariate-analysis
+  - factorial-analysis
+  - dimensionality-reduction
+  - scientific-software

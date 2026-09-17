@@ -30,7 +30,7 @@ def test_family_adjustment_excludes_non_ok_rows_and_records_size() -> None:
     )
     result = apply_multiple_testing(table, "fdr_bh")
     np.testing.assert_allclose(result.loc[[0, 2], "q_value"], [0.02, 0.04])
-    assert np.isnan(result.loc[1, "q_value"])
+    assert np.isnan(result.loc[1, "q_value"])  # pyrefly: ignore[no-matching-overload]
     assert result["family_size"].tolist() == [2, 2, 2, 1]
 
 

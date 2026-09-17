@@ -1,17 +1,17 @@
 [build-system]
-requires = ["setuptools>=77.0", "wheel>=0.45"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "ruddy"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "Domain-agnostic statistical exploratory data analysis for tabular datasets and feature representations."
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11,<3.15"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    { name = "KrenAI Lab" },
+    { name = "Kren AI Lab", email = "krenai@umag.cl" },
 ]
 maintainers = [
     { name = "David Medina-Ortiz" },
@@ -35,6 +35,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
     "Typing :: Typed",
 ]
@@ -45,7 +46,8 @@ dependencies = [
     "scipy>=1.11,<2",
     "scikit-learn>=1.4,<2",
     "statsmodels>=0.14,<1",
-    "pydantic>=2.7,<3",
+    "typer>=0.27,<1",
+    "rich>=15.0,<16.0",
 ]
 
 [project.scripts]
@@ -55,34 +57,149 @@ ruddy = "ruddy.cli.main:main"
 manifold = [
     "umap-learn>=0.5.7,<1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/kren-ai-lab/ruddy"
+Repository = "https://github.com/kren-ai-lab/ruddy"
+Issues = "https://github.com/kren-ai-lab/ruddy/issues"
+Documentation = "https://github.com/kren-ai-lab/ruddy#readme"
+
+[dependency-groups]
 dev = [
-    "pytest>=8.2,<10",
-    "pytest-cov>=5,<7",
-    "ruff>=0.8,<1",
-    "mypy>=1.11,<2",
-    "build>=1.2,<2",
+    "pytest>=9.0",
+    "pytest-cov>=7.1",
+    "ruff>=0.16",
+    "pyrefly",
+    "taskipy>=1.14",
+    "prek",
+    "nbformat>=5.10",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.version]
+path = "ruddy/_version.py"
+pattern = '__version__ = "(?P<version>[^"]+)"'
 
-[tool.setuptools.package-data]
-ruddy = ["py.typed"]
+[tool.hatch.build.targets.sdist]
+include = ["/ruddy"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["ruddy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
 
 [tool.ruff]
+line-length = 110
 target-version = "py311"
-line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["ALL"]
+ignore = [
+    "COM812",
+    "CPY001",
+    "D203",
+    "D213",
+    "N802",
+    "N803",
+    "N806",
+    "PLR0913",
+]
 
-[tool.mypy]
-python_version = "3.11"
-packages = ["ruddy"]
-warn_unused_configs = true
-warn_return_any = true
-no_implicit_optional = true
+[tool.ruff.lint.per-file-ignores]
+"ruddy/cli/*" = [
+    "A002",    # `input` is the documented positional argument of every command
+    "B008",    # typer.Option() in function defaults is the intended pattern
+    "FBT001",  # bool flags are standard in CLI functions
+    "FBT002",
+    "FBT003",
+    "PLR0917", # a command signature exposes one parameter per CLI option
+    "T201",    # commands print machine-readable JSON to stdout by contract
+    "TC001",   # typer resolves annotations at runtime, so they stay imported
+    "TC002",
+    "TC003",
+]
+"tests/*" = [
+    "ANN",     # test helpers are not part of the typed public surface
+    "D",       # docstrings are not required in tests
+    "INP001",  # test packages are intentionally implicit namespaces
+    "PLC0415",
+    "PLR2004", # tests compare against literal expected values by design
+    "PT011",
+    "PT017",
+    "PT018",
+    "S101",    # assert is how a test asserts
+    "TC003",   # pytest resolves fixture annotations at runtime
+]
+"tools/*" = [
+    "INP001",  # gate scripts are intentionally standalone modules
+    "S603",    # subprocess usage is explicit in the gate scripts
+    "T201",    # gates print their progress by design
+]
+# Transitional. The scientific modules are under the freeze documented in
+# AGENTS.md, so the rules below are not enforced there yet: clearing them
+# rewrites `raise` bodies, signatures and docstrings inside frozen code.
+# They come off this list in later passes, one package at a time.
+"ruddy/{analysis,anomaly,bayesian,bivariate,compositional,data,factorial,multivariate,profiling,projections,representation,results,statistics,univariate}/*" = [
+    "ANN001",
+    "ANN202",
+    "ANN401",
+    "ARG001",
+    "B023",
+    "B905",
+    "BLE001",
+    "C416",
+    "C901",
+    "D101",
+    "D102",
+    "D103",
+    "D105",
+    "D107",
+    "E501",
+    "E721",
+    "EM101",
+    "EM102",
+    "F841",
+    "FBT003",
+    "PD101",
+    "PERF401",
+    "PLC0415",
+    "PLR0911",
+    "PLR0912",
+    "PLR0915",
+    "PLR0917",
+    "PLR2004",
+    "PLR5501",
+    "RUF002",
+    "RUF059",
+    "SIM103",
+    "SIM108",
+    "TC001",
+    "TC002",
+    "TC003",
+    "TRY003",
+    "TRY004",
+]
+"examples/*" = [
+    "INP001",  # example scripts are intentionally standalone modules
+    "PLR2004", # small referential scripts can compare against literal sizes
+    "S101",    # lightweight runtime checks are fine in examples
+    "S603",    # subprocess usage is explicit in CLI examples
+    "T201",    # examples print result snippets by design
+]
+
+[tool.pyrefly]
+# Without a config section Pyrefly falls back to the `basic` preset, which
+# silences most of its checks; `default` is the real baseline.
+preset = "default"
+project-includes = ["ruddy", "tests", "tools"]
+
+[tool.taskipy.tasks]
+sort-imports = "ruff check --fix --select I,F401 ruddy/ tests/ tools/"
+format = "task sort-imports && ruff format ruddy/ tests/ tools/"
+lint = "ruff check ruddy/ tests/ tools/"
+lint-fix = "ruff check --fix ruddy/ tests/ tools/"
+test = "pytest -q"
+test-v = "pytest -v"
+test-cov = "pytest --cov=ruddy --cov-report=html"
+pyrefly = "pyrefly check ruddy/ tests/ tools/"

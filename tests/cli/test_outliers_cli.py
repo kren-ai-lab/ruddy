@@ -26,6 +26,7 @@ def test_outliers_cli_writes_structured_outputs(tmp_path: Path) -> None:
     output = tmp_path / "results"
     code = main(
         [
+            "inspect",
             "outliers",
             str(source),
             "--id-column",
@@ -49,7 +50,7 @@ def test_outliers_cli_writes_structured_outputs(tmp_path: Path) -> None:
 
 def test_outliers_cli_help_is_registered(capsys) -> None:
     try:
-        main(["outliers", "--help"])
+        main(["inspect", "outliers", "--help"])
     except SystemExit as exc:
         assert exc.code == 0
     assert "outlier" in capsys.readouterr().out.lower()

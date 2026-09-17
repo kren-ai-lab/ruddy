@@ -16,11 +16,11 @@ def test_analysis_config_normalizes_and_freezes_overrides() -> None:
 
     assert config.role_overrides["group"] is ColumnRole.FACTOR
     assert config.kind_overrides["code"] is ColumnKind.CATEGORICAL
-    assert config.annotation_alignment.value == "partial"
+    assert config.annotation_alignment == "partial"
     assert config.dataset_kwargs()["id_column"] == "id"
 
     with pytest.raises(TypeError):
-        config.role_overrides["x"] = ColumnRole.RESPONSE  # type: ignore[index]
+        config.role_overrides["x"] = ColumnRole.RESPONSE  # pyrefly: ignore[unsupported-operation]
 
 
 def test_phase2_config_validates_descriptive_controls() -> None:
@@ -34,7 +34,7 @@ def test_phase2_config_validates_descriptive_controls() -> None:
     assert config.univariate_kwargs()["min_numeric_n"] == 4
     assert config.profiling_kwargs()["max_pairwise_columns"] == 50
 
-    with pytest.raises(ValueError, match="include 0.25"):
+    with pytest.raises(ValueError, match=r"include 0\.25"):
         AnalysisConfig(quantiles=(0.1, 0.5, 0.9))
 
 

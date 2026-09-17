@@ -22,7 +22,7 @@ def balanced_factorial_dataset() -> TabularDataset:
                 response = 2.0 + main_a + main_b + interaction + 0.45 * cov + rng.normal(scale=0.65)
                 rows.append((f"obs_{index}", response, factor_a, factor_b, cov))
                 index += 1
-    frame = pd.DataFrame(rows, columns=("id", "response", "factor_a", "factor_b", "covariate"))
+    frame = pd.DataFrame(rows, columns=pd.Index(("id", "response", "factor_a", "factor_b", "covariate")))
     return TabularDataset(
         frame,
         id_column="id",

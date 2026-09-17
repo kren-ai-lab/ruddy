@@ -39,7 +39,13 @@ def test_single_observation_numeric_analysis_is_observable_not_crash():
 
 def test_all_missing_and_nonfinite_are_distinguished():
     ds = TabularDataset(
-        pd.DataFrame({"id": ["a", "b", "c", "d"], "missing": [np.nan]*4, "nonfinite": [np.inf, -np.inf, np.inf, -np.inf]}),
+        pd.DataFrame(
+            {
+                "id": ["a", "b", "c", "d"],
+                "missing": [np.nan] * 4,
+                "nonfinite": [np.inf, -np.inf, np.inf, -np.inf],
+            }
+        ),
         id_column="id",
         kind_overrides={"missing": "numeric"},
     )
@@ -53,7 +59,7 @@ def test_all_missing_and_nonfinite_are_distinguished():
 
 def test_one_level_factor_group_analysis_is_degenerate():
     ds = TabularDataset(
-        pd.DataFrame({"id": [f"o{i}" for i in range(8)], "y": np.arange(8.0), "g": ["A"]*8}),
+        pd.DataFrame({"id": [f"o{i}" for i in range(8)], "y": np.arange(8.0), "g": ["A"] * 8}),
         id_column="id",
         role_overrides={"y": "response", "g": "factor"},
     )
@@ -67,7 +73,13 @@ def test_one_level_factor_group_analysis_is_degenerate():
 def test_high_cardinality_factor_hits_explicit_guard():
     n = 25
     ds = TabularDataset(
-        pd.DataFrame({"id": [f"o{i}" for i in range(n)], "y": np.arange(n, dtype=float), "g": [f"g{i}" for i in range(n)]}),
+        pd.DataFrame(
+            {
+                "id": [f"o{i}" for i in range(n)],
+                "y": np.arange(n, dtype=float),
+                "g": [f"g{i}" for i in range(n)],
+            }
+        ),
         id_column="id",
         role_overrides={"y": "response", "g": "factor"},
     )
@@ -79,24 +91,28 @@ def test_high_cardinality_factor_hits_explicit_guard():
 
 
 def test_factorial_empty_cell_never_returns_silent_clean_fit():
-    frame = pd.DataFrame({
-        "id": [f"o{i}" for i in range(18)],
-        "y": np.linspace(0, 1, 18),
-        "a": ["A"]*9 + ["B"]*9,
-        "b": ["X"]*6 + ["Y"]*3 + ["X"]*9,
-    })
+    frame = pd.DataFrame(
+        {
+            "id": [f"o{i}" for i in range(18)],
+            "y": np.linspace(0, 1, 18),
+            "a": ["A"] * 9 + ["B"] * 9,
+            "b": ["X"] * 6 + ["Y"] * 3 + ["X"] * 9,
+        }
+    )
     ds = TabularDataset(frame, id_column="id", role_overrides={"y": "response", "a": "factor", "b": "factor"})
     result = analyze_factorial(ds, response="y", factors=("a", "b"), interactions=(("a", "b"),), ss_type=3)
-    assert (result.cells["is_empty"] == True).any()  # noqa: E712
+    assert result.cells["is_empty"].any()
     assert result.status.value != "ok" or any(a.code for a in result.advisories)
 
 
 def test_complete_case_collapse_is_explicit_in_factorial():
-    frame = pd.DataFrame({
-        "id": [f"o{i}" for i in range(8)],
-        "y": [1.0, np.nan, np.nan, np.nan, 2.0, np.nan, np.nan, np.nan],
-        "g": ["A"]*4 + ["B"]*4,
-    })
+    frame = pd.DataFrame(
+        {
+            "id": [f"o{i}" for i in range(8)],
+            "y": [1.0, np.nan, np.nan, np.nan, 2.0, np.nan, np.nan, np.nan],
+            "g": ["A"] * 4 + ["B"] * 4,
+        }
+    )
     ds = TabularDataset(frame, id_column="id", role_overrides={"y": "response", "g": "factor"})
     result = analyze_factorial(ds, response="y", factors=("g",))
     assert result.status.value in {"skipped", "degenerate"}

@@ -21,18 +21,25 @@ def robust_tabular() -> TabularDataset:
     x = rng.normal(size=n)
     z = rng.normal(size=n)
     y = 0.8 * x + np.select([group == "B", group == "C"], [0.7, 1.4], default=0.0) + rng.normal(0, 0.45, n)
-    y2 = -0.4 * x + 0.6 * z + np.select([group == "B", group == "C"], [0.4, 0.9], default=0.0) + rng.normal(0, 0.5, n)
+    y2 = (
+        -0.4 * x
+        + 0.6 * z
+        + np.select([group == "B", group == "C"], [0.4, 0.9], default=0.0)
+        + rng.normal(0, 0.5, n)
+    )
     cat = np.where(y > np.median(y), "high", "low")
-    frame = pd.DataFrame({
-        "id": [f"o{i}" for i in range(n)],
-        "x": x,
-        "z": z,
-        "y": y,
-        "y2": y2,
-        "group": group,
-        "batch": batch,
-        "class": cat,
-    })
+    frame = pd.DataFrame(
+        {
+            "id": [f"o{i}" for i in range(n)],
+            "x": x,
+            "z": z,
+            "y": y,
+            "y2": y2,
+            "group": group,
+            "batch": batch,
+            "class": cat,
+        }
+    )
     return TabularDataset(
         frame,
         id_column="id",

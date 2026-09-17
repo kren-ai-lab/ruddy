@@ -9,8 +9,7 @@ from ruddy import TabularDataset, analyze_outliers
 
 def _summary(result, column: str, method: str) -> pd.Series:
     return result.summaries.loc[
-        result.summaries["column"].eq(column)
-        & result.summaries["method"].eq(method)
+        result.summaries["column"].eq(column) & result.summaries["method"].eq(method)
     ].iloc[0]
 
 

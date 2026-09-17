@@ -7,7 +7,7 @@ Ruddy's current scientific MVP is protected by unit, integration, parity, pathol
 From a working checkout:
 
 ```bash
-python -m compileall -q src tests
+python -m compileall -q ruddy tests
 pytest -q
 ```
 
@@ -146,7 +146,7 @@ These verify that the rich demo notebooks:
 - contain multiple rendered visualizations;
 - use real Ruddy APIs/results;
 - retain aligned demo observation IDs;
-- keep plotting dependencies out of `src/ruddy`.
+- keep plotting dependencies out of `ruddy`.
 
 The notebooks can also be executed using the notebook gate tooling under `tools/`.
 

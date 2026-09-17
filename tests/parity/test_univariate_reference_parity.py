@@ -44,22 +44,35 @@ def test_shared_univariate_metrics_match_frozen_reference() -> None:
     numeric = numeric[numeric["column"].isin(expected_numeric["column"])].reset_index(drop=True)
     for column in [c for c in expected_numeric.columns if c in numeric.columns and c != "role"]:
         if column in {"column", "status", "reason"}:
-            assert numeric[column].fillna("<NA>").astype(str).tolist() == expected_numeric[column].fillna("<NA>").astype(str).tolist()
+            assert (
+                numeric[column].fillna("<NA>").astype(str).tolist()
+                == expected_numeric[column].fillna("<NA>").astype(str).tolist()
+            )
         else:
             assert _numeric_equal(numeric[column], expected_numeric[column]), column
 
-    categorical = categorical[categorical["column"].isin(expected_categorical["column"])].reset_index(drop=True)
+    categorical = categorical[categorical["column"].isin(expected_categorical["column"])].reset_index(
+        drop=True
+    )
     for column in [c for c in expected_categorical.columns if c in categorical.columns and c != "role"]:
         if column in {"column", "mode", "status", "reason"}:
-            assert categorical[column].fillna("<NA>").astype(str).tolist() == expected_categorical[column].fillna("<NA>").astype(str).tolist()
+            assert (
+                categorical[column].fillna("<NA>").astype(str).tolist()
+                == expected_categorical[column].fillna("<NA>").astype(str).tolist()
+            )
         elif column == "frequencies_truncated":
-            assert categorical[column].astype(bool).tolist() == expected_categorical[column].astype(bool).tolist()
+            assert (
+                categorical[column].astype(bool).tolist()
+                == expected_categorical[column].astype(bool).tolist()
+            )
         else:
             assert _numeric_equal(categorical[column], expected_categorical[column]), column
 
     assert len(frequencies) == len(expected_frequencies)
     for column in [c for c in expected_frequencies.columns if c in frequencies.columns and c != "role"]:
         if column in {"column", "level"}:
-            assert frequencies[column].astype(str).tolist() == expected_frequencies[column].astype(str).tolist()
+            assert (
+                frequencies[column].astype(str).tolist() == expected_frequencies[column].astype(str).tolist()
+            )
         else:
             assert _numeric_equal(frequencies[column], expected_frequencies[column]), column

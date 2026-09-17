@@ -1,4 +1,5 @@
 import json
+
 import numpy as np
 
 from ruddy.factorial import analyze_marginal_means
@@ -44,6 +45,11 @@ def test_emmeans_tracks_complete_case_exclusions(group_dataset):
     frame = group_dataset.to_frame()
     frame.loc[0, "y"] = np.nan
     from ruddy import TabularDataset
-    ds = TabularDataset(frame, id_column="id", role_overrides={"group":"factor","source":"factor","x":"covariate","y":"response"})
+
+    ds = TabularDataset(
+        frame,
+        id_column="id",
+        role_overrides={"group": "factor", "source": "factor", "x": "covariate", "y": "response"},
+    )
     result = analyze_marginal_means(ds, response="y", factors=("group",))
     assert len(result.exclusions) == 1

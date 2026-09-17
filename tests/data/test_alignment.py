@@ -11,7 +11,7 @@ from ruddy.data import align_annotations
 def test_strict_alignment_requires_exact_coverage() -> None:
     annotations = pd.DataFrame({"id": ["a", "b"], "group": [1, 2]})
 
-    with pytest.raises(AlignmentError, match="missing=.*c"):
+    with pytest.raises(AlignmentError, match=r"missing=.*c"):
         align_annotations(
             ["a", "b", "c"],
             annotations,
@@ -21,9 +21,7 @@ def test_strict_alignment_requires_exact_coverage() -> None:
 
 
 def test_partial_alignment_reports_missing_and_unmatched_ids() -> None:
-    annotations = pd.DataFrame(
-        {"id": ["a", "b", "extra"], "group": [10, 20, 30]}
-    )
+    annotations = pd.DataFrame({"id": ["a", "b", "extra"], "group": [10, 20, 30]})
 
     aligned, report = align_annotations(
         ["a", "b", "c"],

@@ -11,15 +11,23 @@ from ruddy.cli.main import main
 
 def test_multivariate_cli_writes_structured_outputs(tmp_path: Path):
     rng = np.random.default_rng(5)
-    frame = pd.DataFrame(rng.normal(size=(50, 4)), columns=["f1", "f2", "f3", "f4"])
+    frame = pd.DataFrame(rng.normal(size=(50, 4)), columns=pd.Index(["f1", "f2", "f3", "f4"]))
     frame.insert(0, "id", [f"o{i}" for i in range(len(frame))])
     source = tmp_path / "features.csv"
     target = tmp_path / "results"
     frame.to_csv(source, index=False)
 
-    code = main([
-        "multivariate", str(source), "--id-column", "id", "--output-dir", str(target)
-    ])
+    code = main(
+        [
+            "inspect",
+            "multivariate",
+            str(source),
+            "--id-column",
+            "id",
+            "--output-dir",
+            str(target),
+        ]
+    )
     assert code == 0
     expected = {
         "covariance_matrix.csv",
@@ -45,21 +53,35 @@ def test_manova_cli_writes_structured_outputs(tmp_path: Path):
     rng = np.random.default_rng(6)
     n = 48
     group = np.repeat(["A", "B"], n // 2)
-    frame = pd.DataFrame({
-        "id": [f"o{i}" for i in range(n)],
-        "y1": rng.normal(size=n) + (group == "B") * 0.8,
-        "y2": rng.normal(size=n) + (group == "B") * 0.4,
-        "group": group,
-    })
+    frame = pd.DataFrame(
+        {
+            "id": [f"o{i}" for i in range(n)],
+            "y1": rng.normal(size=n) + (group == "B") * 0.8,
+            "y2": rng.normal(size=n) + (group == "B") * 0.4,
+            "group": group,
+        }
+    )
     source = tmp_path / "table.csv"
     target = tmp_path / "manova"
     frame.to_csv(source, index=False)
 
-    code = main([
-        "manova", str(source), "--id-column", "id",
-        "--response", "y1", "--response", "y2",
-        "--factor", "group", "--output-dir", str(target),
-    ])
+    code = main(
+        [
+            "model",
+            "manova",
+            str(source),
+            "--id-column",
+            "id",
+            "--response",
+            "y1",
+            "--response",
+            "y2",
+            "--factor",
+            "group",
+            "--output-dir",
+            str(target),
+        ]
+    )
     assert code == 0
     assert (target / "manova_tests.csv").exists()
     assert (target / "manova_factor_levels.csv").exists()

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
 import pytest
 from scipy import sparse, stats
 from sklearn.preprocessing import StandardScaler
@@ -12,8 +11,12 @@ from ruddy import FeatureMatrix, ResultStatus, analyze_covariance_structure
 def test_covariance_and_pearson_match_numpy(well_conditioned_features):
     result = analyze_covariance_structure(well_conditioned_features)
     array = well_conditioned_features.to_array()
-    np.testing.assert_allclose(result.covariance.to_numpy(), np.cov(array, rowvar=False, ddof=1), rtol=1e-12, atol=1e-12)
-    np.testing.assert_allclose(result.pearson.to_numpy(), np.corrcoef(array, rowvar=False), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(
+        result.covariance.to_numpy(), np.cov(array, rowvar=False, ddof=1), rtol=1e-12, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        result.pearson.to_numpy(), np.corrcoef(array, rowvar=False), rtol=1e-12, atol=1e-12
+    )
     assert result.status is ResultStatus.OK
     assert result.summary["matrix_sample_policy"] == "common_complete_case"
 
@@ -52,7 +55,9 @@ def test_explicit_standard_scaling_matches_reference(well_conditioned_features):
     array = well_conditioned_features.to_array()
     scaled = StandardScaler().fit_transform(array)
     result = analyze_covariance_structure(well_conditioned_features, scaling="standard")
-    np.testing.assert_allclose(result.covariance.to_numpy(), np.cov(scaled, rowvar=False, ddof=1), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(
+        result.covariance.to_numpy(), np.cov(scaled, rowvar=False, ddof=1), rtol=1e-12, atol=1e-12
+    )
     assert result.summary["scaling"] == "standard"
 
 
@@ -62,7 +67,7 @@ def test_constant_features_are_reported_not_hidden():
     row = result.feature_diagnostics.set_index("feature").loc["constant"]
     assert row["status"] == "degenerate"
     assert row["reason"] == "constant_feature"
-    assert np.isnan(result.pearson.loc["constant", "x"])
+    assert np.isnan(result.pearson.loc["constant", "x"])  # pyrefly: ignore[no-matching-overload]
 
 
 def test_covariance_rejects_high_dimensional_request_without_reduction():
