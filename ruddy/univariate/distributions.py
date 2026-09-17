@@ -5,90 +5,87 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import pandas as pd
 import polars as pl
 
-from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
 from ruddy.profiling import ProfilingResult, profile_dataset
 from ruddy.results import AnalysisProvenance
 from ruddy.univariate.categorical import summarize_categorical_statistics
 from ruddy.univariate.numeric import summarize_numeric_statistics, validate_quantiles
 
-DATETIME_STATISTICS_COLUMNS: tuple[str, ...] = (
-    "column",
-    "role",
-    "n_total",
-    "n_present",
-    "n_missing",
-    "min",
-    "max",
-    "range_seconds",
-    "status",
-    "reason",
-)
+DATETIME_STATISTICS_SCHEMA: dict[str, pl.DataType] = {
+    "column": pl.String,
+    "role": pl.String,
+    "n_total": pl.Int64,
+    "n_present": pl.Int64,
+    "n_missing": pl.Int64,
+    "min": pl.Datetime("us"),
+    "max": pl.Datetime("us"),
+    "range_seconds": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+DATETIME_STATISTICS_COLUMNS: tuple[str, ...] = tuple(DATETIME_STATISTICS_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
 class UnivariateTables:
-    numeric_statistics: pd.DataFrame
-    categorical_statistics: pd.DataFrame
-    categorical_frequencies: pd.DataFrame
-    datetime_statistics: pd.DataFrame
+    numeric_statistics: pl.DataFrame
+    categorical_statistics: pl.DataFrame
+    categorical_frequencies: pl.DataFrame
+    datetime_statistics: pl.DataFrame
 
 
 @dataclass(frozen=True, slots=True)
 class UnivariateResult:
     profiling: ProfilingResult
-    numeric_statistics: pd.DataFrame
-    categorical_statistics: pd.DataFrame
-    categorical_frequencies: pd.DataFrame
-    datetime_statistics: pd.DataFrame
+    numeric_statistics: pl.DataFrame
+    categorical_statistics: pl.DataFrame
+    categorical_frequencies: pl.DataFrame
+    datetime_statistics: pl.DataFrame
     provenance: AnalysisProvenance
-
-
-def _eligible_datetime(profile: pd.Series) -> bool:
-    if not bool(profile["analysis_eligible"]):
-        return False
-    role = ColumnRole(str(profile["role"]))
-    kind = ColumnKind(str(profile["data_kind"]))
-    return role is not ColumnRole.FACTOR and kind is ColumnKind.DATETIME
 
 
 def summarize_datetime_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame | pl.DataFrame,
-) -> pd.DataFrame:
+    columns: pl.DataFrame,
+) -> pl.DataFrame:
     """Summarize eligible datetime variables without time-series interpretation."""
-    # ponytail: temporary pandas adapter, removed in task 3B
-    if isinstance(columns, pl.DataFrame):
-        columns = columns.to_pandas()
-    frame = dataset.to_frame()
+    selected = columns.filter(
+        pl.col("analysis_eligible") & (pl.col("role") != "factor") & (pl.col("data_kind") == "datetime")
+    )
     rows: list[dict[str, Any]] = []
-    selected = columns.loc[columns.apply(_eligible_datetime, axis=1)]
-    for _, profile in selected.iterrows():
+    for profile in selected.iter_rows(named=True):
         column = str(profile["column"])
-        series = frame[column]
-        present = series.dropna()
-        n_total = len(series)
-        n_present = len(present)
-        n_missing = int(n_total - n_present)
-        minimum = present.min() if n_present else None
-        maximum = present.max() if n_present else None
+        role = str(profile["role"])
+        series = dataset.frame.get_column(column)
+        n_total = series.len()
+        present = series.drop_nulls()
+        if present.dtype != pl.Datetime("us"):
+            present = present.cast(pl.Datetime("us"))
+        n_present = present.len()
+        n_missing = n_total - n_present
         if n_present == 0:
+            minimum = None
+            maximum = None
             status, reason = "skipped", "all_missing"
             range_seconds = None
-        elif present.nunique(dropna=True) == 1:
+        elif present.n_unique() == 1:
+            minimum = present.min()
+            maximum = present.max()
             status, reason = "degenerate", "constant"
             range_seconds = 0.0
         else:
+            minimum = present.min()
+            maximum = present.max()
             status, reason = "ok", None
-            # Recomputed from `present` so the non-empty branch needs no None check.
-            range_seconds = float((present.max() - present.min()).total_seconds())
+            range_seconds = float((maximum - minimum).total_seconds()) if minimum and maximum else None
+
         rows.append(
             {
                 "column": column,
-                "role": str(profile["role"]),
+                "role": role,
                 "n_total": n_total,
                 "n_present": n_present,
                 "n_missing": n_missing,
@@ -99,21 +96,18 @@ def summarize_datetime_statistics(
                 "reason": reason,
             }
         )
-    return pd.DataFrame(rows, columns=pd.Index(DATETIME_STATISTICS_COLUMNS))
+    return pl.DataFrame(rows, schema=DATETIME_STATISTICS_SCHEMA)
 
 
 def summarize_univariate(
     dataset: TabularDataset,
-    columns: pd.DataFrame | pl.DataFrame,
+    columns: pl.DataFrame,
     *,
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99),
     min_numeric_n: int = 3,
     max_category_levels: int = 50,
 ) -> UnivariateTables:
     """Compute all univariate descriptive tables."""
-    # ponytail: temporary pandas adapter, removed in task 3B
-    if isinstance(columns, pl.DataFrame):
-        columns = columns.to_pandas()
     quantiles = validate_quantiles(quantiles)
     numeric = summarize_numeric_statistics(
         dataset,
@@ -151,11 +145,9 @@ def analyze_univariate(
         max_missingness_patterns=max_missingness_patterns,
         max_pairwise_columns=max_pairwise_columns,
     )
-    # ponytail: temporary pandas adapter, removed in task 3B
-    columns = profiling.columns.to_pandas()
     tables = summarize_univariate(
         dataset,
-        columns,
+        profiling.columns,
         quantiles=quantiles,
         min_numeric_n=min_numeric_n,
         max_category_levels=max_category_levels,

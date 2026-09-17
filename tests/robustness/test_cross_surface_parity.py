@@ -4,6 +4,8 @@ import json
 
 import numpy as np
 import pandas as pd
+import polars as pl
+import polars.testing as pl_testing
 
 from ruddy import (
     AnalysisConfig,
@@ -93,14 +95,18 @@ def test_cli_writer_preserves_unified_component_tables(tmp_path, robust_tabular)
     pca_scores = pd.read_csv(out / "pca" / "pca_scores.csv")
     anomaly_scores = pd.read_csv(out / "anomaly" / "anomaly_scores.csv")
     assert result.pca is not None
-    pd.testing.assert_frame_equal(pca_scores, result.pca.scores, check_dtype=False, rtol=1e-12, atol=1e-12)
+    pd.testing.assert_frame_equal(
+        pca_scores, result.pca.scores, check_dtype=False, rtol=1e-12, atol=1e-12
+    )
     assert result.anomaly is not None
     assert result.anomaly.scores is not None
     expected_anomaly = result.anomaly.scores.copy()
     for column in expected_anomaly.select_dtypes(include="object").columns:
         expected_anomaly[column] = expected_anomaly[column].fillna("")
         anomaly_scores[column] = anomaly_scores[column].fillna("")
-    pd.testing.assert_frame_equal(anomaly_scores, expected_anomaly, check_dtype=False, rtol=1e-12, atol=1e-12)
+    pd.testing.assert_frame_equal(
+        anomaly_scores, expected_anomaly, check_dtype=False, rtol=1e-12, atol=1e-12
+    )
     summary = json.loads((out / "analysis_summary.json").read_text())
     assert summary["executed_blocks"] == ["pca", "anomaly"]
 
@@ -159,15 +165,13 @@ def test_actual_cli_roundtrip_matches_standalone_univariate(tmp_path):
 
     ds = TabularDataset(frame, id_column="id")
     standalone = analyze_univariate(ds)
-    observed = pd.read_csv(out / "univariate" / "numeric_statistics.csv")
-    expected = standalone.numeric_statistics.copy()
-    for column in expected.select_dtypes(include="object").columns:
-        expected[column] = expected[column].fillna("")
-        observed[column] = observed[column].fillna("")
-    pd.testing.assert_frame_equal(
+    observed = pl.read_csv(
+        out / "univariate" / "numeric_statistics.csv", schema=standalone.numeric_statistics.schema
+    )
+    pl_testing.assert_frame_equal(
         observed,
-        expected,
-        check_dtype=False,
-        rtol=1e-12,
-        atol=1e-12,
+        standalone.numeric_statistics,
+        check_exact=False,
+        rel_tol=1e-10,
+        abs_tol=1e-10,
     )

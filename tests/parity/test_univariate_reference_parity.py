@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from ruddy import TabularDataset
 from ruddy.profiling import profile_columns
@@ -15,15 +17,25 @@ from ruddy.univariate import summarize_categorical_statistics, summarize_numeric
 HERE = Path(__file__).parent
 
 
-def _expected() -> dict:
+def _expected() -> dict[str, Any]:
     return json.loads((HERE / "reference" / "univariate_reference.json").read_text())
 
 
-def _numeric_equal(left: pd.Series, right: pd.Series) -> bool:
-    a = pd.to_numeric(left, errors="coerce").to_numpy(dtype=float)
-    normalized = right.map(lambda value: np.nan if value == "NaN" else value)
-    b = pd.to_numeric(normalized, errors="coerce").to_numpy(dtype=float)
-    return bool(np.allclose(a, b, rtol=1e-12, atol=1e-12, equal_nan=True))
+def _as_float(value) -> float:
+    return np.nan if value is None or value == "NaN" else float(value)
+
+
+def _compare_column(observed_list: list[Any], reference_list: list[Any], col_name: str) -> None:
+    if col_name in {"column", "mode", "level", "status", "reason"}:
+        norm_obs = [None if v is None or v == "NaN" else str(v) for v in observed_list]
+        norm_ref = [None if v is None or v == "NaN" else str(v) for v in reference_list]
+        assert norm_obs == norm_ref, f"Mismatch in string column {col_name}"
+    elif col_name == "frequencies_truncated":
+        assert [bool(v) for v in observed_list] == [bool(v) for v in reference_list], col_name
+    else:
+        obs_arr = np.array([_as_float(v) for v in observed_list], dtype=float)
+        ref_arr = np.array([_as_float(v) for v in reference_list], dtype=float)
+        assert np.allclose(obs_arr, ref_arr, rtol=1e-12, atol=1e-12, equal_nan=True), col_name
 
 
 def test_shared_univariate_metrics_match_frozen_reference() -> None:
@@ -37,42 +49,32 @@ def test_shared_univariate_metrics_match_frozen_reference() -> None:
         max_category_levels=5,
     )
     expected = _expected()
-    expected_numeric = pd.DataFrame(expected["numeric_statistics"])
-    expected_categorical = pd.DataFrame(expected["categorical_statistics"])
-    expected_frequencies = pd.DataFrame(expected["categorical_frequencies"])
+    expected_numeric_rows = expected["numeric_statistics"]
+    expected_categorical_rows = expected["categorical_statistics"]
+    expected_frequencies_rows = expected["categorical_frequencies"]
 
-    numeric = numeric[numeric["column"].isin(expected_numeric["column"])].reset_index(drop=True)
-    for column in [c for c in expected_numeric.columns if c in numeric.columns and c != "role"]:
-        if column in {"column", "status", "reason"}:
-            assert (
-                numeric[column].fillna("<NA>").astype(str).tolist()
-                == expected_numeric[column].fillna("<NA>").astype(str).tolist()
-            )
-        else:
-            assert _numeric_equal(numeric[column], expected_numeric[column]), column
+    expected_numeric_cols = [r["column"] for r in expected_numeric_rows]
+    numeric = numeric.filter(pl.col("column").is_in(expected_numeric_cols))
+    for column in sorted(c for c in expected_numeric_rows[0] if c in numeric.columns and c != "role"):
+        _compare_column(
+            numeric.get_column(column).to_list(),
+            [r[column] for r in expected_numeric_rows],
+            column,
+        )
 
-    categorical = categorical[categorical["column"].isin(expected_categorical["column"])].reset_index(
-        drop=True
-    )
-    for column in [c for c in expected_categorical.columns if c in categorical.columns and c != "role"]:
-        if column in {"column", "mode", "status", "reason"}:
-            assert (
-                categorical[column].fillna("<NA>").astype(str).tolist()
-                == expected_categorical[column].fillna("<NA>").astype(str).tolist()
-            )
-        elif column == "frequencies_truncated":
-            assert (
-                categorical[column].astype(bool).tolist()
-                == expected_categorical[column].astype(bool).tolist()
-            )
-        else:
-            assert _numeric_equal(categorical[column], expected_categorical[column]), column
+    expected_categorical_cols = [r["column"] for r in expected_categorical_rows]
+    categorical = categorical.filter(pl.col("column").is_in(expected_categorical_cols))
+    for column in sorted(c for c in expected_categorical_rows[0] if c in categorical.columns and c != "role"):
+        _compare_column(
+            categorical.get_column(column).to_list(),
+            [r[column] for r in expected_categorical_rows],
+            column,
+        )
 
-    assert len(frequencies) == len(expected_frequencies)
-    for column in [c for c in expected_frequencies.columns if c in frequencies.columns and c != "role"]:
-        if column in {"column", "level"}:
-            assert (
-                frequencies[column].astype(str).tolist() == expected_frequencies[column].astype(str).tolist()
-            )
-        else:
-            assert _numeric_equal(frequencies[column], expected_frequencies[column]), column
+    assert frequencies.height == len(expected_frequencies_rows)
+    for column in sorted(c for c in expected_frequencies_rows[0] if c in frequencies.columns and c != "role"):
+        _compare_column(
+            frequencies.get_column(column).to_list(),
+            [r[column] for r in expected_frequencies_rows],
+            column,
+        )

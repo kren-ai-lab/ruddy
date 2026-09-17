@@ -139,7 +139,7 @@ def summarize_numeric_quality(
     """Summarize numeric data-quality states without changing source values."""
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
-    # ponytail: temporary pandas adapter, removed in task 3B
+    # ponytail: temporary pandas adapter, removed in task 3C
     columns = (
         profile_columns(dataset).to_pandas()
         if columns is None
@@ -498,7 +498,7 @@ def summarize_outliers(
     if len(set(resolved_methods)) != len(resolved_methods):
         raise ValueError("methods cannot contain duplicates.")
 
-    # ponytail: temporary pandas adapter, removed in task 3B
+    # ponytail: temporary pandas adapter, removed in task 3C
     columns = (
         profile_columns(dataset).to_pandas()
         if columns is None
@@ -569,7 +569,7 @@ def analyze_outliers(
     resolved_methods = tuple(
         method if isinstance(method, OutlierMethod) else OutlierMethod(method) for method in methods
     )
-    # ponytail: temporary pandas adapter, removed in task 3B
+    # ponytail: temporary pandas adapter, removed in task 3C
     columns = profile_columns(dataset).to_pandas()
     quality = summarize_numeric_quality(
         dataset,

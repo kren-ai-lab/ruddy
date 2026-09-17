@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from ruddy import (
     TabularDataset,
@@ -17,15 +18,15 @@ from ruddy import (
 def test_numeric_strings_are_never_silently_coerced():
     ds = TabularDataset(pd.DataFrame({"id": ["a", "b", "c"], "x": ["1", "2", "3"]}), id_column="id")
     result = analyze_univariate(ds)
-    assert result.numeric_statistics.empty
-    assert "x" in set(result.categorical_statistics["column"])
+    assert result.numeric_statistics.is_empty()
+    assert "x" in set(result.categorical_statistics["column"].to_list())
 
 
 def test_single_observation_numeric_analysis_is_observable_not_crash():
     ds = TabularDataset(pd.DataFrame({"id": ["a"], "x": [1.0]}), id_column="id")
     uni = analyze_univariate(ds)
     out = analyze_outliers(ds)
-    assert uni.numeric_statistics.loc[uni.numeric_statistics.column == "x", "status"].iloc[0] != "ok"
+    assert uni.numeric_statistics.filter(pl.col("column") == "x")["status"][0] != "ok"
     assert set(out.summaries.loc[out.summaries.column == "x", "status"]) <= {"skipped", "degenerate"}
 
 

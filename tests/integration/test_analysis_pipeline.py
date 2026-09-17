@@ -60,8 +60,8 @@ def test_univariate_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_univariate(pipeline_dataset, **config.univariate_kwargs())
     assert result.univariate is not None
-    assert_frame_equal(result.univariate.numeric_statistics, standalone.numeric_statistics)
-    assert_frame_equal(result.univariate.categorical_statistics, standalone.categorical_statistics)
+    pl_testing.assert_frame_equal(result.univariate.numeric_statistics, standalone.numeric_statistics)
+    pl_testing.assert_frame_equal(result.univariate.categorical_statistics, standalone.categorical_statistics)
 
 
 def test_bivariate_matches_standalone(pipeline_dataset):

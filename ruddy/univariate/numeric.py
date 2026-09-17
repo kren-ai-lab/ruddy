@@ -1,14 +1,16 @@
-"""Deterministic numerical univariate statistics."""
+"""Deterministic numerical univariate statistics.
+
+Skewness and kurtosis use the adjusted Fisher–Pearson G1 and unbiased excess G2 estimators, matching the formulas historically provided by pandas.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import polars as pl
+from scipy import stats
 
-from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
 from ruddy.univariate.categorical import _safe_float
 
@@ -56,6 +58,19 @@ def numeric_statistics_columns(quantiles: tuple[float, ...]) -> tuple[str, ...]:
     return (*prefix, *quantile_columns, *suffix)
 
 
+def numeric_statistics_schema(quantiles: tuple[float, ...]) -> dict[str, pl.DataType]:
+    """Return the Polars schema dictionary for numerical statistics."""
+    schema: dict[str, pl.DataType] = {}
+    for col in numeric_statistics_columns(quantiles):
+        if col in {"column", "role", "status", "reason"}:
+            schema[col] = pl.String
+        elif col.startswith("n_") or col == "zero_count":
+            schema[col] = pl.Int64
+        else:
+            schema[col] = pl.Float64
+    return schema
+
+
 def validate_quantiles(quantiles: tuple[float, ...]) -> tuple[float, ...]:
     values = tuple(float(value) for value in quantiles)
     if not values:
@@ -71,11 +86,8 @@ def validate_quantiles(quantiles: tuple[float, ...]) -> tuple[float, ...]:
     return values
 
 
-def _finite_numeric_values(series: pd.Series) -> np.ndarray:
-    present = series.dropna()
-    if present.empty:
-        return np.asarray([], dtype=np.float64)
-    values = present.to_numpy(dtype=np.float64, na_value=np.nan)
+def _finite_numeric_values(series: pl.Series) -> np.ndarray:
+    values = series.drop_nulls().cast(pl.Float64).to_numpy()
     return values[np.isfinite(values)]
 
 
@@ -93,27 +105,21 @@ def _status(
     return "ok", None
 
 
-def _eligible_numeric(profile: pd.Series) -> bool:
-    if not bool(profile["analysis_eligible"]):
-        return False
-    role = ColumnRole(str(profile["role"]))
-    kind = ColumnKind(str(profile["data_kind"]))
-    if role is ColumnRole.FACTOR:
-        return False
-    return kind is ColumnKind.NUMERIC
-
-
 def _numeric_row(
     *,
     column: str,
     role: str,
-    series: pd.Series,
+    series: pl.Series,
     quantiles: tuple[float, ...],
     min_numeric_n: int,
 ) -> dict[str, Any]:
     values = _finite_numeric_values(series)
-    n_total = len(series)
-    n_missing = int(series.isna().sum())
+    n_total = series.len()
+    n_missing = series.null_count()
+    if series.dtype.is_float():
+        nan_sum = series.is_nan().sum()
+        if nan_sum is not None:
+            n_missing += int(nan_sum)
     n_present = n_total - n_missing
     n_finite = int(values.size)
     n_non_finite = int(n_present - n_finite)
@@ -188,37 +194,35 @@ def _numeric_row(
         row["variance"] = variance
         row["std"] = _safe_float(np.std(values, ddof=1))
     if not is_constant and n_finite >= 3:
-        row["skewness"] = _safe_float(pd.Series(values).skew())
+        row["skewness"] = _safe_float(stats.skew(values, bias=False))
     if not is_constant and n_finite >= 4:
-        row["kurtosis"] = _safe_float(pd.Series(values).kurt())
+        row["kurtosis"] = _safe_float(stats.kurtosis(values, bias=False))
     return row
 
 
 def summarize_numeric_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame | pl.DataFrame,
+    columns: pl.DataFrame,
     *,
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99),
     min_numeric_n: int = 3,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Summarize eligible numerical variables using finite observations only."""
     quantiles = validate_quantiles(quantiles)
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
 
-    # ponytail: temporary pandas adapter, removed in task 3B
-    if isinstance(columns, pl.DataFrame):
-        columns = columns.to_pandas()
-    selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
-    frame = dataset.to_frame()
+    selected = columns.filter(
+        pl.col("analysis_eligible") & (pl.col("role") != "factor") & (pl.col("data_kind") == "numeric")
+    )
     rows = [
         _numeric_row(
             column=str(profile["column"]),
             role=str(profile["role"]),
-            series=frame[str(profile["column"])],
+            series=dataset.frame.get_column(str(profile["column"])),
             quantiles=quantiles,
             min_numeric_n=min_numeric_n,
         )
-        for _, profile in selected.iterrows()
+        for profile in selected.iter_rows(named=True)
     ]
-    return pd.DataFrame(rows, columns=pd.Index(numeric_statistics_columns(quantiles)))
+    return pl.DataFrame(rows, schema=numeric_statistics_schema(quantiles))
