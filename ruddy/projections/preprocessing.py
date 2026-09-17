@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,9 @@ from scipy import sparse
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import ScalingMethod
-from ruddy.data import FeatureMatrix
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,9 +69,8 @@ def _scale_matrix(matrix: Any, method: ScalingMethod) -> tuple[Any, dict[str, An
         }
 
     if method is ScalingMethod.MINMAX and is_sparse:
-        raise ValueError(
-            "minmax scaling requires dense input; Ruddy will not silently densify a sparse matrix."
-        )
+        msg = "minmax scaling requires dense input; Ruddy will not silently densify a sparse matrix."
+        raise ValueError(msg)
 
     if method is ScalingMethod.STANDARD:
         transformer = StandardScaler(with_mean=not is_sparse)
@@ -106,7 +107,8 @@ def prepare_features(
 ) -> PreparedFeatures:
     """Exclude non-finite rows and apply only explicitly requested scaling."""
     if minimum_observations < 2:
-        raise ValueError("minimum_observations must be at least 2.")
+        msg = "minimum_observations must be at least 2."
+        raise ValueError(msg)
     method = _normalize_scaling(scaling)
     matrix = features.to_sparse() if features.is_sparse else features.to_array()
     valid_mask = _finite_row_mask(matrix)
@@ -123,10 +125,11 @@ def prepare_features(
         }
     )
     if int(valid_mask.sum()) < minimum_observations:
-        raise ValueError(
+        msg = (
             "Feature projection requires at least "
             f"{minimum_observations} finite observation rows after preprocessing."
         )
+        raise ValueError(msg)
 
     prepared = matrix[valid_mask]  # pyrefly: ignore[bad-index]
     scaled, scaling_metadata = _scale_matrix(prepared, method)

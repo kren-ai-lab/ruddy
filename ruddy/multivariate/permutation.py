@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -11,9 +11,11 @@ from scipy.stats import f_oneway
 from sklearn.metrics import pairwise_distances
 
 from ruddy.core.enums import AlignmentMode, ResultStatus
-from ruddy.data import FeatureMatrix, TabularDataset
 from ruddy.data.validation import AlignmentReport, align_annotations
 from ruddy.results import Advisory, AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix, TabularDataset
 
 SUMMARY_COLUMNS = (
     "analysis",
@@ -75,7 +77,8 @@ def _aligned_factor(
     alignment: AlignmentMode | str,
 ) -> tuple[pd.Series, AlignmentReport]:
     if factor not in dataset.columns:
-        raise ValueError(f"Unknown grouping factor: {factor!r}.")
+        msg = f"Unknown grouping factor: {factor!r}."
+        raise ValueError(msg)
     annotations = dataset.select([factor])
     annotations.index = dataset.observation_ids
     aligned, report = align_annotations(
@@ -156,13 +159,17 @@ def analyze_permutation_group_structure(
 ) -> PermutationGroupResult:
     """Run PERMANOVA and PERMDISP together on one feature-space grouping factor."""
     if n_permutations < 0:
-        raise ValueError("n_permutations cannot be negative.")
+        msg = "n_permutations cannot be negative."
+        raise ValueError(msg)
     if min_group_n < 2:
-        raise ValueError("min_group_n must be at least 2.")
+        msg = "min_group_n must be at least 2."
+        raise ValueError(msg)
     if max_group_levels < 2:
-        raise ValueError("max_group_levels must be at least 2.")
+        msg = "max_group_levels must be at least 2."
+        raise ValueError(msg)
     if not str(metric).strip():
-        raise ValueError("metric cannot be empty.")
+        msg = "metric cannot be empty."
+        raise ValueError(msg)
 
     group_series, report = _aligned_factor(features, dataset, factor, alignment)
     valid_features = _feature_valid_rows(features)
@@ -218,7 +225,8 @@ def analyze_permutation_group_structure(
             provenance,
         )
     if len(levels) > max_group_levels:
-        raise ValueError(f"Factor {factor!r} has {len(levels)} levels; maximum is {max_group_levels}.")
+        msg = f"Factor {factor!r} has {len(levels)} levels; maximum is {max_group_levels}."
+        raise ValueError(msg)
     if np.any(counts < min_group_n):
         groups = pd.DataFrame(
             {"factor": factor, "level": levels, "n": counts, "mean_distance_to_centroid": np.nan},
@@ -276,7 +284,7 @@ def analyze_permutation_group_structure(
         )
 
     permanova_f, r_squared, df_between, df_within = _permanova_statistic(distance_matrix, labels)
-    coords, eigenvalues, positive = _pcoa(distance_matrix)
+    coords, eigenvalues, _positive = _pcoa(distance_matrix)
     if coords.shape[1] == 0:
         return PermutationGroupResult(
             ResultStatus.DEGENERATE,

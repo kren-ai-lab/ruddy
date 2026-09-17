@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -12,9 +12,11 @@ from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
 from ruddy.core.enums import PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing, bias_corrected_cramers_v, expected_count_diagnostics
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 SUMMARY_COLUMNS = (
     "column_x",
@@ -71,14 +73,16 @@ def analyze_contingency_diagnostics(
 ) -> ContingencyDiagnosticsResult:
     """Return expected counts and cell residuals for categorical associations."""
     if max_category_levels < 2:
-        raise ValueError("max_category_levels must be at least 2.")
+        msg = "max_category_levels must be at least 2."
+        raise ValueError(msg)
     candidates = _eligible_categorical(dataset)
     selected_pairs = (
         tuple(combinations(candidates, 2)) if pairs is None else tuple((str(x), str(y)) for x, y in pairs)
     )
     invalid = [(x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates]
     if invalid:
-        raise ValueError(f"Invalid contingency pairs: {invalid}.")
+        msg = f"Invalid contingency pairs: {invalid}."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     frame = dataset.to_frame()
     summaries: list[dict[str, Any]] = []

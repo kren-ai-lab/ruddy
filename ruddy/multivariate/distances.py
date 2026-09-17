@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -12,9 +12,11 @@ from scipy import sparse, stats
 from sklearn.covariance import EmpiricalCovariance, MinCovDet
 
 from ruddy.core.enums import ResultStatus, ScalingMethod
-from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,25 +76,31 @@ def analyze_mahalanobis(
     diagnostic only; observations are never removed or altered.
     """
     if not 0.5 < threshold_quantile < 1.0:
-        raise ValueError("threshold_quantile must be between 0.5 and 1.0.")
+        msg = "threshold_quantile must be between 0.5 and 1.0."
+        raise ValueError(msg)
     if max_features < 1:
-        raise ValueError("max_features must be at least 1.")
+        msg = "max_features must be at least 1."
+        raise ValueError(msg)
     if features.n_features > max_features:
-        raise ValueError(
+        msg = (
             f"Mahalanobis analysis is limited to {max_features} features per run; "
             "for high-dimensional representations apply explicit dimensionality reduction first."
         )
+        raise ValueError(msg)
     if robust_support_fraction is not None and not 0.5 <= robust_support_fraction <= 1.0:
-        raise ValueError("robust_support_fraction must be between 0.5 and 1.0.")
+        msg = "robust_support_fraction must be between 0.5 and 1.0."
+        raise ValueError(msg)
     if features.is_sparse:
-        raise ValueError(
+        msg = (
             "Mahalanobis diagnostics require dense input; Ruddy will not silently "
             "densify a sparse feature matrix."
         )
+        raise ValueError(msg)
 
     prepared = prepare_features(features, scaling=scaling, minimum_observations=3)
     if sparse.issparse(prepared.matrix):
-        raise ValueError("Dense input is required for Mahalanobis diagnostics.")
+        msg = "Dense input is required for Mahalanobis diagnostics."
+        raise ValueError(msg)
     matrix = np.asarray(prepared.matrix, dtype=float)
     n, p = matrix.shape
     centered_rank = int(np.linalg.matrix_rank(matrix - matrix.mean(axis=0)))

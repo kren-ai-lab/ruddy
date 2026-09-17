@@ -20,14 +20,14 @@ def validate_observation_ids(values: Any, *, source: str = "observations") -> pd
     """Validate non-missing, unique observation identifiers."""
     ids = pd.Index(values, copy=True)
     if ids.hasnans:
-        raise MissingObservationIDError(f"{source.capitalize()} contain missing observation identifiers.")
+        msg = f"{source.capitalize()} contain missing observation identifiers."
+        raise MissingObservationIDError(msg)
     duplicated = ids[ids.duplicated()].unique().tolist()
     if duplicated:
         preview = duplicated[:10]
         suffix = "" if len(duplicated) <= 10 else " ..."
-        raise DuplicateObservationIDError(
-            f"{source.capitalize()} contain duplicate observation identifiers: {preview}{suffix}."
-        )
+        msg = f"{source.capitalize()} contain duplicate observation identifiers: {preview}{suffix}."
+        raise DuplicateObservationIDError(msg)
     return ids
 
 
@@ -77,7 +77,8 @@ def align_annotations(
     explicitly lists missing and unmatched IDs.
     """
     if not isinstance(annotations, pd.DataFrame):
-        raise TypeError("annotations must be a pandas DataFrame.")
+        msg = "annotations must be a pandas DataFrame."
+        raise TypeError(msg)
 
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     base_index = validate_observation_ids(base_ids, source="base data")
@@ -89,7 +90,8 @@ def align_annotations(
         indexed.index = annotation_ids
     else:
         if id_column not in source.columns:
-            raise UnknownColumnError(f"Unknown annotation ID column: {id_column!r}.")
+            msg = f"Unknown annotation ID column: {id_column!r}."
+            raise UnknownColumnError(msg)
         annotation_ids = validate_observation_ids(source[id_column], source="annotations")
         indexed = source.set_index(id_column, drop=False)
         indexed.index = annotation_ids
@@ -110,10 +112,11 @@ def align_annotations(
     )
 
     if mode is AlignmentMode.STRICT and not report.complete:
-        raise AlignmentError(
+        msg = (
             "Strict annotation alignment requires exact one-to-one ID coverage; "
             f"missing={list(missing)!r}, unmatched={list(unmatched)!r}."
         )
+        raise AlignmentError(msg)
 
     aligned = indexed.reindex(base_index).copy(deep=True)
     aligned.index = base_index

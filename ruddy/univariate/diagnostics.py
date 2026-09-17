@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -11,10 +11,12 @@ from scipy import stats
 from statsmodels.stats.diagnostic import normal_ad
 
 from ruddy.core.enums import ColumnKind, ColumnRole, PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 NORMALITY_COLUMNS = (
     "method",
@@ -92,15 +94,18 @@ def summarize_normality_diagnostics(
     allowed = {"shapiro", "dagostino", "anderson_darling"}
     methods = tuple(str(method).lower() for method in methods)
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):
-        raise ValueError("methods must be unique values from shapiro, dagostino, anderson_darling.")
+        msg = "methods must be unique values from shapiro, dagostino, anderson_darling."
+        raise ValueError(msg)
     if max_shapiro_n < 3:
-        raise ValueError("max_shapiro_n must be at least 3.")
+        msg = "max_shapiro_n must be at least 3."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     candidates = _eligible_numeric(dataset)
     selected = candidates if columns is None else tuple(str(c) for c in columns)
     invalid = [c for c in selected if c not in candidates]
     if invalid:
-        raise ValueError(f"Normality diagnostics require eligible numeric columns: {invalid}.")
+        msg = f"Normality diagnostics require eligible numeric columns: {invalid}."
+        raise ValueError(msg)
 
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []
@@ -169,17 +174,21 @@ def summarize_dispersion_diagnostics(
     allowed = {"brown_forsythe", "fligner_killeen"}
     methods = tuple(str(method).lower() for method in methods)
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):
-        raise ValueError("methods must be unique brown_forsythe/fligner_killeen values.")
+        msg = "methods must be unique brown_forsythe/fligner_killeen values."
+        raise ValueError(msg)
     if min_group_n < 2:
-        raise ValueError("min_group_n must be at least 2.")
+        msg = "min_group_n must be at least 2."
+        raise ValueError(msg)
     numeric = set(_eligible_numeric(dataset))
     groupable = set(_eligible_groups(dataset))
     bad_responses = [r for r in responses if r not in numeric]
     bad_groups = [g for g in groups if g not in groupable]
     if bad_responses:
-        raise ValueError(f"Dispersion responses must be eligible numeric columns: {bad_responses}.")
+        msg = f"Dispersion responses must be eligible numeric columns: {bad_responses}."
+        raise ValueError(msg)
     if bad_groups:
-        raise ValueError(f"Dispersion groups must be eligible categorical/factor columns: {bad_groups}.")
+        msg = f"Dispersion groups must be eligible categorical/factor columns: {bad_groups}."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []

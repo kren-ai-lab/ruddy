@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,6 @@ from ruddy.core.enums import (
     ComparisonTest,
     PAdjustMethod,
 )
-from ruddy.data import TabularDataset
 from ruddy.statistics import (
     apply_multiple_testing,
     cliffs_delta_from_u,
@@ -25,6 +24,9 @@ from ruddy.statistics import (
 )
 from ruddy.univariate.categorical import _category_label
 from ruddy.univariate.diagnostics import _eligible_numeric
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 COMPARISON_COLUMNS: tuple[str, ...] = (
     "group_column",
@@ -221,7 +223,8 @@ def _run_two_group(
         )
         return row
 
-    raise ValueError(f"Unsupported two-group test: {test.value}.")
+    msg = f"Unsupported two-group test: {test.value}."
+    raise ValueError(msg)
 
 
 def _run_omnibus(
@@ -284,7 +287,8 @@ def _run_omnibus(
         )
         return row
 
-    raise ValueError(f"Unsupported omnibus test: {test.value}.")
+    msg = f"Unsupported omnibus test: {test.value}."
+    raise ValueError(msg)
 
 
 def _group_values(
@@ -319,9 +323,11 @@ def summarize_numeric_categorical_comparisons(
 ) -> pd.DataFrame:
     """Compare selected numeric features across selected categorical group variables."""
     if min_group_n < 2:
-        raise ValueError("min_group_n must be at least 2.")
+        msg = "min_group_n must be at least 2."
+        raise ValueError(msg)
     if max_group_levels < 2:
-        raise ValueError("max_group_levels must be at least 2.")
+        msg = "max_group_levels must be at least 2."
+        raise ValueError(msg)
     resolved_tests = tuple(
         test if isinstance(test, ComparisonTest) else ComparisonTest(test) for test in tests
     )
@@ -329,7 +335,8 @@ def summarize_numeric_categorical_comparisons(
     if invalid:
         raise ValueError("Numeric comparisons received categorical tests: " + ", ".join(invalid))
     if len(set(resolved_tests)) != len(resolved_tests):
-        raise ValueError("Comparison tests cannot contain duplicates.")
+        msg = "Comparison tests cannot contain duplicates."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
 
     eligible_numeric = _eligible_numeric(dataset)
@@ -337,9 +344,11 @@ def summarize_numeric_categorical_comparisons(
     numeric = eligible_numeric if features is None else tuple(features)
     categorical = eligible_categorical if group_columns is None else tuple(group_columns)
     if len(set(numeric)) != len(numeric):
-        raise ValueError("features cannot contain duplicates.")
+        msg = "features cannot contain duplicates."
+        raise ValueError(msg)
     if len(set(categorical)) != len(categorical):
-        raise ValueError("group_columns cannot contain duplicates.")
+        msg = "group_columns cannot contain duplicates."
+        raise ValueError(msg)
     invalid_numeric = [column for column in numeric if column not in eligible_numeric]
     invalid_groups = [column for column in categorical if column not in eligible_categorical]
     if invalid_numeric:

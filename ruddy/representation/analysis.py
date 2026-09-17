@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -14,9 +15,11 @@ from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import AlignmentMode, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import AlignmentError
-from ruddy.data import FeatureMatrix
 from ruddy.data.validation import AlignmentReport
 from ruddy.results import Advisory, AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,9 +79,8 @@ def align_feature_matrices(
 ) -> AlignedRepresentationPair:
     """Align two dense feature matrices by observation identity and finite rows."""
     if x.is_sparse or y.is_sparse:
-        raise ValueError(
-            "Representation comparison currently requires dense inputs; Ruddy will not silently densify sparse matrices."
-        )
+        msg = "Representation comparison currently requires dense inputs; Ruddy will not silently densify sparse matrices."
+        raise ValueError(msg)
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     x_ids, y_ids = x.observation_ids, y.observation_ids
     x_set, y_set = set(x_ids.tolist()), set(y_ids.tolist())
@@ -94,12 +96,14 @@ def align_feature_matrices(
         unmatched_ids=unmatched,
     )
     if mode is AlignmentMode.STRICT and not report.complete:
-        raise AlignmentError(
+        msg = (
             "Strict representation alignment requires exact one-to-one ID coverage; "
             f"missing={list(missing)!r}, unmatched={list(unmatched)!r}."
         )
+        raise AlignmentError(msg)
     if len(common) < 3:
-        raise ValueError("Representation comparison requires at least 3 aligned observations.")
+        msg = "Representation comparison requires at least 3 aligned observations."
+        raise ValueError(msg)
 
     x_pos = {value: i for i, value in enumerate(x_ids)}
     y_pos = {value: i for i, value in enumerate(y_ids)}
@@ -118,7 +122,8 @@ def align_feature_matrices(
         }
     )
     if int(finite.sum()) < 3:
-        raise ValueError("Representation comparison requires at least 3 jointly finite aligned observations.")
+        msg = "Representation comparison requires at least 3 jointly finite aligned observations."
+        raise ValueError(msg)
     return AlignedRepresentationPair(
         x=np.asarray(xa[finite], dtype=float),
         y=np.asarray(ya[finite], dtype=float),
@@ -135,7 +140,8 @@ def linear_cka(x: np.ndarray, y: np.ndarray) -> float:
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     if x.ndim != 2 or y.ndim != 2 or x.shape[0] != y.shape[0]:
-        raise ValueError("CKA requires two 2D matrices with the same number of observations.")
+        msg = "CKA requires two 2D matrices with the same number of observations."
+        raise ValueError(msg)
     xc = x - x.mean(axis=0, keepdims=True)
     yc = y - y.mean(axis=0, keepdims=True)
     cross = np.linalg.norm(xc.T @ yc, ord="fro") ** 2
@@ -143,7 +149,8 @@ def linear_cka(x: np.ndarray, y: np.ndarray) -> float:
     yy = np.linalg.norm(yc.T @ yc, ord="fro")
     denom = xx * yy
     if denom <= np.finfo(float).eps:
-        raise ValueError("CKA is undefined for a zero-variance representation.")
+        msg = "CKA is undefined for a zero-variance representation."
+        raise ValueError(msg)
     return float(np.clip(cross / denom, 0.0, 1.0))
 
 
@@ -316,7 +323,8 @@ def _distance_similarity(pair: AlignedRepresentationPair, metric: str, method: s
     elif method == "spearman":
         stat, p = stats.spearmanr(dx, dy)
     else:
-        raise ValueError("distance_similarity_method must be 'pearson' or 'spearman'.")
+        msg = "distance_similarity_method must be 'pearson' or 'spearman'."
+        raise ValueError(msg)
     return pd.DataFrame(
         [
             {
@@ -336,7 +344,8 @@ def _mantel(
     pair: AlignedRepresentationPair, metric: str, permutations: int, random_state: int
 ) -> pd.DataFrame:
     if permutations < 0:
-        raise ValueError("mantel_permutations must be non-negative.")
+        msg = "mantel_permutations must be non-negative."
+        raise ValueError(msg)
     dx = squareform(pdist(pair.x, metric=metric))  # pyrefly: ignore[no-matching-overload]
     dy = squareform(pdist(pair.y, metric=metric))  # pyrefly: ignore[no-matching-overload]
     tri = np.triu_indices(dx.shape[0], k=1)

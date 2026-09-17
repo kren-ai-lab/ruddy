@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,11 +97,14 @@ def analyze_bayesian_eda(
 ) -> BayesianEDAResult:
     """Estimate Bayesian means and binary-group mean differences under a weak N-IG prior."""
     if not 0 < credible_level < 1:
-        raise ValueError("credible_level must lie strictly between 0 and 1.")
+        msg = "credible_level must lie strictly between 0 and 1."
+        raise ValueError(msg)
     if draws < 100:
-        raise ValueError("draws must be at least 100.")
+        msg = "draws must be at least 100."
+        raise ValueError(msg)
     if rope[0] > rope[1]:
-        raise ValueError("rope lower bound cannot exceed upper bound.")
+        msg = "rope lower bound cannot exceed upper bound."
+        raise ValueError(msg)
     frame = dataset.to_frame()
     if variables is None:
         variables = tuple(
@@ -109,7 +115,8 @@ def analyze_bayesian_eda(
         )
     for column in variables:
         if column not in dataset.columns or dataset.kind_of(column) is not ColumnKind.NUMERIC:
-            raise ValueError(f"Bayesian EDA variable must be numeric: {column!r}.")
+            msg = f"Bayesian EDA variable must be numeric: {column!r}."
+            raise ValueError(msg)
     rng = np.random.default_rng(random_state)
     mean_rows: list[dict] = []
     diff_rows: list[dict] = []
@@ -145,9 +152,10 @@ def analyze_bayesian_eda(
         mean_rows.append(row)
         for group in groups:
             if group not in dataset.columns:
-                raise ValueError(f"Unknown Bayesian grouping column: {group!r}.")
+                msg = f"Unknown Bayesian grouping column: {group!r}."
+                raise ValueError(msg)
             g = frame[group]
-            levels = [v for v in pd.unique(g.dropna())]
+            levels = list(pd.unique(g.dropna()))
             if len(levels) != 2:
                 diff_rows.append(
                     {

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
@@ -31,6 +30,9 @@ from ruddy.representation import analyze_representation_similarity
 from ruddy.results import AnalysisProvenance
 from ruddy.univariate import analyze_distribution_diagnostics, analyze_outliers, analyze_univariate
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 
 def _factor_columns(dataset: TabularDataset, config: AnalysisConfig) -> tuple[str, ...]:
     if config.groups:
@@ -56,11 +58,14 @@ def analyze(
     the same standalone public function used outside the unified pipeline.
     """
     if not isinstance(dataset, TabularDataset):
-        raise TypeError("dataset must be a TabularDataset.")
+        msg = "dataset must be a TabularDataset."
+        raise TypeError(msg)
     if features is not None and not isinstance(features, FeatureMatrix):
-        raise TypeError("features must be a FeatureMatrix or None.")
+        msg = "features must be a FeatureMatrix or None."
+        raise TypeError(msg)
     if comparison_features is not None and not isinstance(comparison_features, FeatureMatrix):
-        raise TypeError("comparison_features must be a FeatureMatrix or None.")
+        msg = "comparison_features must be a FeatureMatrix or None."
+        raise TypeError(msg)
 
     cfg = AnalysisConfig() if config is None else config
     # __post_init__ has already normalised every entry to an AnalysisBlock.
@@ -122,7 +127,8 @@ def analyze(
     requested_feature_blocks = tuple(block for block in blocks if block in feature_blocks)
     if requested_feature_blocks and features is None:
         names = ", ".join(block.value for block in requested_feature_blocks)
-        raise ValueError(f"FeatureMatrix is required for enabled feature-space blocks: {names}.")
+        msg = f"FeatureMatrix is required for enabled feature-space blocks: {names}."
+        raise ValueError(msg)
     # The guard above makes this non-None for every feature-space block below.
     feature_space = cast("FeatureMatrix", features)
 
@@ -149,7 +155,8 @@ def analyze(
         )
     if AnalysisBlock.REPRESENTATION in blocks:
         if comparison_features is None:
-            raise ValueError("Representation block requires comparison_features.")
+            msg = "Representation block requires comparison_features."
+            raise ValueError(msg)
         components["representation"] = analyze_representation_similarity(
             feature_space,
             comparison_features,
@@ -164,9 +171,8 @@ def analyze(
         if factor is None:
             candidates = cfg.groups or factors
             if len(candidates) != 1:
-                raise ValueError(
-                    "PERMANOVA block requires permanova_factor or exactly one configured group/factor."
-                )
+                msg = "PERMANOVA block requires permanova_factor or exactly one configured group/factor."
+                raise ValueError(msg)
             factor = candidates[0]
         components["permanova"] = analyze_permutation_group_structure(
             feature_space,
@@ -180,9 +186,11 @@ def analyze(
         manova_factors = cfg.manova_factors or factors
         manova_covariates = cfg.manova_covariates or covariates
         if len(responses) < 2:
-            raise ValueError("MANOVA block requires at least two configured responses.")
+            msg = "MANOVA block requires at least two configured responses."
+            raise ValueError(msg)
         if not manova_factors:
-            raise ValueError("MANOVA block requires at least one configured factor.")
+            msg = "MANOVA block requires at least one configured factor."
+            raise ValueError(msg)
         components["manova"] = analyze_manova(
             dataset,
             responses=responses,
@@ -202,15 +210,17 @@ def analyze(
             response = cfg.factorial_response
             if response is None:
                 if len(cfg.responses) != 1:
-                    raise ValueError(
+                    msg = (
                         "Factorial block requires factorial_response, factorial_formula, "
                         "or exactly one configured response."
                     )
+                    raise ValueError(msg)
                 response = cfg.responses[0]
             factorial_factors = cfg.factorial_factors or factors
             factorial_covariates = cfg.factorial_covariates or covariates
             if not factorial_factors and not factorial_covariates:
-                raise ValueError("Factorial block requires at least one factor or covariate.")
+                msg = "Factorial block requires at least one factor or covariate."
+                raise ValueError(msg)
             components["factorial"] = analyze_factorial(
                 dataset,
                 response=response,
@@ -224,17 +234,15 @@ def analyze(
         response = cfg.posthoc_response
         if response is None:
             if len(cfg.responses) != 1:
-                raise ValueError(
-                    "Posthoc block requires posthoc_response or exactly one configured response."
-                )
+                msg = "Posthoc block requires posthoc_response or exactly one configured response."
+                raise ValueError(msg)
             response = cfg.responses[0]
         factor = cfg.posthoc_factor
         if factor is None:
             candidates = cfg.groups or factors
             if len(candidates) != 1:
-                raise ValueError(
-                    "Posthoc block requires posthoc_factor or exactly one configured group/factor."
-                )
+                msg = "Posthoc block requires posthoc_factor or exactly one configured group/factor."
+                raise ValueError(msg)
             factor = candidates[0]
         components["posthoc"] = analyze_posthoc(
             dataset, response=response, factor=factor, **cfg.posthoc_kwargs()
@@ -252,14 +260,14 @@ def analyze(
             response = cfg.marginal_response
             if response is None:
                 if len(cfg.responses) != 1:
-                    raise ValueError(
-                        "Marginal-means block requires marginal_response, marginal_formula, or exactly one configured response."
-                    )
+                    msg = "Marginal-means block requires marginal_response, marginal_formula, or exactly one configured response."
+                    raise ValueError(msg)
                 response = cfg.responses[0]
             mm_factors = cfg.marginal_factors or factors
             mm_covariates = cfg.marginal_covariates or covariates
             if not mm_factors:
-                raise ValueError("Marginal-means block requires at least one factor.")
+                msg = "Marginal-means block requires at least one factor."
+                raise ValueError(msg)
             components["marginal_means"] = analyze_marginal_means(
                 dataset,
                 response=response,
@@ -272,7 +280,8 @@ def analyze(
 
     if AnalysisBlock.MIXED_EFFECTS in blocks:
         if cfg.mixed_group is None:
-            raise ValueError("Mixed-effects block requires mixed_group.")
+            msg = "Mixed-effects block requires mixed_group."
+            raise ValueError(msg)
         if cfg.mixed_formula is not None:
             components["mixed_effects"] = analyze_mixed_effects(
                 dataset, group=cfg.mixed_group, formula=cfg.mixed_formula, **cfg.mixed_effects_kwargs()
@@ -281,14 +290,14 @@ def analyze(
             response = cfg.mixed_response
             if response is None:
                 if len(cfg.responses) != 1:
-                    raise ValueError(
-                        "Mixed-effects block requires mixed_response, mixed_formula, or exactly one configured response."
-                    )
+                    msg = "Mixed-effects block requires mixed_response, mixed_formula, or exactly one configured response."
+                    raise ValueError(msg)
                 response = cfg.responses[0]
             mixed_factors = cfg.mixed_factors or factors
             mixed_covariates = cfg.mixed_covariates or covariates
             if not mixed_factors and not mixed_covariates:
-                raise ValueError("Mixed-effects block requires at least one fixed factor or covariate.")
+                msg = "Mixed-effects block requires at least one fixed factor or covariate."
+                raise ValueError(msg)
             components["mixed_effects"] = analyze_mixed_effects(
                 dataset,
                 group=cfg.mixed_group,

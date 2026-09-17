@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ruddy.core.enums import AdvisoryLevel, ResultStatus
 from ruddy.core.exceptions import ResultContractError
-from ruddy.results.provenance import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from ruddy.results.provenance import AnalysisProvenance
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,9 +51,11 @@ class AnalysisResult:
         status = self.status if isinstance(self.status, ResultStatus) else ResultStatus(self.status)
         object.__setattr__(self, "status", status)
         if self.status is ResultStatus.OK and self.reason is not None:
-            raise ResultContractError("An OK result cannot carry a degeneracy reason.")
+            msg = "An OK result cannot carry a degeneracy reason."
+            raise ResultContractError(msg)
         if self.status in {ResultStatus.DEGENERATE, ResultStatus.SKIPPED} and not self.reason:
-            raise ResultContractError(f"A {self.status.value} result must provide an explicit reason.")
+            msg = f"A {self.status.value} result must provide an explicit reason."
+            raise ResultContractError(msg)
 
     @classmethod
     def ok(

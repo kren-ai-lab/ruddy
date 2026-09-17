@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from pandas.api.types import (
@@ -19,7 +20,9 @@ from ruddy.core.exceptions import (
     RoleConflictError,
     UnknownColumnError,
 )
-from ruddy.core.types import KindOverrides, RoleOverrides
+
+if TYPE_CHECKING:
+    from ruddy.core.types import KindOverrides, RoleOverrides
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,14 +55,16 @@ def _coerce_role(value: ColumnRole | str) -> ColumnRole:
     try:
         return value if isinstance(value, ColumnRole) else ColumnRole(value)
     except ValueError as exc:
-        raise RoleConflictError(f"Unknown column role: {value!r}.") from exc
+        msg = f"Unknown column role: {value!r}."
+        raise RoleConflictError(msg) from exc
 
 
 def _coerce_kind(value: ColumnKind | str) -> ColumnKind:
     try:
         return value if isinstance(value, ColumnKind) else ColumnKind(value)
     except ValueError as exc:
-        raise KindConflictError(f"Unknown column kind: {value!r}.") from exc
+        msg = f"Unknown column kind: {value!r}."
+        raise KindConflictError(msg) from exc
 
 
 def resolve_roles(
@@ -72,7 +77,8 @@ def resolve_roles(
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        raise UnknownColumnError(f"Role overrides reference unknown columns: {unknown}.")
+        msg = f"Role overrides reference unknown columns: {unknown}."
+        raise UnknownColumnError(msg)
 
     resolved = dict.fromkeys(frame.columns, ColumnRole.VARIABLE)
     for column, role in overrides.items():
@@ -82,23 +88,27 @@ def resolve_roles(
 
     if id_column is not None:
         if id_column not in frame.columns:
-            raise UnknownColumnError(f"Unknown observation ID column: {id_column!r}.")
+            msg = f"Unknown observation ID column: {id_column!r}."
+            raise UnknownColumnError(msg)
         explicit = resolved[id_column]
         if id_column in overrides and explicit is not ColumnRole.IDENTIFIER:
-            raise RoleConflictError(
+            msg = (
                 f"Column {id_column!r} is the observation ID but was explicitly "
                 "assigned "
                 f"role {explicit.value!r}."
             )
+            raise RoleConflictError(msg)
         for column in declared_identifiers:
             if column != id_column:
-                raise RoleConflictError(
+                msg = (
                     "Only one identifier column is supported; "
                     f"{column!r} conflicts with id_column={id_column!r}."
                 )
+                raise RoleConflictError(msg)
         resolved[id_column] = ColumnRole.IDENTIFIER
     elif len(declared_identifiers) > 1:
-        raise RoleConflictError(f"Only one identifier column is supported; found {declared_identifiers}.")
+        msg = f"Only one identifier column is supported; found {declared_identifiers}."
+        raise RoleConflictError(msg)
 
     return resolved
 
@@ -109,20 +119,23 @@ def _validate_kind_override(
     requested: ColumnKind,
 ) -> None:
     if requested is ColumnKind.NUMERIC and observed is not ColumnKind.NUMERIC:
-        raise KindConflictError(
+        msg = (
             f"Column {column!r} cannot be declared numeric without numeric dtype; "
             f"observed {observed.value!r}. Ruddy does not silently coerce strings."
         )
+        raise KindConflictError(msg)
     if requested is ColumnKind.BOOLEAN and observed is not ColumnKind.BOOLEAN:
-        raise KindConflictError(
+        msg = (
             f"Column {column!r} cannot be declared boolean without boolean dtype; "
             f"observed {observed.value!r}."
         )
+        raise KindConflictError(msg)
     if requested is ColumnKind.DATETIME and observed is not ColumnKind.DATETIME:
-        raise KindConflictError(
+        msg = (
             f"Column {column!r} cannot be declared datetime without datetime dtype; "
             f"observed {observed.value!r}."
         )
+        raise KindConflictError(msg)
 
 
 def resolve_kinds(
@@ -134,7 +147,8 @@ def resolve_kinds(
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        raise UnknownColumnError(f"Kind overrides reference unknown columns: {unknown}.")
+        msg = f"Kind overrides reference unknown columns: {unknown}."
+        raise UnknownColumnError(msg)
 
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:

@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.core.types import KindOverrides, RoleOverrides
 from ruddy.data.roles import ColumnSpec, build_schema, resolve_kinds, resolve_roles
 from ruddy.data.validation import validate_observation_ids
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.core.types import KindOverrides, RoleOverrides
 
 
 class TabularDataset:
@@ -29,16 +33,17 @@ class TabularDataset:
         kind_overrides: KindOverrides | None = None,
     ) -> None:
         if not isinstance(data, pd.DataFrame):
-            raise TypeError("data must be a pandas DataFrame.")
+            msg = "data must be a pandas DataFrame."
+            raise TypeError(msg)
 
         if not data.columns.is_unique:
             duplicates = data.columns[data.columns.duplicated()].tolist()
-            raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
+            msg = f"DataFrame column names must be unique; duplicates={duplicates}."
+            raise ValueError(msg)
         non_string = [column for column in data.columns if not isinstance(column, str)]
         if non_string:
-            raise TypeError(
-                f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
-            )
+            msg = f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
+            raise TypeError(msg)
 
         self._data = data.copy(deep=True)
         self._roles = resolve_roles(

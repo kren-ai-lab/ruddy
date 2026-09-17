@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -21,6 +20,9 @@ from ruddy.data import AlignedAnnotations, TabularDataset, attach_annotations
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 GROUP_COVERAGE_COLUMNS: tuple[str, ...] = (
     "group_column",
@@ -142,7 +144,8 @@ class GroupAnalysisResult:
 def _unique_columns(values: Iterable[str], *, label: str) -> tuple[str, ...]:
     resolved = tuple(str(value) for value in values)
     if len(set(resolved)) != len(resolved):
-        raise ValueError(f"{label} cannot contain duplicates.")
+        msg = f"{label} cannot contain duplicates."
+        raise ValueError(msg)
     return resolved
 
 
@@ -157,23 +160,24 @@ def resolve_responses(
         selected = _unique_columns(responses, label="responses")
     unknown = [column for column in selected if column not in dataset.columns]
     if unknown:
-        raise ValueError(f"Unknown response columns: {unknown}.")
+        msg = f"Unknown response columns: {unknown}."
+        raise ValueError(msg)
     invalid_role = [
         column
         for column in selected
         if dataset.role_of(column) in {ColumnRole.IDENTIFIER, ColumnRole.EXCLUDED}
     ]
     if invalid_role:
-        raise ValueError(f"Response columns cannot be identifier/excluded columns: {invalid_role}.")
+        msg = f"Response columns cannot be identifier/excluded columns: {invalid_role}."
+        raise ValueError(msg)
     invalid_kind = [
         column
         for column in selected
         if dataset.kind_of(column) not in {ColumnKind.NUMERIC, ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
     ]
     if invalid_kind:
-        raise ValueError(
-            f"Responses must be numeric, categorical, or boolean; invalid columns: {invalid_kind}."
-        )
+        msg = f"Responses must be numeric, categorical, or boolean; invalid columns: {invalid_kind}."
+        raise ValueError(msg)
     return selected
 
 
@@ -188,7 +192,8 @@ def resolve_groups(
         selected = _unique_columns(groups, label="groups")
     unknown = [column for column in selected if column not in dataset.columns]
     if unknown:
-        raise ValueError(f"Unknown group columns: {unknown}.")
+        msg = f"Unknown group columns: {unknown}."
+        raise ValueError(msg)
     invalid: list[str] = []
     for column in selected:
         role = dataset.role_of(column)
@@ -201,10 +206,11 @@ def resolve_groups(
         if kind not in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}:
             invalid.append(column)
     if invalid:
-        raise ValueError(
+        msg = (
             "Group columns must be categorical/boolean or explicitly declared factors; "
             f"invalid columns: {invalid}."
         )
+        raise ValueError(msg)
     return selected
 
 
@@ -223,7 +229,8 @@ def summarize_group_coverage(
 ) -> pd.DataFrame:
     """Describe observation coverage for each grouping variable."""
     if max_group_levels < 2:
-        raise ValueError("max_group_levels must be at least 2.")
+        msg = "max_group_levels must be at least 2."
+        raise ValueError(msg)
     selected = resolve_groups(dataset, groups)
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []
@@ -621,21 +628,21 @@ def analyze_grouped_responses(
     selected_groups = resolve_groups(augmented, groups)
     overlap = sorted(set(selected_responses) & set(selected_groups))
     if overlap:
-        raise ValueError(
-            f"A column cannot be both response and grouping variable in one analysis: {overlap}."
-        )
+        msg = f"A column cannot be both response and grouping variable in one analysis: {overlap}."
+        raise ValueError(msg)
     if not selected_responses:
-        raise ValueError(
-            "At least one response must be selected explicitly or declared with role 'response'."
-        )
+        msg = "At least one response must be selected explicitly or declared with role 'response'."
+        raise ValueError(msg)
     if not selected_groups:
-        raise ValueError("At least one group must be selected explicitly or declared with role 'factor'.")
+        msg = "At least one group must be selected explicitly or declared with role 'factor'."
+        raise ValueError(msg)
 
     tests = tuple(
         test if isinstance(test, ComparisonTest) else ComparisonTest(test) for test in comparison_tests
     )
     if len(set(tests)) != len(tests):
-        raise ValueError("comparison_tests cannot contain duplicates.")
+        msg = "comparison_tests cannot contain duplicates."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     numeric_tests = tuple(test for test in tests if test in _NUMERIC_TESTS)
     categorical_tests = tuple(test for test in tests if test in _CATEGORICAL_TESTS)

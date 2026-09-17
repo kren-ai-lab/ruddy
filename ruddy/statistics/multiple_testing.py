@@ -15,13 +15,16 @@ def adjust_pvalues(
     """Adjust one ordered family of finite p-values."""
     values = np.asarray(p_values, dtype=np.float64)
     if values.ndim != 1:
-        raise ValueError("p_values must be one-dimensional.")
+        msg = "p_values must be one-dimensional."
+        raise ValueError(msg)
     if values.size == 0:
         return values.copy()
     if not np.isfinite(values).all():
-        raise ValueError("p_values must contain only finite values.")
+        msg = "p_values must contain only finite values."
+        raise ValueError(msg)
     if ((values < 0.0) | (values > 1.0)).any():
-        raise ValueError("p_values must lie in [0, 1].")
+        msg = "p_values must lie in [0, 1]."
+        raise ValueError(msg)
 
     resolved = method if isinstance(method, PAdjustMethod) else PAdjustMethod(method)
     if resolved is PAdjustMethod.NONE:
@@ -89,9 +92,11 @@ def apply_multiple_testing(
         return result
     families = result[family_column]
     if families.isna().any() or families.astype(str).str.strip().eq("").any():
-        raise ValueError("family_id values must be present and non-empty.")
+        msg = "family_id values must be present and non-empty."
+        raise ValueError(msg)
     if not result[correction_column].astype(str).eq(resolved.value).all():
-        raise ValueError("correction column is inconsistent with configured method.")
+        msg = "correction column is inconsistent with configured method."
+        raise ValueError(msg)
 
     normalized = result[family_column].astype(str)
     numeric_p = pd.to_numeric(result[p_column], errors="coerce")

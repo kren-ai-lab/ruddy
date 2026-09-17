@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 from scipy import sparse
 
 from ruddy.core.enums import ResultStatus, ScalingMethod
-from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,25 +128,30 @@ def analyze_covariance_structure(
     coherent sample basis.
     """
     if max_features < 2:
-        raise ValueError("max_features must be at least 2.")
+        msg = "max_features must be at least 2."
+        raise ValueError(msg)
     if features.n_features < 2:
-        raise ValueError("Covariance structure requires at least two features.")
+        msg = "Covariance structure requires at least two features."
+        raise ValueError(msg)
     if features.n_features > max_features:
-        raise ValueError(
+        msg = (
             f"Covariance structure is limited to {max_features} features per run; "
             "reduce dimensionality explicitly before multivariate covariance analysis."
         )
+        raise ValueError(msg)
     if features.is_sparse:
-        raise ValueError(
+        msg = (
             "Covariance structure currently requires dense input; Ruddy will not "
             "silently densify a sparse feature matrix."
         )
+        raise ValueError(msg)
 
     raw = features.to_array().astype(float, copy=False)
     pairwise_counts = _pairwise_finite_counts(raw, features.feature_names)
     prepared = prepare_features(features, scaling=scaling, minimum_observations=2)
     if sparse.issparse(prepared.matrix):  # defensive
-        raise ValueError("Dense input is required for covariance analysis.")
+        msg = "Dense input is required for covariance analysis."
+        raise ValueError(msg)
     matrix = np.asarray(prepared.matrix, dtype=float)
     names = prepared.feature_names
 

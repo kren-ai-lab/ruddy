@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -12,9 +12,11 @@ from scipy import sparse
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 from ruddy.core.enums import ResultStatus, ScalingMethod
-from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,23 +46,28 @@ def analyze_collinearity(
     dominate the condition number.
     """
     if max_features < 2:
-        raise ValueError("max_features must be at least 2.")
+        msg = "max_features must be at least 2."
+        raise ValueError(msg)
     if features.n_features < 2:
-        raise ValueError("Collinearity analysis requires at least two features.")
+        msg = "Collinearity analysis requires at least two features."
+        raise ValueError(msg)
     if features.n_features > max_features:
-        raise ValueError(
+        msg = (
             f"Collinearity analysis is limited to {max_features} features per run; "
             "reduce dimensionality or select predictors explicitly."
         )
+        raise ValueError(msg)
     if features.is_sparse:
-        raise ValueError(
+        msg = (
             "Collinearity diagnostics currently require dense input; Ruddy will not "
             "silently densify a sparse feature matrix."
         )
+        raise ValueError(msg)
 
     prepared = prepare_features(features, scaling=scaling, minimum_observations=3)
     if sparse.issparse(prepared.matrix):
-        raise ValueError("Dense input is required for collinearity diagnostics.")
+        msg = "Dense input is required for collinearity diagnostics."
+        raise ValueError(msg)
     matrix = np.asarray(prepared.matrix, dtype=float)
     names = prepared.feature_names
     n, p = matrix.shape

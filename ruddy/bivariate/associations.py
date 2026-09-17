@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -16,13 +16,15 @@ from ruddy.core.enums import (
     ComparisonTest,
     PAdjustMethod,
 )
-from ruddy.data import TabularDataset
 from ruddy.statistics import (
     apply_multiple_testing,
     bias_corrected_cramers_v,
     expected_count_diagnostics,
 )
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 ASSOCIATION_COLUMNS: tuple[str, ...] = (
     "test",
@@ -104,7 +106,8 @@ def summarize_categorical_associations(
 ) -> pd.DataFrame:
     """Compute selected or all unordered categorical-categorical associations."""
     if max_category_levels < 2:
-        raise ValueError("max_category_levels must be at least 2.")
+        msg = "max_category_levels must be at least 2."
+        raise ValueError(msg)
     resolved_tests = tuple(
         test if isinstance(test, ComparisonTest) else ComparisonTest(test) for test in tests
     )
@@ -112,7 +115,8 @@ def summarize_categorical_associations(
     if invalid:
         raise ValueError("Categorical associations received numeric tests: " + ", ".join(invalid))
     if len(set(resolved_tests)) != len(resolved_tests):
-        raise ValueError("Association tests cannot contain duplicates.")
+        msg = "Association tests cannot contain duplicates."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
 
     frame = dataset.to_frame()
@@ -122,12 +126,12 @@ def summarize_categorical_associations(
     else:
         selected_pairs = tuple((str(x), str(y)) for x, y in pairs)
         if len(set(selected_pairs)) != len(selected_pairs):
-            raise ValueError("pairs cannot contain duplicates.")
+            msg = "pairs cannot contain duplicates."
+            raise ValueError(msg)
         invalid = [(x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates]
         if invalid:
-            raise ValueError(
-                f"Selected association pairs must contain distinct eligible categorical columns: {invalid}."
-            )
+            msg = f"Selected association pairs must contain distinct eligible categorical columns: {invalid}."
+            raise ValueError(msg)
     rows: list[dict[str, Any]] = []
     for column_x, column_y in selected_pairs:
         x_levels, y_levels, counts, n_used = _contingency(frame, column_x, column_y)

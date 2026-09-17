@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 CATEGORICAL_STATISTICS_COLUMNS: tuple[str, ...] = (
     "column",
@@ -163,7 +165,8 @@ def summarize_categorical_statistics(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Summarize eligible categorical, boolean, and factor variables."""
     if max_category_levels < 2:
-        raise ValueError("max_category_levels must be at least 2.")
+        msg = "max_category_levels must be at least 2."
+        raise ValueError(msg)
 
     selected = columns.loc[columns.apply(_eligible_categorical, axis=1)]
     frame = dataset.to_frame()

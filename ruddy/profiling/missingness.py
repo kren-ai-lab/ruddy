@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 from itertools import combinations_with_replacement
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from ruddy.data import TabularDataset
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 MISSINGNESS_COLUMNS: tuple[str, ...] = (
     "column",
@@ -62,7 +63,8 @@ def summarize_missingness(columns: pd.DataFrame) -> pd.DataFrame:
     }
     missing = sorted(required - set(columns.columns))
     if missing:
-        raise ValueError(f"Column profile is missing required fields: {missing}.")
+        msg = f"Column profile is missing required fields: {missing}."
+        raise ValueError(msg)
 
     rows = pd.DataFrame(
         {
@@ -96,14 +98,17 @@ def pairwise_completeness(
     selected = columns or dataset.columns
     unknown = sorted(set(selected) - set(dataset.columns))
     if unknown:
-        raise ValueError(f"Unknown columns requested for completeness: {unknown}.")
+        msg = f"Unknown columns requested for completeness: {unknown}."
+        raise ValueError(msg)
     if max_columns < 1:
-        raise ValueError("max_columns must be at least 1.")
+        msg = "max_columns must be at least 1."
+        raise ValueError(msg)
     if len(selected) > max_columns:
-        raise ValueError(
+        msg = (
             f"Pairwise completeness requested for {len(selected)} columns, exceeding "
             f"max_columns={max_columns}."
         )
+        raise ValueError(msg)
 
     frame = dataset.select(selected)
     present = frame.notna()
@@ -131,7 +136,8 @@ def summarize_missingness_patterns(
 ) -> pd.DataFrame:
     """Summarize common row-level missingness patterns with bounded output."""
     if max_patterns < 1:
-        raise ValueError("max_patterns must be at least 1.")
+        msg = "max_patterns must be at least 1."
+        raise ValueError(msg)
 
     frame = dataset.to_frame()
     n_total = len(frame)

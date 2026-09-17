@@ -5,9 +5,8 @@ from __future__ import annotations
 import json
 import math
 import warnings
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -15,12 +14,16 @@ from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design
 from ruddy.factorial.diagnostics import _finite_or_none, build_factorial_cells, model_diagnostics
 from ruddy.factorial.effects import factorial_effect_sizes
 from ruddy.results import Advisory, AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.data import TabularDataset
 
 EFFECT_COLUMNS = (
     "term",
@@ -102,7 +105,8 @@ def _normalize_robust_covariance(value: str | None) -> str | None:
     if normalized in {"", "none", "nonrobust"}:
         return None
     if normalized not in {"hc0", "hc1", "hc2", "hc3"}:
-        raise ValueError("robust_covariance must be one of none, hc0, hc1, hc2, hc3.")
+        msg = "robust_covariance must be one of none, hc0, hc1, hc2, hc3."
+        raise ValueError(msg)
     return normalized
 
 
@@ -264,17 +268,23 @@ def analyze_factorial(
     for Type II so changing SS type does not silently change the design coding.
     """
     if min_cell_n < 1:
-        raise ValueError("min_cell_n must be at least 1.")
+        msg = "min_cell_n must be at least 1."
+        raise ValueError(msg)
     if max_factor_levels < 2:
-        raise ValueError("max_factor_levels must be at least 2.")
+        msg = "max_factor_levels must be at least 2."
+        raise ValueError(msg)
     if max_design_cells < 1:
-        raise ValueError("max_design_cells must be at least 1.")
+        msg = "max_design_cells must be at least 1."
+        raise ValueError(msg)
     if max_design_columns < 2:
-        raise ValueError("max_design_columns must be at least 2.")
+        msg = "max_design_columns must be at least 2."
+        raise ValueError(msg)
     if not 0.0 < diagnostic_alpha < 1.0:
-        raise ValueError("diagnostic_alpha must lie in (0, 1).")
+        msg = "diagnostic_alpha must lie in (0, 1)."
+        raise ValueError(msg)
     if condition_number_threshold <= 0.0:
-        raise ValueError("condition_number_threshold must be greater than zero.")
+        msg = "condition_number_threshold must be greater than zero."
+        raise ValueError(msg)
 
     correction = _normalize_p_adjust(p_adjust)
     robust = _normalize_robust_covariance(robust_covariance)
@@ -346,7 +356,8 @@ def analyze_factorial(
                 provenance=provenance,
             )
         if len(counts) > max_factor_levels:
-            raise ValueError(f"Factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}.")
+            msg = f"Factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}."
+            raise ValueError(msg)
 
     cells, cell_summary = build_factorial_cells(
         model_frame,
@@ -426,7 +437,8 @@ def analyze_factorial(
     n_design_columns = int(exog.shape[1])
     residual_df = float(model.df_resid)
     if n_design_columns > max_design_columns:
-        raise ValueError(f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}.")
+        msg = f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}."
+        raise ValueError(msg)
     if design_rank < n_design_columns:
         return _empty_result(
             status=ResultStatus.DEGENERATE,

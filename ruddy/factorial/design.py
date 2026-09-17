@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import combinations
+from typing import TYPE_CHECKING
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.data import TabularDataset
 
 _SIMPLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
@@ -16,21 +20,25 @@ _SIMPLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 def _unique(values: Iterable[str], *, label: str) -> tuple[str, ...]:
     result = tuple(str(value) for value in values)
     if len(set(result)) != len(result):
-        raise ValueError(f"{label} cannot contain duplicates.")
+        msg = f"{label} cannot contain duplicates."
+        raise ValueError(msg)
     return result
 
 
 def _normalize_ss_type(value: int | str) -> int:
     if isinstance(value, bool):
-        raise ValueError("ss_type must be 2/II or 3/III.")
+        msg = "ss_type must be 2/II or 3/III."
+        raise ValueError(msg)
     if isinstance(value, int):
         if value in {2, 3}:
             return value
-        raise ValueError("ss_type must be 2 or 3.")
+        msg = "ss_type must be 2 or 3."
+        raise ValueError(msg)
     normalized = str(value).strip().lower().replace("type", "").replace("_", "").replace("-", "")
     mapping = {"2": 2, "ii": 2, "3": 3, "iii": 3}
     if normalized not in mapping:
-        raise ValueError("ss_type must be 2/II or 3/III.")
+        msg = "ss_type must be 2/II or 3/III."
+        raise ValueError(msg)
     return mapping[normalized]
 
 
@@ -81,10 +89,11 @@ def _infer_predictor_role(dataset: TabularDataset, column: str) -> str:
         return "factor"
     if kind is ColumnKind.NUMERIC:
         return "covariate"
-    raise ValueError(
+    msg = (
         f"Factorial predictor {column!r} must be numeric, categorical/boolean, "
         "or explicitly declared as a factor."
     )
+    raise ValueError(msg)
 
 
 def _parse_formula(
@@ -94,52 +103,62 @@ def _parse_formula(
     max_interaction_order: int,
 ) -> tuple[str, tuple[str, ...], tuple[tuple[str, ...], ...]]:
     if formula.count("~") != 1:
-        raise ValueError("factorial formula must contain exactly one '~'.")
+        msg = "factorial formula must contain exactly one '~'."
+        raise ValueError(msg)
     lhs, rhs = (part.strip() for part in formula.split("~", 1))
     if not lhs or not rhs:
-        raise ValueError("factorial formula requires a response and at least one predictor.")
+        msg = "factorial formula requires a response and at least one predictor."
+        raise ValueError(msg)
     if not _SIMPLE_NAME.fullmatch(lhs):
-        raise ValueError(
+        msg = (
             "Formula syntax accepts simple column names only; use the programmatic API "
             "for column names containing spaces or operators."
         )
+        raise ValueError(msg)
     if lhs not in dataset.columns:
-        raise ValueError(f"Unknown factorial response column: {lhs!r}.")
+        msg = f"Unknown factorial response column: {lhs!r}."
+        raise ValueError(msg)
 
     atomic: list[str] = []
     interactions: list[tuple[str, ...]] = []
 
     def add_atomic(name: str) -> None:
         if not _SIMPLE_NAME.fullmatch(name):
-            raise ValueError(
+            msg = (
                 f"Formula syntax accepts only direct column names and '+', ':', '*'; invalid token={name!r}."
             )
+            raise ValueError(msg)
         if name not in dataset.columns:
-            raise ValueError(f"Unknown factorial predictor column: {name!r}.")
+            msg = f"Unknown factorial predictor column: {name!r}."
+            raise ValueError(msg)
         if name == lhs:
-            raise ValueError("The response cannot also appear as a factorial predictor.")
+            msg = "The response cannot also appear as a factorial predictor."
+            raise ValueError(msg)
         if name not in atomic:
             atomic.append(name)
 
     raw_terms = [term.strip() for term in rhs.split("+")]
     if any(not term for term in raw_terms):
-        raise ValueError("factorial formula contains an empty RHS term.")
+        msg = "factorial formula contains an empty RHS term."
+        raise ValueError(msg)
     for term in raw_terms:
         if "(" in term or ")" in term or "/" in term or "-" in term:
-            raise ValueError(
+            msg = (
                 "Ruddy factorial formulas intentionally exclude transforms/functions; "
                 "provide transformed variables explicitly as columns."
             )
+            raise ValueError(msg)
         if "*" in term:
             if ":" in term:
-                raise ValueError("Do not mix '*' and ':' inside one factorial formula term.")
+                msg = "Do not mix '*' and ':' inside one factorial formula term."
+                raise ValueError(msg)
             names = tuple(part.strip() for part in term.split("*"))
             if len(names) < 2 or any(not name for name in names):
-                raise ValueError(f"Invalid factorial expansion term: {term!r}.")
+                msg = f"Invalid factorial expansion term: {term!r}."
+                raise ValueError(msg)
             if len(names) > max_interaction_order:
-                raise ValueError(
-                    f"Interaction order {len(names)} exceeds max_interaction_order={max_interaction_order}."
-                )
+                msg = f"Interaction order {len(names)} exceeds max_interaction_order={max_interaction_order}."
+                raise ValueError(msg)
             for name in names:
                 add_atomic(name)
             for order in range(2, len(names) + 1):
@@ -149,11 +168,11 @@ def _parse_formula(
         elif ":" in term:
             names = tuple(part.strip() for part in term.split(":"))
             if len(names) < 2 or any(not name for name in names):
-                raise ValueError(f"Invalid factorial interaction term: {term!r}.")
+                msg = f"Invalid factorial interaction term: {term!r}."
+                raise ValueError(msg)
             if len(names) > max_interaction_order:
-                raise ValueError(
-                    f"Interaction order {len(names)} exceeds max_interaction_order={max_interaction_order}."
-                )
+                msg = f"Interaction order {len(names)} exceeds max_interaction_order={max_interaction_order}."
+                raise ValueError(msg)
             for name in names:
                 add_atomic(name)
             if names not in interactions:
@@ -183,16 +202,16 @@ def build_factorial_design(
     ``response``/``factors``/``covariates``/``interactions`` arguments.
     """
     if max_interaction_order < 2:
-        raise ValueError("max_interaction_order must be at least 2.")
+        msg = "max_interaction_order must be at least 2."
+        raise ValueError(msg)
     resolved_ss = _normalize_ss_type(ss_type)
 
     requested_formula: str | None = None
     if formula is not None:
         requested_formula = str(formula).strip()
         if response is not None or tuple(factors) or tuple(covariates) or tuple(interactions):
-            raise ValueError(
-                "Use either formula=... or explicit response/factors/covariates/interactions, not both."
-            )
+            msg = "Use either formula=... or explicit response/factors/covariates/interactions, not both."
+            raise ValueError(msg)
         response_name, predictors, parsed_interactions = _parse_formula(
             dataset, requested_formula, max_interaction_order=max_interaction_order
         )
@@ -205,7 +224,8 @@ def build_factorial_design(
         if response is None:
             responses = dataset.columns_with_role(ColumnRole.RESPONSE)
             if len(responses) != 1:
-                raise ValueError("Specify response=... unless exactly one column has the response role.")
+                msg = "Specify response=... unless exactly one column has the response role."
+                raise ValueError(msg)
             response_name = responses[0]
         else:
             response_name = str(response)
@@ -217,37 +237,46 @@ def build_factorial_design(
         interaction_names = tuple(tuple(str(value) for value in term) for term in interactions)
 
     if response_name not in dataset.columns:
-        raise ValueError(f"Unknown factorial response column: {response_name!r}.")
+        msg = f"Unknown factorial response column: {response_name!r}."
+        raise ValueError(msg)
     if dataset.kind_of(response_name) is not ColumnKind.NUMERIC:
-        raise ValueError("Factorial ANOVA/ANCOVA requires a numeric response.")
+        msg = "Factorial ANOVA/ANCOVA requires a numeric response."
+        raise ValueError(msg)
     if dataset.role_of(response_name) in {ColumnRole.IDENTIFIER, ColumnRole.EXCLUDED}:
-        raise ValueError("The factorial response cannot be an identifier/excluded column.")
+        msg = "The factorial response cannot be an identifier/excluded column."
+        raise ValueError(msg)
 
     if len(set(factor_names)) != len(factor_names):
-        raise ValueError("factors cannot contain duplicates.")
+        msg = "factors cannot contain duplicates."
+        raise ValueError(msg)
     if len(set(covariate_names)) != len(covariate_names):
-        raise ValueError("covariates cannot contain duplicates.")
+        msg = "covariates cannot contain duplicates."
+        raise ValueError(msg)
     overlap = set(factor_names) & set(covariate_names)
     if overlap:
-        raise ValueError(f"Columns cannot be both factors and covariates: {sorted(overlap)}.")
+        msg = f"Columns cannot be both factors and covariates: {sorted(overlap)}."
+        raise ValueError(msg)
     if response_name in set(factor_names) | set(covariate_names):
-        raise ValueError("The response cannot also be a predictor.")
+        msg = "The response cannot also be a predictor."
+        raise ValueError(msg)
 
     unknown = [name for name in (*factor_names, *covariate_names) if name not in dataset.columns]
     if unknown:
-        raise ValueError(f"Unknown factorial predictor columns: {unknown}.")
+        msg = f"Unknown factorial predictor columns: {unknown}."
+        raise ValueError(msg)
     for factor in factor_names:
         role = dataset.role_of(factor)
         kind = dataset.kind_of(factor)
         if role is not ColumnRole.FACTOR and kind not in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}:
-            raise ValueError(
-                f"Factor {factor!r} must be categorical/boolean or explicitly assigned the factor role."
-            )
+            msg = f"Factor {factor!r} must be categorical/boolean or explicitly assigned the factor role."
+            raise ValueError(msg)
     for covariate in covariate_names:
         if dataset.kind_of(covariate) is not ColumnKind.NUMERIC:
-            raise ValueError(f"Covariate {covariate!r} must be numeric.")
+            msg = f"Covariate {covariate!r} must be numeric."
+            raise ValueError(msg)
         if dataset.role_of(covariate) is ColumnRole.FACTOR:
-            raise ValueError(f"Factor-role column {covariate!r} cannot be used as a numeric covariate.")
+            msg = f"Factor-role column {covariate!r} cannot be used as a numeric covariate."
+            raise ValueError(msg)
 
     predictor_order = (*factor_names, *covariate_names)
     predictor_set = set(predictor_order)
@@ -255,16 +284,18 @@ def build_factorial_design(
     for raw in interaction_names:
         term = tuple(raw)
         if len(term) < 2:
-            raise ValueError("Each factorial interaction requires at least two predictors.")
+            msg = "Each factorial interaction requires at least two predictors."
+            raise ValueError(msg)
         if len(term) > max_interaction_order:
-            raise ValueError(f"Interaction {term} exceeds max_interaction_order={max_interaction_order}.")
+            msg = f"Interaction {term} exceeds max_interaction_order={max_interaction_order}."
+            raise ValueError(msg)
         if len(set(term)) != len(term):
-            raise ValueError(f"Interaction cannot repeat a predictor: {term}.")
+            msg = f"Interaction cannot repeat a predictor: {term}."
+            raise ValueError(msg)
         missing = [name for name in term if name not in predictor_set]
         if missing:
-            raise ValueError(
-                f"Interaction predictors must also be declared as main effects; missing={missing}."
-            )
+            msg = f"Interaction predictors must also be declared as main effects; missing={missing}."
+            raise ValueError(msg)
         canonical = tuple(sorted(term, key=predictor_order.index))
         if canonical not in normalized_interactions:
             normalized_interactions.append(canonical)
@@ -297,7 +328,8 @@ def build_factorial_design(
         )
 
     if not terms:
-        raise ValueError("Factorial analysis requires at least one factor or covariate.")
+        msg = "Factorial analysis requires at least one factor or covariate."
+        raise ValueError(msg)
     rhs = " + ".join(term.label for term in terms)
     resolved_formula = f"{response_name} ~ {rhs}"
     return FactorialDesign(

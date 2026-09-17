@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
 from ruddy.profiling import ProfilingResult, profile_dataset
 from ruddy.results import AnalysisProvenance
 from ruddy.univariate.categorical import summarize_categorical_statistics
 from ruddy.univariate.numeric import summarize_numeric_statistics, validate_quantiles
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 DATETIME_STATISTICS_COLUMNS: tuple[str, ...] = (
     "column",

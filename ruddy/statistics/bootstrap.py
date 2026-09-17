@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy import stats
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +46,8 @@ class BootstrapResult:
 def _as_1d_finite(values: Sequence[float] | np.ndarray) -> np.ndarray:
     array = np.asarray(values, dtype=float)
     if array.ndim != 1:
-        raise ValueError("Bootstrap inputs must be one-dimensional arrays.")
+        msg = "Bootstrap inputs must be one-dimensional arrays."
+        raise ValueError(msg)
     return array[np.isfinite(array)]
 
 
@@ -64,13 +68,16 @@ def bootstrap_confidence_interval(
     it.
     """
     if not 0.0 < confidence_level < 1.0:
-        raise ValueError("confidence_level must lie in (0, 1).")
+        msg = "confidence_level must lie in (0, 1)."
+        raise ValueError(msg)
     if n_resamples < 100:
-        raise ValueError("n_resamples must be at least 100.")
+        msg = "n_resamples must be at least 100."
+        raise ValueError(msg)
     normalized_method = str(method).strip().lower()
     method_map = {"percentile": "percentile", "basic": "basic", "bca": "BCa"}
     if normalized_method not in method_map:
-        raise ValueError("method must be one of percentile, basic, or bca.")
+        msg = "method must be one of percentile, basic, or bca."
+        raise ValueError(msg)
 
     if isinstance(data, np.ndarray) and data.ndim == 1:
         arrays = (_as_1d_finite(data),)
@@ -93,7 +100,8 @@ def bootstrap_confidence_interval(
             reason="insufficient_observations",
         )
     if paired and len({array.size for array in arrays}) != 1:
-        raise ValueError("Paired bootstrap inputs must have identical lengths.")
+        msg = "Paired bootstrap inputs must have identical lengths."
+        raise ValueError(msg)
 
     try:
         estimate = float(statistic(*arrays))
