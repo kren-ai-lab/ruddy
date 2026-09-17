@@ -72,7 +72,7 @@ python -m pip install -e ".[manifold]"
 The visualization notebooks deliberately use dependencies outside the core:
 
 ```bash
-python -m pip install -r examples/notebooks/requirements-notebooks.txt
+uv sync --group notebooks
 ```
 
 ## Minimal tabular workflow

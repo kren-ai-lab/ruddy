@@ -29,7 +29,7 @@ Visualization dependencies remain entirely outside `ruddy`. The scientific core 
 ## Notebook-only dependencies
 
 ```bash
-python -m pip install -r examples/notebooks/requirements-notebooks.txt
+uv sync --group notebooks
 ```
 
 ## Validation

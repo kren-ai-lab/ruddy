@@ -74,6 +74,12 @@ dev = [
     "prek",
     "nbformat>=5.10",
 ]
+notebooks = [
+    "matplotlib>=3.8",
+    "plotly>=5.20",
+    "jupyter>=1.0",
+    "nbconvert>=7.0",
+]
 
 [tool.hatch.version]
 path = "ruddy/_version.py"

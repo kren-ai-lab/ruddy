@@ -1,4 +1,4 @@
-"""Validate every Ruddy Phase-11 visualization notebook.
+"""Validate every Ruddy example notebook.
 
 Default ``python`` mode executes all code cells in an isolated Python process per
 notebook with a non-interactive Matplotlib backend. ``jupyter`` mode performs a
@@ -95,7 +95,7 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     notebooks = sorted((root / "examples" / "notebooks").glob("[0-9][0-9]_*.ipynb"))
     if not notebooks:
-        print("No Phase-11 notebooks found.", file=sys.stderr)
+        print("No example notebooks found.", file=sys.stderr)
         return 2
 
     for notebook in notebooks:
@@ -107,7 +107,7 @@ def main() -> int:
         if code:
             return code
 
-    print(f"Ruddy Phase-11 notebook gate PASSED ({len(notebooks)} notebooks, mode={args.mode})")
+    print(f"Ruddy notebook gate PASSED ({len(notebooks)} notebooks, mode={args.mode})")
     return 0
 
 
