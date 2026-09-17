@@ -107,24 +107,13 @@ ignore = [
     "N803",
     "N806",
     "PLR0913",
-    # Permanent, deliberate exceptions for a scientific library.
-    # A raise here names the offending data ("n_components (5) exceeds
-    # rank (3)"), which is more useful than a class per failure mode.
-    "TRY003",
+    # Deliberate exceptions, not pending work.
+    "TRY003",  # a raise names the offending data, not a class per failure mode
     "EM101",
     "EM102",
-    # Coercion helpers at the trust boundary (`float(value)` guarded by
-    # try/except) and the heterogeneous result registry genuinely accept
-    # anything. Annotating them `object` only moves the complaint to the
-    # type checker, which then rejects `float(value)`.
-    "ANN401",
-    # Statistical thresholds and minimum sample sizes read better inline
-    # (`if n < 3`, `if p < 0.05`) than behind a named constant.
-    "PLR2004",
-    # Estimators branch on diagnostics and degenerate cases by design;
-    # splitting them to satisfy a complexity budget would obscure the
-    # numerical path and risk changing results.
-    "C901",
+    "ANN401",  # coercion helpers take anything; `object` only moves it to pyrefly
+    "PLR2004", # `if n < 3` reads better than a named constant
+    "C901",    # estimators branch on diagnostics; splitting them hides the numerical path
     "PLR0911",
     "PLR0912",
     "PLR0915",
