@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from ruddy import Advisory, AnalysisProvenance, AnalysisResult, ResultStatus
@@ -57,3 +58,14 @@ def test_result_table_enforces_status_reason_consistency() -> None:
 
     with pytest.raises(ResultContractError, match="status/reason consistency"):
         validate_result_table(pd.DataFrame({"status": ["skipped"], "reason": [None]}))
+
+
+def test_polars_result_table_contract() -> None:
+    frame = pl.DataFrame({"x": [1, 2], "status": ["ok", "skipped"], "reason": [None, "too few"]})
+    assert validate_result_table(frame, required_columns=["x"]) is frame
+    with pytest.raises(ResultContractError):
+        validate_result_table(pl.DataFrame({"status": ["weird"], "reason": [None]}))
+    with pytest.raises(ResultContractError):
+        validate_result_table(pl.DataFrame({"status": ["ok"], "reason": ["constant"]}))
+    with pytest.raises(ResultContractError):
+        validate_result_table(pl.DataFrame({"status": ["skipped"], "reason": [None]}))

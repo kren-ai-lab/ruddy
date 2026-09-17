@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ruddy.core.exceptions import RuddyIOError
@@ -62,13 +63,15 @@ def read_table(path: str | Path) -> pd.DataFrame:
 
 
 def write_table(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame | pd.DataFrame,
     path: str | Path,
     *,
     index: bool = False,
     index_label: str | None = None,
 ) -> Path:
     """Write a DataFrame, dispatching on extension and creating parent dirs.
+
+    ``index``/``index_label`` apply to pandas frames only; Polars frames have no index.
 
     Raises:
         RuddyIOError: If the extension is unsupported or the write fails.
@@ -80,7 +83,12 @@ def write_table(
         raise _unsupported(suffix, TABLE_EXTENSIONS)
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
-        if suffix == ".parquet":
+        if isinstance(frame, pl.DataFrame):
+            if suffix == ".parquet":
+                frame.write_parquet(target)
+            else:
+                frame.write_csv(target, separator="\t" if suffix in TAB_SEPARATED else ",")
+        elif suffix == ".parquet":
             frame.to_parquet(target, index=index)
         else:
             frame.to_csv(
