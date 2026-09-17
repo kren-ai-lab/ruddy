@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -10,6 +9,7 @@ import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
+from ruddy.univariate.categorical import _safe_float
 
 NUMERIC_STATISTICS_BASE_COLUMNS: tuple[str, ...] = (
     "column",
@@ -76,13 +76,6 @@ def _finite_numeric_values(series: pd.Series) -> np.ndarray:
         return np.asarray([], dtype=np.float64)
     values = present.to_numpy(dtype=np.float64, na_value=np.nan)
     return values[np.isfinite(values)]
-
-
-def _safe_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    converted = float(value)
-    return converted if math.isfinite(converted) else None
 
 
 def _status(

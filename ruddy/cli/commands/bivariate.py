@@ -1,4 +1,4 @@
-"""CLI helpers for Phase 3 mixed-type bivariate analysis."""
+"""CLI helpers for mixed-type bivariate analysis."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 
 def write_bivariate_result(result: BivariateResult, output_dir: str | Path) -> Path:
-    """Persist structured Phase 3 artifacts."""
+    """Persist structured bivariate artifacts."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.correlations, target / "correlations.csv")

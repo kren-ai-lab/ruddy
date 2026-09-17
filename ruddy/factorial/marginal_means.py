@@ -119,7 +119,6 @@ def _normalize_terms(
 
 
 def _grid_l_vectors(
-    model,
     model_frame: pd.DataFrame,
     design: FactorialDesign,
     factor_safe: dict[str, str],
@@ -198,9 +197,7 @@ def analyze_marginal_means(
 
     for term in requested_terms:
         term_label = ":".join(term)
-        l_vectors = _grid_l_vectors(
-            model, model_frame, design, factor_safe, covariate_safe, design_info, term
-        )
+        l_vectors = _grid_l_vectors(model_frame, design, factor_safe, covariate_safe, design_info, term)
         for levels, lvec in l_vectors:
             estimate = float(lvec @ beta)
             variance = float(lvec @ cov_beta @ lvec)

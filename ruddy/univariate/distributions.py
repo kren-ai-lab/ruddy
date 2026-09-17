@@ -106,7 +106,7 @@ def summarize_univariate(
     min_numeric_n: int = 3,
     max_category_levels: int = 50,
 ) -> UnivariateTables:
-    """Compute all Phase 2 univariate descriptive tables."""
+    """Compute all univariate descriptive tables."""
     quantiles = validate_quantiles(quantiles)
     numeric = summarize_numeric_statistics(
         dataset,

@@ -17,7 +17,7 @@ from statsmodels.stats.anova import anova_lm
 from ruddy.core.enums import PAdjustMethod, ResultStatus
 from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design
-from ruddy.factorial.diagnostics import build_factorial_cells, model_diagnostics
+from ruddy.factorial.diagnostics import _finite_or_none, build_factorial_cells, model_diagnostics
 from ruddy.factorial.effects import factorial_effect_sizes
 from ruddy.results import Advisory, AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
@@ -104,14 +104,6 @@ def _normalize_robust_covariance(value: str | None) -> str | None:
     if normalized not in {"hc0", "hc1", "hc2", "hc3"}:
         raise ValueError("robust_covariance must be one of none, hc0, hc1, hc2, hc3.")
     return normalized
-
-
-def _finite_or_none(value: Any) -> float | None:
-    try:
-        converted = float(value)
-    except (TypeError, ValueError):
-        return None
-    return converted if math.isfinite(converted) else None
 
 
 def _design_term_table(design: FactorialDesign) -> pd.DataFrame:

@@ -1,4 +1,4 @@
-"""CLI commands for Phase 9A EDA-completeness capabilities."""
+"""CLI commands for distribution diagnostics, dependence, contingency and intervals."""
 
 from __future__ import annotations
 

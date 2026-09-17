@@ -1,4 +1,4 @@
-"""CLI commands for representation-space and specialized Phase 9C analyses."""
+"""CLI commands for representation, compositional, Bayesian and anomaly analyses."""
 
 from __future__ import annotations
 

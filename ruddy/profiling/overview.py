@@ -20,7 +20,7 @@ from ruddy.results import AnalysisProvenance
 
 @dataclass(frozen=True, slots=True)
 class ProfilingResult:
-    """Complete Phase 2 descriptive profiling output."""
+    """Complete descriptive profiling output."""
 
     overview: dict[str, Any]
     columns: pd.DataFrame
@@ -100,7 +100,7 @@ def profile_dataset(
     max_missingness_patterns: int = 20,
     max_pairwise_columns: int = 200,
 ) -> ProfilingResult:
-    """Run the complete Phase 2 descriptive profiling block."""
+    """Run the complete descriptive profiling block."""
     columns = profile_columns(dataset)
     missingness = summarize_missingness(columns)
     pairwise = pairwise_completeness(dataset, max_columns=max_pairwise_columns)

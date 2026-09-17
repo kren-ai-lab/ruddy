@@ -32,11 +32,11 @@ class AnalysisConfig:
     feature_alignment: AlignmentMode | str = AlignmentMode.STRICT
     random_state: int = 0
 
-    # Phase 4 statistical semantics.
+    # Response and group selection.
     responses: tuple[str, ...] = ()
     groups: tuple[str, ...] = ()
 
-    # Phase 9 unified orchestration. Descriptive blocks run by default; every
+    # Unified orchestration. Descriptive blocks run by default; every
     # inferential/feature-space block must be explicitly enabled.
     enabled_blocks: tuple[AnalysisBlock | str, ...] = (
         AnalysisBlock.PROFILING,
@@ -51,14 +51,14 @@ class AnalysisConfig:
     factorial_interactions: tuple[tuple[str, ...], ...] = ()
     factorial_formula: str | None = None
 
-    # Phase 2 descriptive controls.
+    # Descriptive controls.
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99)
     min_numeric_n: int = 3
     max_category_levels: int = 50
     max_missingness_patterns: int = 20
     max_pairwise_columns: int = 200
 
-    # Phase 3 bivariate controls.
+    # Bivariate controls.
     correlations: tuple[CorrelationMethod | str, ...] = (
         CorrelationMethod.PEARSON,
         CorrelationMethod.SPEARMAN,
@@ -79,7 +79,7 @@ class AnalysisConfig:
     max_correlation_columns: int = 100
     pairwise: bool = False
 
-    # Phase 5 univariate outlier controls.
+    # Univariate outlier controls.
     outlier_methods: tuple[OutlierMethod | str, ...] = (
         OutlierMethod.IQR,
         OutlierMethod.ROBUST_Z,
@@ -88,7 +88,7 @@ class AnalysisConfig:
     outlier_robust_z_threshold: float = 3.5
     include_outlier_flags: bool = False
 
-    # Phase 6 feature-space controls.
+    # Feature-space controls.
     projection_scaling: ScalingMethod | str = ScalingMethod.NONE
     projection_n_components: int = 2
     projection_metric: str = "euclidean"
@@ -97,7 +97,7 @@ class AnalysisConfig:
     umap_n_neighbors: int = 15
     umap_min_dist: float = 0.1
 
-    # Phase 7 multivariate statistical controls.
+    # Multivariate statistical controls.
     multivariate_scaling: ScalingMethod | str = ScalingMethod.NONE
     multivariate_include_spearman: bool = True
     multivariate_max_covariance_features: int = 200
@@ -110,7 +110,7 @@ class AnalysisConfig:
     manova_max_factor_levels: int = 20
     manova_min_level_n: int = 3
 
-    # Phase 8 factorial ANOVA/ANCOVA controls.
+    # Factorial ANOVA/ANCOVA controls.
     factorial_ss_type: int = 2
     factorial_p_adjust: PAdjustMethod | str = PAdjustMethod.NONE
     factorial_robust_covariance: str | None = None
@@ -122,7 +122,7 @@ class AnalysisConfig:
     factorial_diagnostic_alpha: float = 0.05
     factorial_condition_number_threshold: float = 30.0
 
-    # Phase 9A EDA-completeness controls.
+    # Diagnostics, dependence, contingency and interval controls.
     distribution_max_shapiro_n: int = 5000
     dependence_partial_covariates: tuple[str, ...] = ()
     dependence_min_complete_pairs: int = 5
@@ -134,7 +134,7 @@ class AnalysisConfig:
     bootstrap_resamples: int = 1000
     bootstrap_method: str = "bca"
 
-    # Phase 9B advanced group/inference controls.
+    # PERMANOVA, post-hoc, marginal-means and mixed-effects controls.
     permanova_factor: str | None = None
     permanova_metric: str = "euclidean"
     permanova_permutations: int = 999
@@ -166,7 +166,7 @@ class AnalysisConfig:
     mixed_min_groups: int = 3
     mixed_min_group_n: int = 2
 
-    # Phase 9C representation-space and specialized statistics.
+    # Representation, compositional, Bayesian and anomaly controls.
     representation_alignment: AlignmentMode | str = AlignmentMode.STRICT
     representation_cca_components: int = 2
     representation_cca_scaling: ScalingMethod | str = ScalingMethod.STANDARD
@@ -826,7 +826,7 @@ class AnalysisConfig:
         }
 
     def bivariate_kwargs(self) -> dict[str, Any]:
-        """Return controls used by Phase 3 mixed-type bivariate analysis."""
+        """Return controls used by mixed-type bivariate analysis."""
         return {
             "correlations": self.correlations,
             "comparison_tests": self.comparison_tests,

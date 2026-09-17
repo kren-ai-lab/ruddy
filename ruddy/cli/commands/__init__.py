@@ -20,7 +20,9 @@ from ruddy.cli.commands.descriptive import (
     write_profiling_result,
     write_univariate_result,
 )
-from ruddy.cli.commands.extensions import (
+from ruddy.cli.commands.factorial import run_factorial, write_factorial_result
+from ruddy.cli.commands.groups import run_groups, write_group_result
+from ruddy.cli.commands.inference import (
     run_contingency,
     run_dependence,
     run_diagnostics,
@@ -30,8 +32,6 @@ from ruddy.cli.commands.extensions import (
     write_dependence_result,
     write_distribution_diagnostics_result,
 )
-from ruddy.cli.commands.factorial import run_factorial, write_factorial_result
-from ruddy.cli.commands.groups import run_groups, write_group_result
 from ruddy.cli.commands.multivariate import (
     run_manova,
     run_multivariate,
