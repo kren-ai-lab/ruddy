@@ -59,6 +59,8 @@ CELL_COLUMNS = (
 
 @dataclass(frozen=True, slots=True)
 class ContingencyDiagnosticsResult:
+    """Result of a categorical contingency table diagnostics analysis."""
+
     summary: pd.DataFrame
     cells: pd.DataFrame
     provenance: AnalysisProvenance

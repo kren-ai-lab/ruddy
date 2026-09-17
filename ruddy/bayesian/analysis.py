@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class BayesianEDAResult:
+    """Result of a Bayesian exploratory data analysis."""
+
     means: pd.DataFrame
     mean_differences: pd.DataFrame
     provenance: AnalysisProvenance

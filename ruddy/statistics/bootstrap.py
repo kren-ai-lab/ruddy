@@ -29,6 +29,7 @@ class BootstrapResult:
     reason: str | None = None
 
     def to_dict(self) -> dict[str, float | int | str | None]:
+        """Convert the bootstrap result to a dictionary representation."""
         return {
             "estimate": self.estimate,
             "confidence_low": self.confidence_low,
@@ -105,7 +106,7 @@ def bootstrap_confidence_interval(
 
     try:
         estimate = float(statistic(*arrays))
-    except Exception:
+    except Exception:  # noqa: BLE001  # a user-supplied statistic may raise anything
         estimate = float("nan")
     if not np.isfinite(estimate):
         return BootstrapResult(
@@ -134,7 +135,7 @@ def bootstrap_confidence_interval(
                 method=method_map[normalized_method],
                 rng=np.random.default_rng(random_state),
             )
-    except Exception:
+    except Exception:  # noqa: BLE001  # scipy.stats.bootstrap failure becomes a degenerate result
         return BootstrapResult(
             estimate=estimate,
             confidence_low=float("nan"),

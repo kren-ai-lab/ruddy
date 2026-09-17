@@ -60,6 +60,8 @@ DEPENDENCE_COLUMNS = (
 
 @dataclass(frozen=True, slots=True)
 class DependenceResult:
+    """Result of an extended dependence analysis."""
+
     partial_correlations: pd.DataFrame
     distance_correlations: pd.DataFrame
     mutual_information: pd.DataFrame

@@ -32,6 +32,8 @@ DATETIME_STATISTICS_COLUMNS: tuple[str, ...] = (
 
 @dataclass(frozen=True, slots=True)
 class UnivariateTables:
+    """Collection of univariate descriptive statistics tables."""
+
     numeric_statistics: pd.DataFrame
     categorical_statistics: pd.DataFrame
     categorical_frequencies: pd.DataFrame
@@ -40,6 +42,8 @@ class UnivariateTables:
 
 @dataclass(frozen=True, slots=True)
 class UnivariateResult:
+    """Result of a complete univariate descriptive analysis."""
+
     profiling: ProfilingResult
     numeric_statistics: pd.DataFrame
     categorical_statistics: pd.DataFrame
@@ -76,7 +80,7 @@ def summarize_datetime_statistics(
         if n_present == 0:
             status, reason = "skipped", "all_missing"
             range_seconds = None
-        elif present.nunique(dropna=True) == 1:
+        elif minimum == maximum:
             status, reason = "degenerate", "constant"
             range_seconds = 0.0
         else:

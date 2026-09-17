@@ -29,14 +29,17 @@ class PreparedFeatures:
 
     @property
     def n_observations(self) -> int:
+        """Return the number of finite observations in the prepared matrix."""
         return int(self.matrix.shape[0])
 
     @property
     def n_features(self) -> int:
+        """Return the number of features in the prepared matrix."""
         return int(self.matrix.shape[1])
 
     @property
     def is_sparse(self) -> bool:
+        """Return whether the prepared matrix is sparsely encoded."""
         return sparse.issparse(self.matrix)
 
 

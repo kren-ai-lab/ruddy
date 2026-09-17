@@ -146,36 +146,14 @@ ignore = [
     "D",       # docstrings are not required in tests
     "INP001",  # test packages are intentionally implicit namespaces
     "PLC0415",
-    "PLR2004", # tests compare against literal expected values by design
     "PT011",
     "PT017",
     "PT018",
     "S101",    # assert is how a test asserts
     "TC003",   # pytest resolves fixture annotations at runtime
 ]
-# Transitional. The rules below are not enforced in the scientific modules
-# yet; they come off this list in later passes, one package at a time.
-"ruddy/{analysis,anomaly,bayesian,bivariate,compositional,data,factorial,multivariate,profiling,projections,representation,results,statistics,univariate}/*" = [
-    "ANN001",
-    "ANN202",
-    "B023",
-    "BLE001",
-    "D101",
-    "D102",
-    "D103",
-    "D105",
-    "D107",
-    "E501",
-    "E721",
-    "FBT003",
-    "PD101",
-    "PERF401",
-    "PLC0415",
-    "RUF002",
-]
 "examples/*" = [
     "INP001",  # example scripts are intentionally standalone modules
-    "PLR2004", # small referential scripts can compare against literal sizes
     "T201",    # examples print result snippets by design
 ]
 

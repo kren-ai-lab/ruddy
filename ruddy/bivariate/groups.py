@@ -538,7 +538,9 @@ def _numeric_response_comparisons(
             table.insert(2, "n_group_present", n_present)
             table.insert(3, "n_group_missing", n_missing)
             table["family_id"] = table.apply(
-                lambda row: f"grouped_numeric:{group}:{response}:{row['scope']}:{row['test']}",
+                lambda row, group=group, response=response: (
+                    f"grouped_numeric:{group}:{response}:{row['scope']}:{row['test']}"
+                ),
                 axis=1,
             )
             table["correction"] = p_adjust.value
@@ -583,7 +585,7 @@ def _categorical_response_comparisons(
             table.insert(3, "n_group_present", n_present)
             table.insert(4, "n_group_missing", n_missing)
             table["family_id"] = table["test"].map(
-                lambda test: f"grouped_categorical:{group}:{response}:{test}"
+                lambda test, group=group, response=response: f"grouped_categorical:{group}:{response}:{test}"
             )
             table["correction"] = p_adjust.value
             table["q_value"] = np.nan

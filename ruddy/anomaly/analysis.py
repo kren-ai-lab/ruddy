@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class AnomalyResult:
+    """Result of a multivariate anomaly detection analysis."""
+
     scores: pd.DataFrame
     methods: pd.DataFrame
     exclusions: pd.DataFrame

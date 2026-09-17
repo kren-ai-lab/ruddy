@@ -58,6 +58,7 @@ def numeric_statistics_columns(quantiles: tuple[float, ...]) -> tuple[str, ...]:
 
 
 def validate_quantiles(quantiles: tuple[float, ...]) -> tuple[float, ...]:
+    """Validate and normalize a sequence of quantiles."""
     values = tuple(float(value) for value in quantiles)
     if not values:
         msg = "At least one quantile must be configured."

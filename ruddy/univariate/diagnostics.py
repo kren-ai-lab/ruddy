@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -54,6 +55,8 @@ DISPERSION_COLUMNS = (
 
 @dataclass(frozen=True, slots=True)
 class DistributionDiagnosticsResult:
+    """Result of a standalone distribution and grouped dispersion diagnostics analysis."""
+
     normality: pd.DataFrame
     dispersion: pd.DataFrame
     provenance: AnalysisProvenance
@@ -169,8 +172,6 @@ def summarize_dispersion_diagnostics(
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
 ) -> pd.DataFrame:
     """Assess grouped dispersion using explicit robust tests."""
-    import json
-
     allowed = {"brown_forsythe", "fligner_killeen"}
     methods = tuple(str(method).lower() for method in methods)
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):

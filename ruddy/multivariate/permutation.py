@@ -388,7 +388,10 @@ def analyze_permutation_group_structure(
         advisories.append(
             Advisory(
                 code="negative_pcoa_eigenvalues",
-                message="PERMDISP PCoA contained negative eigenvalues; distances use the positive-coordinate subspace.",
+                message=(
+                    "PERMDISP PCoA contained negative eigenvalues; "
+                    "distances use the positive-coordinate subspace."
+                ),
                 context={"negative_eigenvalue_fraction": negative_fraction, "metric": metric},
             )
         )

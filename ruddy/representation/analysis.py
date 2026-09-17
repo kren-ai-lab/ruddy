@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class AlignedRepresentationPair:
+    """Two numerical feature matrices aligned by observation identity and finite rows."""
+
     x: np.ndarray
     y: np.ndarray
     observation_ids: pd.Index
@@ -35,6 +37,8 @@ class AlignedRepresentationPair:
 
 @dataclass(frozen=True, slots=True)
 class CCAResult:
+    """Result of a canonical correlation analysis."""
+
     status: ResultStatus
     reason: str | None
     correlations: pd.DataFrame
@@ -50,6 +54,8 @@ class CCAResult:
 
 @dataclass(frozen=True, slots=True)
 class RepresentationComparisonResult:
+    """Result of a comprehensive representation similarity comparison."""
+
     cca: CCAResult
     cka: pd.DataFrame
     procrustes: pd.DataFrame
@@ -79,7 +85,10 @@ def align_feature_matrices(
 ) -> AlignedRepresentationPair:
     """Align two dense feature matrices by observation identity and finite rows."""
     if x.is_sparse or y.is_sparse:
-        msg = "Representation comparison currently requires dense inputs; Ruddy will not silently densify sparse matrices."
+        msg = (
+            "Representation comparison currently requires dense inputs; "
+            "Ruddy will not silently densify sparse matrices."
+        )
         raise ValueError(msg)
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     x_ids, y_ids = x.observation_ids, y.observation_ids
@@ -208,7 +217,8 @@ def _cca_result(
     model = CCA(n_components=n_components, scale=False, max_iter=max_iter, tol=tol)
     try:
         xs, ys = model.fit_transform(x, y)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  # a third-party estimator may raise anything;
+        # Ruddy surfaces that as a structured degenerate result instead of propagating it
         advisory = Advisory(code="cca_fit_failed", message=str(exc))
         return CCAResult(
             ResultStatus.DEGENERATE,

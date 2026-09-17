@@ -141,7 +141,9 @@ def analyze_umap(
 ) -> ProjectionResult:
     """Run UMAP when the optional ``umap-learn`` dependency is installed."""
     try:
-        import umap
+        # Local import: umap-learn is an optional extra, so importing it at module
+        # level would make ruddy.projections unimportable without it.
+        import umap  # noqa: PLC0415
     except Exception as exc:  # pragma: no cover - environment dependent
         msg = "UMAP requires the optional 'umap-learn' dependency."
         raise OptionalDependencyError(msg) from exc
