@@ -5,9 +5,8 @@ from __future__ import annotations
 import json
 import math
 import warnings
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -15,12 +14,16 @@ from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design
 from ruddy.factorial.diagnostics import _finite_or_none, build_factorial_cells, model_diagnostics
 from ruddy.factorial.effects import factorial_effect_sizes
 from ruddy.results import Advisory, AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.data import TabularDataset
 
 EFFECT_COLUMNS = (
     "term",
@@ -102,7 +105,8 @@ def _normalize_robust_covariance(value: str | None) -> str | None:
     if normalized in {"", "none", "nonrobust"}:
         return None
     if normalized not in {"hc0", "hc1", "hc2", "hc3"}:
-        raise ValueError("robust_covariance must be one of none, hc0, hc1, hc2, hc3.")
+        msg = "robust_covariance must be one of none, hc0, hc1, hc2, hc3."
+        raise ValueError(msg)
     return normalized
 
 
@@ -134,7 +138,12 @@ def _empty_result(
     advisories: tuple[Advisory, ...],
     provenance: AnalysisProvenance,
 ) -> FactorialResult:
-    from ruddy.factorial.diagnostics import DIAGNOSTIC_COLUMNS, OBSERVATION_DIAGNOSTIC_COLUMNS
+    # Local import: ruddy.factorial.diagnostics imports from this module, so a
+    # top-level import here would close the cycle.
+    from ruddy.factorial.diagnostics import (  # noqa: PLC0415
+        DIAGNOSTIC_COLUMNS,
+        OBSERVATION_DIAGNOSTIC_COLUMNS,
+    )
 
     return FactorialResult(
         status=status,
@@ -264,17 +273,23 @@ def analyze_factorial(
     for Type II so changing SS type does not silently change the design coding.
     """
     if min_cell_n < 1:
-        raise ValueError("min_cell_n must be at least 1.")
+        msg = "min_cell_n must be at least 1."
+        raise ValueError(msg)
     if max_factor_levels < 2:
-        raise ValueError("max_factor_levels must be at least 2.")
+        msg = "max_factor_levels must be at least 2."
+        raise ValueError(msg)
     if max_design_cells < 1:
-        raise ValueError("max_design_cells must be at least 1.")
+        msg = "max_design_cells must be at least 1."
+        raise ValueError(msg)
     if max_design_columns < 2:
-        raise ValueError("max_design_columns must be at least 2.")
+        msg = "max_design_columns must be at least 2."
+        raise ValueError(msg)
     if not 0.0 < diagnostic_alpha < 1.0:
-        raise ValueError("diagnostic_alpha must lie in (0, 1).")
+        msg = "diagnostic_alpha must lie in (0, 1)."
+        raise ValueError(msg)
     if condition_number_threshold <= 0.0:
-        raise ValueError("condition_number_threshold must be greater than zero.")
+        msg = "condition_number_threshold must be greater than zero."
+        raise ValueError(msg)
 
     correction = _normalize_p_adjust(p_adjust)
     robust = _normalize_robust_covariance(robust_covariance)
@@ -346,7 +361,8 @@ def analyze_factorial(
                 provenance=provenance,
             )
         if len(counts) > max_factor_levels:
-            raise ValueError(f"Factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}.")
+            msg = f"Factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}."
+            raise ValueError(msg)
 
     cells, cell_summary = build_factorial_cells(
         model_frame,
@@ -358,7 +374,9 @@ def analyze_factorial(
         advisories.append(
             Advisory(
                 code="empty_factorial_cells",
-                message="One or more combinations of observed factor levels have no complete-case observations.",
+                message=(
+                    "One or more combinations of observed factor levels have no complete-case observations."
+                ),
                 context={"n_empty_cells": cell_summary["n_empty_cells"]},
             )
         )
@@ -374,7 +392,9 @@ def analyze_factorial(
         advisories.append(
             Advisory(
                 code="unbalanced_factorial_design",
-                message="Factorial cell counts are unbalanced; interpret adjusted sums of squares accordingly.",
+                message=(
+                    "Factorial cell counts are unbalanced; interpret adjusted sums of squares accordingly."
+                ),
                 context=cell_summary,
             )
         )
@@ -382,7 +402,9 @@ def analyze_factorial(
         advisories.append(
             Advisory(
                 code="type_ii_with_interactions",
-                message="Type II tests with interactions require careful interpretation of lower-order effects.",
+                message=(
+                    "Type II tests with interactions require careful interpretation of lower-order effects."
+                ),
                 context={"interactions": design.interactions},
             )
         )
@@ -426,7 +448,8 @@ def analyze_factorial(
     n_design_columns = int(exog.shape[1])
     residual_df = float(model.df_resid)
     if n_design_columns > max_design_columns:
-        raise ValueError(f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}.")
+        msg = f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}."
+        raise ValueError(msg)
     if design_rank < n_design_columns:
         return _empty_result(
             status=ResultStatus.DEGENERATE,
@@ -466,26 +489,26 @@ def analyze_factorial(
             provenance=provenance,
         )
 
-    for caught_warning in caught:
-        advisories.append(
-            Advisory(
-                code="model_fit_warning",
-                message=str(caught_warning.message),
-                context={"warning_class": caught_warning.category.__name__},
-            )
+    advisories.extend(
+        Advisory(
+            code="model_fit_warning",
+            message=str(caught_warning.message),
+            context={"warning_class": caught_warning.category.__name__},
         )
+        for caught_warning in caught
+    )
 
     with warnings.catch_warnings(record=True) as anova_warnings:
         warnings.simplefilter("always")
         anova = anova_lm(model, typ=design.ss_type, robust=robust)
-    for caught_warning in anova_warnings:
-        advisories.append(
-            Advisory(
-                code="anova_warning",
-                message=str(caught_warning.message),
-                context={"warning_class": caught_warning.category.__name__},
-            )
+    advisories.extend(
+        Advisory(
+            code="anova_warning",
+            message=str(caught_warning.message),
+            context={"warning_class": caught_warning.category.__name__},
         )
+        for caught_warning in anova_warnings
+    )
 
     residual_ss = float(np.sum(np.asarray(model.resid, dtype=float) ** 2))
     mse = residual_ss / residual_df
@@ -607,7 +630,7 @@ def analyze_factorial(
         condition_number_threshold=condition_number_threshold,
     )
     flagged = diagnostics.loc[
-        diagnostics["status"].eq(ResultStatus.OK.value) & diagnostics["flagged"].eq(True),
+        diagnostics["status"].eq(ResultStatus.OK.value) & diagnostics["flagged"].eq(other=True),
         "diagnostic",
     ].tolist()
     if flagged:
@@ -619,14 +642,17 @@ def analyze_factorial(
             )
         )
     if not observation_diagnostics.empty:
-        n_influential = int(observation_diagnostics["is_influential"].fillna(False).sum())
-        n_high_leverage = int(observation_diagnostics["is_high_leverage"].fillna(False).sum())
-        n_large_residual = int(observation_diagnostics["is_large_residual"].fillna(False).sum())
+        n_influential = int(observation_diagnostics["is_influential"].fillna(value=False).sum())
+        n_high_leverage = int(observation_diagnostics["is_high_leverage"].fillna(value=False).sum())
+        n_large_residual = int(observation_diagnostics["is_large_residual"].fillna(value=False).sum())
         if n_influential or n_high_leverage or n_large_residual:
             advisories.append(
                 Advisory(
                     code="influence_diagnostics_flagged",
-                    message="Observation-level influence diagnostics flagged one or more complete-case observations.",
+                    message=(
+                        "Observation-level influence diagnostics flagged one "
+                        "or more complete-case observations."
+                    ),
                     context={
                         "n_influential": n_influential,
                         "n_high_leverage": n_high_leverage,

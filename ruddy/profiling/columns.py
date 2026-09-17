@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 COLUMN_PROFILE_COLUMNS: tuple[str, ...] = (
     "column",
@@ -66,9 +68,7 @@ def _is_analysis_eligible(
         return False
     if kind is ColumnKind.UNKNOWN:
         return False
-    if n_unique is None and kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}:
-        return False
-    return True
+    return not (n_unique is None and kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN})
 
 
 def profile_columns(dataset: TabularDataset) -> pd.DataFrame:

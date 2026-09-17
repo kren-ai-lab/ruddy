@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ruddy.core.enums import ResultStatus, ScalingMethod
-from ruddy.data import FeatureMatrix
 from ruddy.multivariate.collinearity import CollinearityResult, analyze_collinearity
 from ruddy.multivariate.covariance import CovarianceResult, analyze_covariance_structure
 from ruddy.multivariate.distances import MahalanobisResult, analyze_mahalanobis
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)

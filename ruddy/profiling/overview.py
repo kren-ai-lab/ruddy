@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any, cast
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
 from ruddy.profiling.columns import profile_columns
 from ruddy.profiling.missingness import (
     pairwise_completeness,
@@ -16,6 +13,11 @@ from ruddy.profiling.missingness import (
     summarize_missingness_patterns,
 )
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+    from ruddy.data import TabularDataset
 
 
 @dataclass(frozen=True, slots=True)

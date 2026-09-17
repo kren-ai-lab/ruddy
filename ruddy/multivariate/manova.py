@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -12,8 +11,12 @@ from patsy import dmatrices  # pyrefly: ignore[missing-module-attribute]
 from statsmodels.multivariate.manova import MANOVA
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.data import TabularDataset
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +35,8 @@ class MANOVAResult:
 def _normalize_columns(values: Iterable[str], label: str) -> tuple[str, ...]:
     normalized = tuple(str(value) for value in values)
     if len(set(normalized)) != len(normalized):
-        raise ValueError(f"{label} cannot contain duplicates.")
+        msg = f"{label} cannot contain duplicates."
+        raise ValueError(msg)
     return normalized
 
 
@@ -70,47 +74,59 @@ def analyze_manova(
     are treated categorically when their statistical role is ``factor``.
     """
     if max_responses < 2:
-        raise ValueError("max_responses must be at least 2.")
+        msg = "max_responses must be at least 2."
+        raise ValueError(msg)
     if max_factor_levels < 2:
-        raise ValueError("max_factor_levels must be at least 2.")
+        msg = "max_factor_levels must be at least 2."
+        raise ValueError(msg)
     if min_level_n < 2:
-        raise ValueError("min_level_n must be at least 2.")
+        msg = "min_level_n must be at least 2."
+        raise ValueError(msg)
 
     response_names = _normalize_columns(responses, "responses")
     factor_names = _normalize_columns(factors, "factors")
     covariate_names = _normalize_columns(covariates, "covariates")
     if len(response_names) < 2:
-        raise ValueError("MANOVA requires at least two numeric responses.")
+        msg = "MANOVA requires at least two numeric responses."
+        raise ValueError(msg)
     if len(response_names) > max_responses:
-        raise ValueError(
+        msg = (
             f"MANOVA is limited to {max_responses} responses per run; use explicit "
             "dimensionality reduction before fitting a higher-dimensional response space."
         )
+        raise ValueError(msg)
     if not factor_names:
-        raise ValueError("MANOVA requires at least one factor.")
+        msg = "MANOVA requires at least one factor."
+        raise ValueError(msg)
     overlap = set(response_names) & (set(factor_names) | set(covariate_names))
     overlap |= set(factor_names) & set(covariate_names)
     if overlap:
-        raise ValueError(f"MANOVA roles overlap for columns: {sorted(overlap)}.")
+        msg = f"MANOVA roles overlap for columns: {sorted(overlap)}."
+        raise ValueError(msg)
 
     unknown = [
         name for name in (*response_names, *factor_names, *covariate_names) if name not in dataset.columns
     ]
     if unknown:
-        raise ValueError(f"Unknown MANOVA columns: {unknown}.")
+        msg = f"Unknown MANOVA columns: {unknown}."
+        raise ValueError(msg)
     for response in response_names:
         if dataset.kind_of(response) is not ColumnKind.NUMERIC:
-            raise ValueError(f"MANOVA response {response!r} must be numeric.")
+            msg = f"MANOVA response {response!r} must be numeric."
+            raise ValueError(msg)
     for covariate in covariate_names:
         if dataset.kind_of(covariate) is not ColumnKind.NUMERIC:
-            raise ValueError(f"MANOVA covariate {covariate!r} must be numeric.")
+            msg = f"MANOVA covariate {covariate!r} must be numeric."
+            raise ValueError(msg)
     for factor in factor_names:
         kind = dataset.kind_of(factor)
         role = dataset.role_of(factor)
         if kind not in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN} and role is not ColumnRole.FACTOR:
-            raise ValueError(
-                f"MANOVA factor {factor!r} must be categorical/boolean or explicitly assigned the factor role."
+            msg = (
+                f"MANOVA factor {factor!r} must be categorical/boolean or "
+                "explicitly assigned the factor role."
             )
+            raise ValueError(msg)
 
     selected = (*response_names, *factor_names, *covariate_names)
     frame = dataset.select(selected)
@@ -122,7 +138,7 @@ def analyze_manova(
     for name in factor_names:
         factor_present &= frame[name].notna().to_numpy()
     complete = finite_numeric & factor_present
-    source_rows = np.flatnonzero(complete)
+    np.flatnonzero(complete)
     excluded_rows = np.flatnonzero(~complete)
     ids = dataset.observation_ids
     exclusions = pd.DataFrame(
@@ -158,9 +174,8 @@ def analyze_manova(
                 ),
             )
         if len(counts) > max_factor_levels:
-            raise ValueError(
-                f"MANOVA factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}."
-            )
+            msg = f"MANOVA factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}."
+            raise ValueError(msg)
         for level, count in counts.items():
             level_rows.append(
                 {

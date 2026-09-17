@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
 from ruddy.univariate.categorical import _safe_float
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 NUMERIC_STATISTICS_BASE_COLUMNS: tuple[str, ...] = (
     "column",
@@ -56,17 +58,23 @@ def numeric_statistics_columns(quantiles: tuple[float, ...]) -> tuple[str, ...]:
 
 
 def validate_quantiles(quantiles: tuple[float, ...]) -> tuple[float, ...]:
+    """Validate and normalize a sequence of quantiles."""
     values = tuple(float(value) for value in quantiles)
     if not values:
-        raise ValueError("At least one quantile must be configured.")
+        msg = "At least one quantile must be configured."
+        raise ValueError(msg)
     if any(value <= 0.0 or value >= 1.0 for value in values):
-        raise ValueError("Quantiles must lie strictly between 0 and 1.")
+        msg = "Quantiles must lie strictly between 0 and 1."
+        raise ValueError(msg)
     if len(set(values)) != len(values):
-        raise ValueError("Quantiles cannot contain duplicates.")
+        msg = "Quantiles cannot contain duplicates."
+        raise ValueError(msg)
     if values != tuple(sorted(values)):
-        raise ValueError("Quantiles must be sorted in ascending order.")
+        msg = "Quantiles must be sorted in ascending order."
+        raise ValueError(msg)
     if not {0.25, 0.50, 0.75}.issubset(set(values)):
-        raise ValueError("Quantiles must include 0.25, 0.50, and 0.75.")
+        msg = "Quantiles must include 0.25, 0.50, and 0.75."
+        raise ValueError(msg)
     return values
 
 
@@ -203,7 +211,8 @@ def summarize_numeric_statistics(
     """Summarize eligible numerical variables using finite observations only."""
     quantiles = validate_quantiles(quantiles)
     if min_numeric_n < 2:
-        raise ValueError("min_numeric_n must be at least 2.")
+        msg = "min_numeric_n must be at least 2."
+        raise ValueError(msg)
 
     selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
     frame = dataset.to_frame()

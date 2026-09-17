@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.core.types import KindOverrides, RoleOverrides
 from ruddy.data.roles import ColumnSpec, build_schema, resolve_kinds, resolve_roles
 from ruddy.data.validation import validate_observation_ids
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.core.types import KindOverrides, RoleOverrides
 
 
 class TabularDataset:
@@ -28,17 +32,19 @@ class TabularDataset:
         role_overrides: RoleOverrides | None = None,
         kind_overrides: KindOverrides | None = None,
     ) -> None:
+        """Initialize a tabular dataset from a pandas DataFrame."""
         if not isinstance(data, pd.DataFrame):
-            raise TypeError("data must be a pandas DataFrame.")
+            msg = "data must be a pandas DataFrame."
+            raise TypeError(msg)
 
         if not data.columns.is_unique:
             duplicates = data.columns[data.columns.duplicated()].tolist()
-            raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
+            msg = f"DataFrame column names must be unique; duplicates={duplicates}."
+            raise ValueError(msg)
         non_string = [column for column in data.columns if not isinstance(column, str)]
         if non_string:
-            raise TypeError(
-                f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
-            )
+            msg = f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
+            raise TypeError(msg)
 
         self._data = data.copy(deep=True)
         self._roles = resolve_roles(
@@ -65,43 +71,54 @@ class TabularDataset:
 
     @property
     def n_observations(self) -> int:
+        """Return the number of observations in the dataset."""
         return len(self._data)
 
     @property
     def n_columns(self) -> int:
+        """Return the number of columns in the dataset."""
         return self._data.shape[1]
 
     @property
     def columns(self) -> tuple[str, ...]:
+        """Return the column names."""
         return tuple(str(column) for column in self._data.columns)
 
     @property
     def id_column(self) -> str | None:
+        """Return the name of the identifier column, if any."""
         return self._id_column
 
     @property
     def observation_ids(self) -> pd.Index:
+        """Return a copy of the observation identifiers."""
         return self._observation_ids.copy()
 
     @property
     def schema(self) -> tuple[ColumnSpec, ...]:
+        """Return the complete column schema specification."""
         return self._schema
 
     def role_of(self, column: str) -> ColumnRole:
+        """Return the statistical role assigned to the specified column."""
         return self._roles[column]
 
     def kind_of(self, column: str) -> ColumnKind:
+        """Return the data kind inferred for the specified column."""
         return self._kinds[column]
 
     def columns_with_role(self, *roles: ColumnRole | str) -> tuple[str, ...]:
+        """Return column names matching any of the specified roles."""
         wanted = {role if isinstance(role, ColumnRole) else ColumnRole(role) for role in roles}
         return tuple(column for column in self._data.columns if self._roles[column] in wanted)
 
     def columns_with_kind(self, *kinds: ColumnKind | str) -> tuple[str, ...]:
+        """Return column names matching any of the specified kinds."""
         wanted = {kind if isinstance(kind, ColumnKind) else ColumnKind(kind) for kind in kinds}
         return tuple(column for column in self._data.columns if self._kinds[column] in wanted)
 
     def select(self, columns: Iterable[str]) -> pd.DataFrame:
+        """Return a new DataFrame containing only the selected columns."""
         return self._data.loc[:, list(columns)].copy(deep=True)
 
     def to_frame(self) -> pd.DataFrame:
@@ -109,9 +126,11 @@ class TabularDataset:
         return self._data.copy(deep=True)
 
     def __len__(self) -> int:
+        """Return the number of observations."""
         return self.n_observations
 
     def __repr__(self) -> str:
+        """Return a string representation of the dataset."""
         return (
             f"TabularDataset(n_observations={self.n_observations}, "
             f"n_columns={self.n_columns}, id_column={self.id_column!r})"

@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from scipy.stats import studentized_range
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 PAIRWISE_COLUMNS = (
     "response",
@@ -48,18 +51,23 @@ class PosthocResult:
 
 def _validate_response_factor(dataset: TabularDataset, response: str, factor: str) -> None:
     if response not in dataset.columns:
-        raise ValueError(f"Unknown response column: {response!r}.")
+        msg = f"Unknown response column: {response!r}."
+        raise ValueError(msg)
     if factor not in dataset.columns:
-        raise ValueError(f"Unknown factor column: {factor!r}.")
+        msg = f"Unknown factor column: {factor!r}."
+        raise ValueError(msg)
     if dataset.kind_of(response) is not ColumnKind.NUMERIC:
-        raise ValueError("Post-hoc comparisons require a numeric response.")
+        msg = "Post-hoc comparisons require a numeric response."
+        raise ValueError(msg)
     if dataset.role_of(response) in {ColumnRole.IDENTIFIER, ColumnRole.EXCLUDED}:
-        raise ValueError("Post-hoc response cannot be identifier/excluded.")
+        msg = "Post-hoc response cannot be identifier/excluded."
+        raise ValueError(msg)
     if dataset.role_of(factor) is not ColumnRole.FACTOR and dataset.kind_of(factor) not in {
         ColumnKind.CATEGORICAL,
         ColumnKind.BOOLEAN,
     }:
-        raise ValueError("Post-hoc factor must be categorical/boolean or explicitly declared as factor.")
+        msg = "Post-hoc factor must be categorical/boolean or explicitly declared as factor."
+        raise ValueError(msg)
 
 
 def _group_values(dataset: TabularDataset, response: str, factor: str) -> dict[object, np.ndarray]:
@@ -121,10 +129,7 @@ def _tukey_rows(
             )
             continue
         se_q = np.sqrt(0.5 * mse * (1.0 / len(xa) + 1.0 / len(xb)))
-        if se_q == 0.0:
-            q = np.inf if diff != 0.0 else 0.0
-        else:
-            q = abs(diff) / se_q
+        q = (np.inf if diff != 0.0 else 0.0) if se_q == 0.0 else abs(diff) / se_q
         p_value = float(studentized_range.sf(q, k, df_error))
         half = qcrit * se_q
         rows.append(
@@ -253,19 +258,24 @@ def analyze_posthoc(
     """Run explicitly requested post-hoc families without automatic method selection."""
     _validate_response_factor(dataset, response, factor)
     if not 0.0 < confidence_level < 1.0:
-        raise ValueError("confidence_level must lie in (0, 1).")
+        msg = "confidence_level must lie in (0, 1)."
+        raise ValueError(msg)
     if min_group_n < 2:
-        raise ValueError("min_group_n must be at least 2.")
+        msg = "min_group_n must be at least 2."
+        raise ValueError(msg)
     normalized = tuple(str(method).strip().lower() for method in methods)
     allowed = {"tukey_hsd", "games_howell"}
     if not normalized or any(method not in allowed for method in normalized):
-        raise ValueError("methods must contain tukey_hsd and/or games_howell.")
+        msg = "methods must contain tukey_hsd and/or games_howell."
+        raise ValueError(msg)
     if len(set(normalized)) != len(normalized):
-        raise ValueError("methods cannot contain duplicates.")
+        msg = "methods cannot contain duplicates."
+        raise ValueError(msg)
 
     groups = _group_values(dataset, response, factor)
     if len(groups) > max_group_levels:
-        raise ValueError(f"Factor {factor!r} exceeds max_group_levels={max_group_levels}.")
+        msg = f"Factor {factor!r} exceeds max_group_levels={max_group_levels}."
+        raise ValueError(msg)
     rows: list[dict] = []
     if len(groups) >= 2:
         if "tukey_hsd" in normalized:

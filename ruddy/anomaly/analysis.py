@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -10,13 +11,17 @@ from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 
 from ruddy.core.enums import ScalingMethod
-from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)
 class AnomalyResult:
+    """Result of a multivariate anomaly detection analysis."""
+
     scores: pd.DataFrame
     methods: pd.DataFrame
     exclusions: pd.DataFrame
@@ -37,12 +42,10 @@ def analyze_anomalies(
     normalized = tuple(str(m).lower() for m in methods)
     allowed = {"isolation_forest", "lof"}
     if not normalized or any(m not in allowed for m in normalized):
-        raise ValueError("methods must contain isolation_forest and/or lof.")
+        msg = "methods must contain isolation_forest and/or lof."
+        raise ValueError(msg)
     prepared = prepare_features(features, scaling=scaling, minimum_observations=3)
-    if prepared.is_sparse:
-        x = prepared.matrix.tocsr()
-    else:
-        x = np.asarray(prepared.matrix, dtype=float)
+    x = prepared.matrix.tocsr() if prepared.is_sparse else np.asarray(prepared.matrix, dtype=float)
     n = prepared.n_observations
     rows, method_rows = [], []
     if "isolation_forest" in normalized:
@@ -52,7 +55,7 @@ def analyze_anomalies(
         pred = model.fit_predict(x)
         anomaly = -model.score_samples(x)
         for idx, oid, score, flag in zip(
-            prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1
+            prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1, strict=False
         ):
             rows.append(
                 {
@@ -94,7 +97,7 @@ def analyze_anomalies(
             pred = model.fit_predict(x)
             anomaly = -model.negative_outlier_factor_
             for idx, oid, score, flag in zip(
-                prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1
+                prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1, strict=False
             ):
                 rows.append(
                     {

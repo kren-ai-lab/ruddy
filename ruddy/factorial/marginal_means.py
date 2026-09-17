@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from itertools import combinations, product
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -14,10 +14,14 @@ from scipy.stats import t as student_t
 from statsmodels.api import OLS
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, build_factorial_design
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
+
+if TYPE_CHECKING:
+    from patsy.design_info import DesignInfo
+
+    from ruddy.data import TabularDataset
 
 MEAN_COLUMNS = (
     "response",
@@ -110,9 +114,11 @@ def _normalize_terms(
     for term in terms:
         values = (term,) if isinstance(term, str) else tuple(str(value) for value in term)
         if not values or any(value not in factors for value in values):
-            raise ValueError("Marginal-mean terms must contain declared factors only.")
+            msg = "Marginal-mean terms must contain declared factors only."
+            raise ValueError(msg)
         if len(set(values)) != len(values):
-            raise ValueError("Marginal-mean terms cannot repeat factors.")
+            msg = "Marginal-mean terms cannot repeat factors."
+            raise ValueError(msg)
         if values not in normalized:
             normalized.append(values)
     return tuple(normalized)
@@ -123,7 +129,7 @@ def _grid_l_vectors(
     design: FactorialDesign,
     factor_safe: dict[str, str],
     covariate_safe: dict[str, str],
-    design_info,
+    design_info: DesignInfo,
     term: tuple[str, ...],
 ) -> list[tuple[tuple[object, ...], np.ndarray]]:
     levels = {name: list(pd.unique(model_frame[name])) for name in design.factors}
@@ -166,7 +172,8 @@ def analyze_marginal_means(
 ) -> MarginalMeansResult:
     """Estimate equal-weight marginal means and pairwise contrasts from an OLS model."""
     if not 0.0 < confidence_level < 1.0:
-        raise ValueError("confidence_level must lie in (0, 1).")
+        msg = "confidence_level must lie in (0, 1)."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     design = build_factorial_design(
         dataset,
@@ -180,12 +187,15 @@ def analyze_marginal_means(
     )
     requested_terms = _normalize_terms(terms, design.factors)
     if not requested_terms:
-        raise ValueError("Marginal means require at least one factor term.")
+        msg = "Marginal means require at least one factor term."
+        raise ValueError(msg)
     model, model_frame, complete, factor_safe, covariate_safe, design_info = _safe_model(dataset, design)
     if model.df_resid <= 0:
-        raise ValueError("Marginal means require positive residual degrees of freedom.")
+        msg = "Marginal means require positive residual degrees of freedom."
+        raise ValueError(msg)
     if np.linalg.matrix_rank(model.model.exog) < model.model.exog.shape[1]:
-        raise ValueError("Marginal means require a full-rank fixed-effects design.")
+        msg = "Marginal means require a full-rank fixed-effects design."
+        raise ValueError(msg)
 
     beta = np.asarray(model.params, dtype=float)
     cov_beta = np.asarray(model.cov_params(), dtype=float)

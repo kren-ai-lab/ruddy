@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 from ruddy.core.enums import ColumnKind, ColumnRole, OutlierMethod, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.profiling import profile_columns
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.robust import (
@@ -19,6 +17,11 @@ from ruddy.statistics.robust import (
     modified_z_scores,
     tukey_fences,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.data import TabularDataset
 
 OUTLIER_SUMMARY_COLUMNS: tuple[str, ...] = (
     "column",
@@ -137,7 +140,8 @@ def summarize_numeric_quality(
 ) -> pd.DataFrame:
     """Summarize numeric data-quality states without changing source values."""
     if min_numeric_n < 2:
-        raise ValueError("min_numeric_n must be at least 2.")
+        msg = "min_numeric_n must be at least 2."
+        raise ValueError(msg)
     columns = profile_columns(dataset) if columns is None else columns
     selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
     frame = dataset.to_frame()
@@ -479,18 +483,23 @@ def summarize_outliers(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Compute deterministic univariate outlier summaries and optional row flags."""
     if min_numeric_n < 2:
-        raise ValueError("min_numeric_n must be at least 2.")
+        msg = "min_numeric_n must be at least 2."
+        raise ValueError(msg)
     if iqr_multiplier <= 0:
-        raise ValueError("iqr_multiplier must be greater than zero.")
+        msg = "iqr_multiplier must be greater than zero."
+        raise ValueError(msg)
     if robust_z_threshold <= 0:
-        raise ValueError("robust_z_threshold must be greater than zero.")
+        msg = "robust_z_threshold must be greater than zero."
+        raise ValueError(msg)
     resolved_methods = tuple(
         method if isinstance(method, OutlierMethod) else OutlierMethod(method) for method in methods
     )
     if not resolved_methods:
-        raise ValueError("At least one outlier method must be configured.")
+        msg = "At least one outlier method must be configured."
+        raise ValueError(msg)
     if len(set(resolved_methods)) != len(resolved_methods):
-        raise ValueError("methods cannot contain duplicates.")
+        msg = "methods cannot contain duplicates."
+        raise ValueError(msg)
 
     columns = profile_columns(dataset) if columns is None else columns
     selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]

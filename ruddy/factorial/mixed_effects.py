@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 from statsmodels.formula.api import mixedlm
 
 from ruddy.core.enums import ColumnKind, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, build_factorial_design
 from ruddy.results import Advisory, AnalysisProvenance
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 FIXED_COLUMNS = (
     "parameter",
@@ -69,13 +71,11 @@ def _safe_fixed_frame(
             random_names[name] = safe_name
     rhs = " + ".join(":".join(expression[name] for name in term.columns) for term in design.terms)
     fixed_formula = f"Y ~ {rhs}"
-    re_formula = (
-        "1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes)
-    )
+    ("1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes))
     return safe, fixed_formula, expression, random_names
 
 
-def _finite_or_none(value) -> float | None:
+def _finite_or_none(value: Any) -> float | None:
     try:
         number = float(value)
     except (TypeError, ValueError):
@@ -107,16 +107,21 @@ def analyze_mixed_effects(
     are one grouping factor, a random intercept, and optional numeric random slopes.
     """
     if group not in dataset.columns:
-        raise ValueError(f"Unknown mixed-effects grouping column: {group!r}.")
+        msg = f"Unknown mixed-effects grouping column: {group!r}."
+        raise ValueError(msg)
     if not 0.0 < confidence_level < 1.0:
-        raise ValueError("confidence_level must lie in (0, 1).")
+        msg = "confidence_level must lie in (0, 1)."
+        raise ValueError(msg)
     if min_groups < 2 or min_group_n < 1:
-        raise ValueError("min_groups must be >=2 and min_group_n >=1.")
+        msg = "min_groups must be >=2 and min_group_n >=1."
+        raise ValueError(msg)
     if max_iter < 1:
-        raise ValueError("max_iter must be positive.")
+        msg = "max_iter must be positive."
+        raise ValueError(msg)
     random_slopes = tuple(str(value) for value in random_slopes)
     if len(set(random_slopes)) != len(random_slopes):
-        raise ValueError("random_slopes cannot contain duplicates.")
+        msg = "random_slopes cannot contain duplicates."
+        raise ValueError(msg)
 
     design = build_factorial_design(
         dataset,
@@ -130,10 +135,12 @@ def analyze_mixed_effects(
     )
     unknown_slopes = [name for name in random_slopes if name not in design.covariates]
     if unknown_slopes:
-        raise ValueError(f"Random slopes must be declared numeric covariates; invalid={unknown_slopes}.")
+        msg = f"Random slopes must be declared numeric covariates; invalid={unknown_slopes}."
+        raise ValueError(msg)
     for name in random_slopes:
         if dataset.kind_of(name) is not ColumnKind.NUMERIC:
-            raise ValueError(f"Random slope {name!r} must be numeric.")
+            msg = f"Random slope {name!r} must be numeric."
+            raise ValueError(msg)
 
     selected = tuple(dict.fromkeys((design.response, *design.factors, *design.covariates, group)))
     frame = dataset.select(selected)
@@ -228,14 +235,14 @@ def analyze_mixed_effects(
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
             fit = model.fit(reml=reml, method=optimizer, maxiter=max_iter, disp=False)
-        for warning in captured:
-            advisories.append(
-                Advisory(
-                    code="mixed_model_fit_warning",
-                    message=str(warning.message),
-                    context={"warning_category": warning.category.__name__},
-                )
+        advisories.extend(
+            Advisory(
+                code="mixed_model_fit_warning",
+                message=str(warning.message),
+                context={"warning_category": warning.category.__name__},
             )
+            for warning in captured
+        )
     except (ValueError, np.linalg.LinAlgError) as exc:
         advisories.append(Advisory(code="mixed_model_fit_error", message=str(exc)))
         return MixedEffectsResult(
@@ -282,18 +289,18 @@ def analyze_mixed_effects(
         }
     ]
     cov_re = pd.DataFrame(fit.cov_re)
-    for row_name in cov_re.index:
-        for col_name in cov_re.columns:
-            variance_rows.append(
-                {
-                    "component": "random_effect_covariance",
-                    "row": str(row_name),
-                    "column": str(col_name),
-                    "estimate": float(cov_re.loc[row_name, col_name]),
-                    "status": ResultStatus.OK.value,
-                    "reason": None,
-                }
-            )
+    variance_rows.extend(
+        {
+            "component": "random_effect_covariance",
+            "row": str(row_name),
+            "column": str(col_name),
+            "estimate": float(cov_re.loc[row_name, col_name]),
+            "status": ResultStatus.OK.value,
+            "reason": None,
+        }
+        for row_name in cov_re.index
+        for col_name in cov_re.columns
+    )
 
     random_rows = []
     try:

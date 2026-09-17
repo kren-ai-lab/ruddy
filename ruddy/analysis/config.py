@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ruddy.core.enums import (
     AlignmentMode,
@@ -17,8 +17,10 @@ from ruddy.core.enums import (
     PAdjustMethod,
     ScalingMethod,
 )
-from ruddy.core.types import KindOverrides, RoleOverrides
 from ruddy.univariate.numeric import validate_quantiles
+
+if TYPE_CHECKING:
+    from ruddy.core.types import KindOverrides, RoleOverrides
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +197,7 @@ class AnalysisConfig:
     anomaly_lof_neighbors: int = 20
 
     def __post_init__(self) -> None:
+        """Initialize computed fields and normalize inputs."""
         roles = {
             column: role if isinstance(role, ColumnRole) else ColumnRole(role)
             for column, role in self.role_overrides.items()
@@ -248,9 +251,11 @@ class AnalysisConfig:
             tuple(str(column) for column in interaction) for interaction in self.factorial_interactions
         )
         if not enabled_blocks:
-            raise ValueError("enabled_blocks cannot be empty.")
+            msg = "enabled_blocks cannot be empty."
+            raise ValueError(msg)
         if len(set(enabled_blocks)) != len(enabled_blocks):
-            raise ValueError("enabled_blocks cannot contain duplicates.")
+            msg = "enabled_blocks cannot contain duplicates."
+            raise ValueError(msg)
         for label, values in (
             ("manova_responses", manova_responses),
             ("manova_factors", manova_factors),
@@ -259,24 +264,33 @@ class AnalysisConfig:
             ("factorial_covariates", factorial_covariates),
         ):
             if len(set(values)) != len(values):
-                raise ValueError(f"{label} cannot contain duplicates.")
+                msg = f"{label} cannot contain duplicates."
+                raise ValueError(msg)
         if any(len(term) < 2 for term in factorial_interactions):
-            raise ValueError("factorial_interactions must contain at least two predictors per interaction.")
+            msg = "factorial_interactions must contain at least two predictors per interaction."
+            raise ValueError(msg)
         if len(set(factorial_interactions)) != len(factorial_interactions):
-            raise ValueError("factorial_interactions cannot contain duplicates.")
+            msg = "factorial_interactions cannot contain duplicates."
+            raise ValueError(msg)
         if self.factorial_formula is not None and not str(self.factorial_formula).strip():
-            raise ValueError("factorial_formula cannot be empty.")
+            msg = "factorial_formula cannot be empty."
+            raise ValueError(msg)
         if self.factorial_response is not None and not str(self.factorial_response).strip():
-            raise ValueError("factorial_response cannot be empty.")
+            msg = "factorial_response cannot be empty."
+            raise ValueError(msg)
         if len(set(responses)) != len(responses):
-            raise ValueError("responses cannot contain duplicates.")
+            msg = "responses cannot contain duplicates."
+            raise ValueError(msg)
         if len(set(groups)) != len(groups):
-            raise ValueError("groups cannot contain duplicates.")
+            msg = "groups cannot contain duplicates."
+            raise ValueError(msg)
         if len(set(dependence_partial_covariates)) != len(dependence_partial_covariates):
-            raise ValueError("dependence_partial_covariates cannot contain duplicates.")
+            msg = "dependence_partial_covariates cannot contain duplicates."
+            raise ValueError(msg)
         overlap = sorted(set(responses) & set(groups))
         if overlap:
-            raise ValueError(f"Columns cannot be configured as both response and group: {overlap}.")
+            msg = f"Columns cannot be configured as both response and group: {overlap}."
+            raise ValueError(msg)
         quantiles = validate_quantiles(tuple(self.quantiles))
         correlations = tuple(
             value if isinstance(value, CorrelationMethod) else CorrelationMethod(value)
@@ -326,107 +340,152 @@ class AnalysisConfig:
             for value in self.outlier_methods
         )
         if len(set(correlations)) != len(correlations):
-            raise ValueError("correlations cannot contain duplicates.")
+            msg = "correlations cannot contain duplicates."
+            raise ValueError(msg)
         if len(set(interval_correlations)) != len(interval_correlations):
-            raise ValueError("interval_correlations cannot contain duplicates.")
+            msg = "interval_correlations cannot contain duplicates."
+            raise ValueError(msg)
         if len(set(comparison_tests)) != len(comparison_tests):
-            raise ValueError("comparison_tests cannot contain duplicates.")
+            msg = "comparison_tests cannot contain duplicates."
+            raise ValueError(msg)
         if not outlier_methods:
-            raise ValueError("outlier_methods cannot be empty.")
+            msg = "outlier_methods cannot be empty."
+            raise ValueError(msg)
         if len(set(outlier_methods)) != len(outlier_methods):
-            raise ValueError("outlier_methods cannot contain duplicates.")
+            msg = "outlier_methods cannot contain duplicates."
+            raise ValueError(msg)
         if self.outlier_iqr_multiplier <= 0:
-            raise ValueError("outlier_iqr_multiplier must be greater than zero.")
+            msg = "outlier_iqr_multiplier must be greater than zero."
+            raise ValueError(msg)
         if self.outlier_robust_z_threshold <= 0:
-            raise ValueError("outlier_robust_z_threshold must be greater than zero.")
+            msg = "outlier_robust_z_threshold must be greater than zero."
+            raise ValueError(msg)
         if self.projection_n_components < 1:
-            raise ValueError("projection_n_components must be at least 1.")
+            msg = "projection_n_components must be at least 1."
+            raise ValueError(msg)
         if self.tsne_perplexity <= 0:
-            raise ValueError("tsne_perplexity must be greater than zero.")
+            msg = "tsne_perplexity must be greater than zero."
+            raise ValueError(msg)
         if self.tsne_max_iter < 250:
-            raise ValueError("tsne_max_iter must be at least 250.")
+            msg = "tsne_max_iter must be at least 250."
+            raise ValueError(msg)
         if self.umap_n_neighbors < 2:
-            raise ValueError("umap_n_neighbors must be at least 2.")
+            msg = "umap_n_neighbors must be at least 2."
+            raise ValueError(msg)
         if not 0.0 <= self.umap_min_dist <= 1.0:
-            raise ValueError("umap_min_dist must be between 0 and 1.")
+            msg = "umap_min_dist must be between 0 and 1."
+            raise ValueError(msg)
         if not str(self.projection_metric).strip():
-            raise ValueError("projection_metric cannot be empty.")
+            msg = "projection_metric cannot be empty."
+            raise ValueError(msg)
         if self.multivariate_max_covariance_features < 2:
-            raise ValueError("multivariate_max_covariance_features must be at least 2.")
+            msg = "multivariate_max_covariance_features must be at least 2."
+            raise ValueError(msg)
         if self.multivariate_max_collinearity_features < 2:
-            raise ValueError("multivariate_max_collinearity_features must be at least 2.")
+            msg = "multivariate_max_collinearity_features must be at least 2."
+            raise ValueError(msg)
         if self.multivariate_max_mahalanobis_features < 1:
-            raise ValueError("multivariate_max_mahalanobis_features must be at least 1.")
+            msg = "multivariate_max_mahalanobis_features must be at least 1."
+            raise ValueError(msg)
         if not 0.5 < self.mahalanobis_threshold_quantile < 1.0:
-            raise ValueError("mahalanobis_threshold_quantile must be between 0.5 and 1.0.")
+            msg = "mahalanobis_threshold_quantile must be between 0.5 and 1.0."
+            raise ValueError(msg)
         if (
             self.mahalanobis_robust_support_fraction is not None
             and not 0.5 <= self.mahalanobis_robust_support_fraction <= 1.0
         ):
-            raise ValueError("mahalanobis_robust_support_fraction must be between 0.5 and 1.0.")
+            msg = "mahalanobis_robust_support_fraction must be between 0.5 and 1.0."
+            raise ValueError(msg)
         if self.manova_max_responses < 2:
-            raise ValueError("manova_max_responses must be at least 2.")
+            msg = "manova_max_responses must be at least 2."
+            raise ValueError(msg)
         if self.manova_max_factor_levels < 2:
-            raise ValueError("manova_max_factor_levels must be at least 2.")
+            msg = "manova_max_factor_levels must be at least 2."
+            raise ValueError(msg)
         if self.manova_min_level_n < 2:
-            raise ValueError("manova_min_level_n must be at least 2.")
+            msg = "manova_min_level_n must be at least 2."
+            raise ValueError(msg)
         if self.factorial_ss_type not in {2, 3}:
-            raise ValueError("factorial_ss_type must be 2 or 3.")
+            msg = "factorial_ss_type must be 2 or 3."
+            raise ValueError(msg)
         if self.factorial_robust_covariance is not None:
             robust = str(self.factorial_robust_covariance).strip().lower()
             if robust in {"", "none", "nonrobust"}:
                 robust = None
             elif robust not in {"hc0", "hc1", "hc2", "hc3"}:
-                raise ValueError("factorial_robust_covariance must be one of hc0, hc1, hc2, hc3, or None.")
+                msg = "factorial_robust_covariance must be one of hc0, hc1, hc2, hc3, or None."
+                raise ValueError(msg)
         else:
             robust = None
         if self.factorial_min_cell_n < 1:
-            raise ValueError("factorial_min_cell_n must be at least 1.")
+            msg = "factorial_min_cell_n must be at least 1."
+            raise ValueError(msg)
         if self.factorial_max_factor_levels < 2:
-            raise ValueError("factorial_max_factor_levels must be at least 2.")
+            msg = "factorial_max_factor_levels must be at least 2."
+            raise ValueError(msg)
         if self.factorial_max_design_cells < 1:
-            raise ValueError("factorial_max_design_cells must be at least 1.")
+            msg = "factorial_max_design_cells must be at least 1."
+            raise ValueError(msg)
         if self.factorial_max_design_columns < 2:
-            raise ValueError("factorial_max_design_columns must be at least 2.")
+            msg = "factorial_max_design_columns must be at least 2."
+            raise ValueError(msg)
         if self.factorial_max_interaction_order < 2:
-            raise ValueError("factorial_max_interaction_order must be at least 2.")
+            msg = "factorial_max_interaction_order must be at least 2."
+            raise ValueError(msg)
         if not 0.0 < self.factorial_diagnostic_alpha < 1.0:
-            raise ValueError("factorial_diagnostic_alpha must lie in (0, 1).")
+            msg = "factorial_diagnostic_alpha must lie in (0, 1)."
+            raise ValueError(msg)
         if self.factorial_condition_number_threshold <= 0.0:
-            raise ValueError("factorial_condition_number_threshold must be greater than zero.")
+            msg = "factorial_condition_number_threshold must be greater than zero."
+            raise ValueError(msg)
         if self.distribution_max_shapiro_n < 3:
-            raise ValueError("distribution_max_shapiro_n must be at least 3.")
+            msg = "distribution_max_shapiro_n must be at least 3."
+            raise ValueError(msg)
         if self.dependence_min_complete_pairs < 3:
-            raise ValueError("dependence_min_complete_pairs must be at least 3.")
+            msg = "dependence_min_complete_pairs must be at least 3."
+            raise ValueError(msg)
         if self.dependence_max_columns < 2:
-            raise ValueError("dependence_max_columns must be at least 2.")
+            msg = "dependence_max_columns must be at least 2."
+            raise ValueError(msg)
         if self.dependence_n_permutations < 0:
-            raise ValueError("dependence_n_permutations cannot be negative.")
+            msg = "dependence_n_permutations cannot be negative."
+            raise ValueError(msg)
         if self.dependence_mi_neighbors < 1:
-            raise ValueError("dependence_mi_neighbors must be at least 1.")
+            msg = "dependence_mi_neighbors must be at least 1."
+            raise ValueError(msg)
         if not 0.0 < self.confidence_level < 1.0:
-            raise ValueError("confidence_level must lie in (0, 1).")
+            msg = "confidence_level must lie in (0, 1)."
+            raise ValueError(msg)
         if self.bootstrap_resamples < 100:
-            raise ValueError("bootstrap_resamples must be at least 100.")
+            msg = "bootstrap_resamples must be at least 100."
+            raise ValueError(msg)
         bootstrap_method = str(self.bootstrap_method).strip().lower()
         if bootstrap_method not in {"percentile", "basic", "bca"}:
-            raise ValueError("bootstrap_method must be percentile, basic, or bca.")
+            msg = "bootstrap_method must be percentile, basic, or bca."
+            raise ValueError(msg)
         if self.permanova_factor is not None and not str(self.permanova_factor).strip():
-            raise ValueError("permanova_factor cannot be empty.")
+            msg = "permanova_factor cannot be empty."
+            raise ValueError(msg)
         if not str(self.permanova_metric).strip():
-            raise ValueError("permanova_metric cannot be empty.")
+            msg = "permanova_metric cannot be empty."
+            raise ValueError(msg)
         if self.permanova_permutations < 0:
-            raise ValueError("permanova_permutations cannot be negative.")
+            msg = "permanova_permutations cannot be negative."
+            raise ValueError(msg)
         if self.permanova_min_group_n < 2:
-            raise ValueError("permanova_min_group_n must be at least 2.")
+            msg = "permanova_min_group_n must be at least 2."
+            raise ValueError(msg)
         if self.permanova_max_group_levels < 2:
-            raise ValueError("permanova_max_group_levels must be at least 2.")
+            msg = "permanova_max_group_levels must be at least 2."
+            raise ValueError(msg)
         if not posthoc_methods or any(
             value not in {"tukey_hsd", "games_howell"} for value in posthoc_methods
         ):
-            raise ValueError("posthoc_methods must contain tukey_hsd and/or games_howell.")
+            msg = "posthoc_methods must contain tukey_hsd and/or games_howell."
+            raise ValueError(msg)
         if len(set(posthoc_methods)) != len(posthoc_methods):
-            raise ValueError("posthoc_methods cannot contain duplicates.")
+            msg = "posthoc_methods cannot contain duplicates."
+            raise ValueError(msg)
         for label, values in (
             ("marginal_factors", marginal_factors),
             ("marginal_covariates", marginal_covariates),
@@ -435,75 +494,104 @@ class AnalysisConfig:
             ("mixed_random_slopes", mixed_random_slopes),
         ):
             if len(set(values)) != len(values):
-                raise ValueError(f"{label} cannot contain duplicates.")
+                msg = f"{label} cannot contain duplicates."
+                raise ValueError(msg)
         for label, values in (
             ("marginal_interactions", marginal_interactions),
             ("marginal_terms", marginal_terms),
             ("mixed_interactions", mixed_interactions),
         ):
             if any(len(term) < 1 for term in values) or len(set(values)) != len(values):
-                raise ValueError(f"{label} contains invalid or duplicate terms.")
+                msg = f"{label} contains invalid or duplicate terms."
+                raise ValueError(msg)
         if self.marginal_formula is not None and not str(self.marginal_formula).strip():
-            raise ValueError("marginal_formula cannot be empty.")
+            msg = "marginal_formula cannot be empty."
+            raise ValueError(msg)
         if self.mixed_formula is not None and not str(self.mixed_formula).strip():
-            raise ValueError("mixed_formula cannot be empty.")
+            msg = "mixed_formula cannot be empty."
+            raise ValueError(msg)
         if self.mixed_group is not None and not str(self.mixed_group).strip():
-            raise ValueError("mixed_group cannot be empty.")
+            msg = "mixed_group cannot be empty."
+            raise ValueError(msg)
         if self.mixed_optimizer.strip() == "":
-            raise ValueError("mixed_optimizer cannot be empty.")
+            msg = "mixed_optimizer cannot be empty."
+            raise ValueError(msg)
         if self.mixed_max_iter < 1 or self.mixed_min_groups < 2 or self.mixed_min_group_n < 1:
-            raise ValueError("Invalid mixed-effects iteration/group controls.")
+            msg = "Invalid mixed-effects iteration/group controls."
+            raise ValueError(msg)
         if (
             self.representation_cca_components < 1
             or self.representation_cca_max_iter < 1
             or self.representation_cca_tol <= 0
         ):
-            raise ValueError("Invalid CCA controls.")
+            msg = "Invalid CCA controls."
+            raise ValueError(msg)
         if not str(self.representation_distance_metric).strip():
-            raise ValueError("representation_distance_metric cannot be empty.")
+            msg = "representation_distance_metric cannot be empty."
+            raise ValueError(msg)
         if self.representation_distance_similarity_method not in {"pearson", "spearman"}:
-            raise ValueError("representation_distance_similarity_method must be pearson or spearman.")
+            msg = "representation_distance_similarity_method must be pearson or spearman."
+            raise ValueError(msg)
         if self.representation_mantel_permutations < 0:
-            raise ValueError("representation_mantel_permutations cannot be negative.")
+            msg = "representation_mantel_permutations cannot be negative."
+            raise ValueError(msg)
         if str(self.compositional_transform).lower() not in {"clr", "alr", "ilr"}:
-            raise ValueError("compositional_transform must be clr, alr, or ilr.")
+            msg = "compositional_transform must be clr, alr, or ilr."
+            raise ValueError(msg)
         if not 0 < self.compositional_zero_replacement_fraction < 1:
-            raise ValueError("compositional_zero_replacement_fraction must lie in (0, 1).")
+            msg = "compositional_zero_replacement_fraction must lie in (0, 1)."
+            raise ValueError(msg)
         if len(set(bayesian_variables)) != len(bayesian_variables) or len(set(bayesian_groups)) != len(
             bayesian_groups
         ):
-            raise ValueError("Bayesian variables/groups cannot contain duplicates.")
+            msg = "Bayesian variables/groups cannot contain duplicates."
+            raise ValueError(msg)
         if not 0 < self.bayesian_credible_level < 1 or self.bayesian_draws < 100 or self.bayesian_min_n < 2:
-            raise ValueError("Invalid Bayesian EDA controls.")
+            msg = "Invalid Bayesian EDA controls."
+            raise ValueError(msg)
         if len(self.bayesian_rope) != 2 or self.bayesian_rope[0] > self.bayesian_rope[1]:
-            raise ValueError("bayesian_rope must be an ordered pair.")
+            msg = "bayesian_rope must be an ordered pair."
+            raise ValueError(msg)
         if not anomaly_methods or any(v not in {"isolation_forest", "lof"} for v in anomaly_methods):
-            raise ValueError("anomaly_methods must contain isolation_forest and/or lof.")
+            msg = "anomaly_methods must contain isolation_forest and/or lof."
+            raise ValueError(msg)
         if len(set(anomaly_methods)) != len(anomaly_methods):
-            raise ValueError("anomaly_methods cannot contain duplicates.")
+            msg = "anomaly_methods cannot contain duplicates."
+            raise ValueError(msg)
         if self.anomaly_isolation_estimators < 1 or self.anomaly_lof_neighbors < 2:
-            raise ValueError("Invalid anomaly controls.")
+            msg = "Invalid anomaly controls."
+            raise ValueError(msg)
         if isinstance(self.anomaly_contamination, float) and not 0 < self.anomaly_contamination <= 0.5:
-            raise ValueError("numeric anomaly_contamination must lie in (0, 0.5].")
+            msg = "numeric anomaly_contamination must lie in (0, 0.5]."
+            raise ValueError(msg)
         if not (self.anomaly_contamination == "auto" or isinstance(self.anomaly_contamination, float)):
-            raise ValueError("anomaly_contamination must be 'auto' or a float.")
+            msg = "anomaly_contamination must be 'auto' or a float."
+            raise ValueError(msg)
 
         if self.min_numeric_n < 2:
-            raise ValueError("min_numeric_n must be at least 2.")
+            msg = "min_numeric_n must be at least 2."
+            raise ValueError(msg)
         if self.max_category_levels < 2:
-            raise ValueError("max_category_levels must be at least 2.")
+            msg = "max_category_levels must be at least 2."
+            raise ValueError(msg)
         if self.max_missingness_patterns < 1:
-            raise ValueError("max_missingness_patterns must be at least 1.")
+            msg = "max_missingness_patterns must be at least 1."
+            raise ValueError(msg)
         if self.max_pairwise_columns < 1:
-            raise ValueError("max_pairwise_columns must be at least 1.")
+            msg = "max_pairwise_columns must be at least 1."
+            raise ValueError(msg)
         if self.min_group_n < 2:
-            raise ValueError("min_group_n must be at least 2.")
+            msg = "min_group_n must be at least 2."
+            raise ValueError(msg)
         if self.min_correlation_pairs < 2:
-            raise ValueError("min_correlation_pairs must be at least 2.")
+            msg = "min_correlation_pairs must be at least 2."
+            raise ValueError(msg)
         if self.max_group_levels < 2:
-            raise ValueError("max_group_levels must be at least 2.")
+            msg = "max_group_levels must be at least 2."
+            raise ValueError(msg)
         if self.max_correlation_columns < 2:
-            raise ValueError("max_correlation_columns must be at least 2.")
+            msg = "max_correlation_columns must be at least 2."
+            raise ValueError(msg)
 
         object.__setattr__(self, "role_overrides", MappingProxyType(roles))
         object.__setattr__(self, "responses", responses)
@@ -734,6 +822,7 @@ class AnalysisConfig:
         }
 
     def permanova_kwargs(self) -> dict[str, Any]:
+        """Return controls used by PERMANOVA analysis."""
         return {
             "metric": self.permanova_metric,
             "n_permutations": self.permanova_permutations,
@@ -744,6 +833,7 @@ class AnalysisConfig:
         }
 
     def posthoc_kwargs(self) -> dict[str, Any]:
+        """Return controls used by post-hoc analysis."""
         return {
             "methods": self.posthoc_methods,
             "confidence_level": self.confidence_level,
@@ -752,6 +842,7 @@ class AnalysisConfig:
         }
 
     def marginal_means_kwargs(self) -> dict[str, Any]:
+        """Return controls used by marginal means analysis."""
         return {
             "confidence_level": self.confidence_level,
             "p_adjust": self.marginal_p_adjust,
@@ -759,6 +850,7 @@ class AnalysisConfig:
         }
 
     def mixed_effects_kwargs(self) -> dict[str, Any]:
+        """Return controls used by mixed-effects analysis."""
         return {
             "random_slopes": self.mixed_random_slopes,
             "reml": self.mixed_reml,
@@ -771,6 +863,7 @@ class AnalysisConfig:
         }
 
     def representation_kwargs(self) -> dict[str, Any]:
+        """Return controls used by representation analysis."""
         return {
             "alignment": self.representation_alignment,
             "cca_components": self.representation_cca_components,
@@ -784,6 +877,7 @@ class AnalysisConfig:
         }
 
     def compositional_kwargs(self) -> dict[str, Any]:
+        """Return controls used by compositional analysis."""
         return {
             "transform": self.compositional_transform,
             "replace_zeros": self.compositional_replace_zeros,
@@ -792,6 +886,7 @@ class AnalysisConfig:
         }
 
     def bayesian_kwargs(self) -> dict[str, Any]:
+        """Return controls used by Bayesian analysis."""
         return {
             "variables": self.bayesian_variables or None,
             "groups": self.bayesian_groups or self.groups,
@@ -803,6 +898,7 @@ class AnalysisConfig:
         }
 
     def anomaly_kwargs(self) -> dict[str, Any]:
+        """Return controls used by anomaly detection."""
         return {
             "methods": self.anomaly_methods,
             "scaling": self.anomaly_scaling,

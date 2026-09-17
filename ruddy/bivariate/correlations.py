@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import math
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod, PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.statistics import apply_multiple_testing
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 CORRELATION_COLUMNS: tuple[str, ...] = (
     "method",
@@ -71,7 +73,8 @@ def _run(method: CorrelationMethod, x: np.ndarray, y: np.ndarray) -> tuple[float
     elif method is CorrelationMethod.KENDALL:
         result = stats.kendalltau(x, y)
     else:  # pragma: no cover
-        raise ValueError(f"Unsupported correlation method: {method!r}.")
+        msg = f"Unsupported correlation method: {method!r}."
+        raise ValueError(msg)
     return float(result.statistic), float(result.pvalue)
 
 
@@ -94,21 +97,26 @@ def summarize_correlations(
     explicitly and corrected in separate hypothesis families.
     """
     if min_complete_pairs < 2:
-        raise ValueError("min_complete_pairs must be at least 2.")
+        msg = "min_complete_pairs must be at least 2."
+        raise ValueError(msg)
     if max_columns < 2:
-        raise ValueError("max_columns must be at least 2.")
+        msg = "max_columns must be at least 2."
+        raise ValueError(msg)
     resolved_methods = tuple(
         method if isinstance(method, CorrelationMethod) else CorrelationMethod(method) for method in methods
     )
     if not resolved_methods:
-        raise ValueError("At least one correlation method is required.")
+        msg = "At least one correlation method is required."
+        raise ValueError(msg)
     if len(set(resolved_methods)) != len(resolved_methods):
-        raise ValueError("Correlation methods cannot contain duplicates.")
+        msg = "Correlation methods cannot contain duplicates."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
 
     candidates = _eligible_numeric_columns(dataset)
     if len(candidates) > max_columns:
-        raise ValueError(f"Resolved {len(candidates)} numeric columns, exceeding max_columns={max_columns}.")
+        msg = f"Resolved {len(candidates)} numeric columns, exceeding max_columns={max_columns}."
+        raise ValueError(msg)
 
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []

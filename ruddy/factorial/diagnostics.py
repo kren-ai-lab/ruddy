@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
 from itertools import product
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -14,6 +13,11 @@ from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import jarque_bera
 
 from ruddy.core.enums import ResultStatus
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from statsmodels.regression.linear_model import RegressionResultsWrapper
 
 DIAGNOSTIC_COLUMNS = (
     "diagnostic",
@@ -62,9 +66,11 @@ def build_factorial_cells(
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Enumerate observed and structurally empty cells for selected factors."""
     if min_cell_n < 1:
-        raise ValueError("min_cell_n must be at least 1.")
+        msg = "min_cell_n must be at least 1."
+        raise ValueError(msg)
     if max_design_cells < 1:
-        raise ValueError("max_design_cells must be at least 1.")
+        msg = "max_design_cells must be at least 1."
+        raise ValueError(msg)
     factor_names = tuple(str(name) for name in factors)
     if not factor_names:
         return (
@@ -84,7 +90,8 @@ def build_factorial_cells(
         observed = tuple(pd.unique(frame[factor]))
         total_cells *= len(observed)
         if total_cells > max_design_cells:
-            raise ValueError(f"Factorial cell enumeration exceeds max_design_cells={max_design_cells}.")
+            msg = f"Factorial cell enumeration exceeds max_design_cells={max_design_cells}."
+            raise ValueError(msg)
         levels.append(observed)
 
     observed_counts = frame.groupby(list(factor_names), dropna=False, observed=True).size()
@@ -107,7 +114,7 @@ def build_factorial_cells(
         small = 0 < count < min_cell_n
         if not empty:
             nonempty_counts.append(count)
-        row = {factor: level for factor, level in zip(factor_names, combo, strict=True)}
+        row = dict(zip(factor_names, combo, strict=True))
         row.update(
             n=count,
             is_empty=empty,
@@ -134,7 +141,7 @@ def build_factorial_cells(
 
 
 def model_diagnostics(
-    model,
+    model: RegressionResultsWrapper,
     *,
     model_frame: pd.DataFrame,
     source_row_indices: np.ndarray,
@@ -145,9 +152,11 @@ def model_diagnostics(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Compute non-decision-making residual/design diagnostics for a fitted OLS model."""
     if not 0.0 < alpha < 1.0:
-        raise ValueError("diagnostic alpha must lie in (0, 1).")
+        msg = "diagnostic alpha must lie in (0, 1)."
+        raise ValueError(msg)
     if condition_number_threshold <= 0.0:
-        raise ValueError("condition_number_threshold must be greater than zero.")
+        msg = "condition_number_threshold must be greater than zero."
+        raise ValueError(msg)
 
     residuals = np.asarray(model.resid, dtype=np.float64)
     fitted = np.asarray(model.fittedvalues, dtype=np.float64)

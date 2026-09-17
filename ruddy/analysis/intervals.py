@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,6 @@ from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.bootstrap import bootstrap_confidence_interval
 from ruddy.statistics.confidence_intervals import (
@@ -24,9 +23,16 @@ from ruddy.statistics.confidence_intervals import (
 from ruddy.statistics.effect_sizes import hedges_g
 from ruddy.univariate.categorical import _category_label
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from ruddy.data import TabularDataset
+
 
 @dataclass(frozen=True, slots=True)
 class ConfidenceIntervalResult:
+    """Confidence intervals for dataset estimands."""
+
     means: pd.DataFrame
     correlations: pd.DataFrame
     mean_differences: pd.DataFrame
@@ -50,7 +56,7 @@ def _numeric(dataset: TabularDataset) -> tuple[str, ...]:
     )
 
 
-def _correlation_statistic(method: CorrelationMethod):
+def _correlation_statistic(method: CorrelationMethod) -> Callable[[np.ndarray, np.ndarray], float]:
     if method is CorrelationMethod.PEARSON:
         return lambda x, y: float(stats.pearsonr(x, y).statistic)
     if method is CorrelationMethod.SPEARMAN:
@@ -71,14 +77,17 @@ def analyze_confidence_intervals(
 ) -> ConfidenceIntervalResult:
     """Estimate CIs for means, correlations, binary mean differences/effects, and ORs."""
     if not 0.0 < confidence_level < 1.0:
-        raise ValueError("confidence_level must lie in (0, 1).")
+        msg = "confidence_level must lie in (0, 1)."
+        raise ValueError(msg)
     if bootstrap_resamples < 100:
-        raise ValueError("bootstrap_resamples must be at least 100.")
+        msg = "bootstrap_resamples must be at least 100."
+        raise ValueError(msg)
     methods = tuple(
         m if isinstance(m, CorrelationMethod) else CorrelationMethod(m) for m in correlation_methods
     )
     if len(set(methods)) != len(methods):
-        raise ValueError("correlation_methods cannot contain duplicates.")
+        msg = "correlation_methods cannot contain duplicates."
+        raise ValueError(msg)
     numeric = _numeric(dataset)
     categorical = _eligible_categorical(dataset)
     frame = dataset.to_frame()

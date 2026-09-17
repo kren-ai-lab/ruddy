@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -13,9 +13,11 @@ from sklearn.feature_selection import mutual_info_classif, mutual_info_regressio
 from sklearn.metrics import mutual_info_score
 
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod, PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
+
+if TYPE_CHECKING:
+    from ruddy.data import TabularDataset
 
 PARTIAL_COLUMNS = (
     "method",
@@ -58,6 +60,8 @@ DEPENDENCE_COLUMNS = (
 
 @dataclass(frozen=True, slots=True)
 class DependenceResult:
+    """Result of an extended dependence analysis."""
+
     partial_correlations: pd.DataFrame
     distance_correlations: pd.DataFrame
     mutual_information: pd.DataFrame
@@ -123,20 +127,23 @@ def summarize_partial_correlations(
     """Compute Pearson/Spearman partial correlations controlling numeric covariates."""
     resolved_methods = tuple(m if isinstance(m, CorrelationMethod) else CorrelationMethod(m) for m in methods)
     if any(m is CorrelationMethod.KENDALL for m in resolved_methods):
-        raise ValueError("Partial correlation currently supports Pearson and Spearman only.")
+        msg = "Partial correlation currently supports Pearson and Spearman only."
+        raise ValueError(msg)
     if len(set(resolved_methods)) != len(resolved_methods):
-        raise ValueError("Partial correlation methods cannot contain duplicates.")
+        msg = "Partial correlation methods cannot contain duplicates."
+        raise ValueError(msg)
     if not covariates:
-        raise ValueError("covariates cannot be empty for partial correlation.")
+        msg = "covariates cannot be empty for partial correlation."
+        raise ValueError(msg)
     numeric = _numeric_candidates(dataset)
     invalid_covariates = [c for c in covariates if c not in numeric]
     if invalid_covariates:
-        raise ValueError(
-            f"Partial-correlation covariates must be eligible numeric columns: {invalid_covariates}."
-        )
+        msg = f"Partial-correlation covariates must be eligible numeric columns: {invalid_covariates}."
+        raise ValueError(msg)
     candidates = tuple(c for c in numeric if c not in set(covariates))
     if len(candidates) > max_columns:
-        raise ValueError("Eligible partial-correlation columns exceed max_columns.")
+        msg = "Eligible partial-correlation columns exceed max_columns."
+        raise ValueError(msg)
     selected_pairs = (
         tuple(combinations(candidates, 2)) if pairs is None else tuple((str(x), str(y)) for x, y in pairs)
     )
@@ -144,7 +151,8 @@ def summarize_partial_correlations(
         (x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates
     ]
     if invalid_pairs:
-        raise ValueError(f"Invalid partial-correlation pairs: {invalid_pairs}.")
+        msg = f"Invalid partial-correlation pairs: {invalid_pairs}."
+        raise ValueError(msg)
 
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     frame = dataset.to_frame()
@@ -305,20 +313,25 @@ def summarize_general_dependence(
     methods = tuple(str(m).lower() for m in methods)
     allowed = {"distance_correlation", "mutual_information"}
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):
-        raise ValueError("methods must be unique distance_correlation/mutual_information values.")
+        msg = "methods must be unique distance_correlation/mutual_information values."
+        raise ValueError(msg)
     if n_permutations < 0:
-        raise ValueError("n_permutations cannot be negative.")
+        msg = "n_permutations cannot be negative."
+        raise ValueError(msg)
     if mutual_information_neighbors < 1:
-        raise ValueError("mutual_information_neighbors must be at least 1.")
+        msg = "mutual_information_neighbors must be at least 1."
+        raise ValueError(msg)
     candidates = _dependence_candidates(dataset)
     if len(candidates) > max_columns:
-        raise ValueError("Eligible dependence columns exceed max_columns.")
+        msg = "Eligible dependence columns exceed max_columns."
+        raise ValueError(msg)
     selected_pairs = (
         tuple(combinations(candidates, 2)) if pairs is None else tuple((str(x), str(y)) for x, y in pairs)
     )
     invalid = [(x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates]
     if invalid:
-        raise ValueError(f"Invalid dependence pairs: {invalid}.")
+        msg = f"Invalid dependence pairs: {invalid}."
+        raise ValueError(msg)
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     frame = dataset.to_frame()
     rng = np.random.default_rng(random_state)
@@ -374,37 +387,36 @@ def summarize_general_dependence(
                             if n_permutations
                             else np.nan
                         )
+            elif pair[x_name].nunique(dropna=True) < 2 or pair[y_name].nunique(dropna=True) < 2:
+                row["status"] = "degenerate"
+                row["reason"] = "constant_variable"
             else:
-                if pair[x_name].nunique(dropna=True) < 2 or pair[y_name].nunique(dropna=True) < 2:
-                    row["status"] = "degenerate"
-                    row["reason"] = "constant_variable"
-                else:
-                    value = _mutual_information(
-                        pair[x_name],
-                        pair[y_name],
-                        x_kind,
-                        y_kind,
-                        n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
-                        random_state=random_state,
-                    )
-                    row["statistic"] = value
-                    if n_permutations:
-                        extreme = 0
-                        y_values = pair[y_name].to_numpy(copy=True)
-                        for permutation_index in range(n_permutations):
-                            permuted = pair.copy()
-                            permuted[y_name] = y_values[rng.permutation(n)]
-                            permuted_value = _mutual_information(
-                                permuted[x_name],
-                                permuted[y_name],
-                                x_kind,
-                                y_kind,
-                                n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
-                                random_state=random_state + permutation_index + 1,
-                            )
-                            if permuted_value >= value - 1e-15:
-                                extreme += 1
-                        row["p_value"] = float((extreme + 1) / (n_permutations + 1))
+                value = _mutual_information(
+                    pair[x_name],
+                    pair[y_name],
+                    x_kind,
+                    y_kind,
+                    n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
+                    random_state=random_state,
+                )
+                row["statistic"] = value
+                if n_permutations:
+                    extreme = 0
+                    y_values = pair[y_name].to_numpy(copy=True)
+                    for permutation_index in range(n_permutations):
+                        permuted = pair.copy()
+                        permuted[y_name] = y_values[rng.permutation(n)]
+                        permuted_value = _mutual_information(
+                            permuted[x_name],
+                            permuted[y_name],
+                            x_kind,
+                            y_kind,
+                            n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
+                            random_state=random_state + permutation_index + 1,
+                        )
+                        if permuted_value >= value - 1e-15:
+                            extreme += 1
+                    row["p_value"] = float((extreme + 1) / (n_permutations + 1))
             outputs[method].append(row)
     tables = []
     for method in ("distance_correlation", "mutual_information"):
