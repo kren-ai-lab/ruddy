@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class FeatureMatrix:
-    """Validated numeric observations × features matrix with explicit identity."""
+    """Validated numeric observations x features matrix with explicit identity."""
 
     def __init__(
         self,
@@ -37,6 +37,7 @@ class FeatureMatrix:
         metadata_alignment: AlignmentMode | str = AlignmentMode.STRICT,
         provenance: Mapping[str, Any] | None = None,
     ) -> None:
+        """Initialize a feature matrix from numeric input data."""
         matrix, inferred_ids, inferred_names = self._normalize_matrix(data)
         n_rows, n_features = matrix.shape
 
@@ -108,34 +109,42 @@ class FeatureMatrix:
 
     @property
     def shape(self) -> tuple[int, int]:
+        """Return the dimensions of the feature matrix."""
         return self._matrix.shape
 
     @property
     def n_observations(self) -> int:
+        """Return the number of observations."""
         return self.shape[0]
 
     @property
     def n_features(self) -> int:
+        """Return the number of features."""
         return self.shape[1]
 
     @property
     def observation_ids(self) -> pd.Index:
+        """Return a copy of the observation identifiers."""
         return self._observation_ids.copy()
 
     @property
     def feature_names(self) -> tuple[str, ...]:
+        """Return the names of the features."""
         return self._feature_names
 
     @property
     def is_sparse(self) -> bool:
+        """Return whether the underlying matrix is sparse."""
         return sparse.issparse(self._matrix)
 
     @property
     def metadata(self) -> pd.DataFrame | None:
+        """Return a copy of the aligned metadata, if any."""
         return None if self._metadata is None else self._metadata.copy(deep=True)
 
     @property
     def alignment_report(self) -> AlignmentReport | None:
+        """Return the report from metadata alignment, if any."""
         return self._alignment_report
 
     @property
@@ -156,9 +165,11 @@ class FeatureMatrix:
         return sparse.csr_matrix(self._matrix)
 
     def __len__(self) -> int:
+        """Return the number of observations."""
         return self.n_observations
 
     def __repr__(self) -> str:
+        """Return a string representation of the feature matrix."""
         return (
             f"FeatureMatrix(n_observations={self.n_observations}, "
             f"n_features={self.n_features}, sparse={self.is_sparse})"

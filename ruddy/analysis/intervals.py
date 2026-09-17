@@ -24,11 +24,15 @@ from ruddy.statistics.effect_sizes import hedges_g
 from ruddy.univariate.categorical import _category_label
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ruddy.data import TabularDataset
 
 
 @dataclass(frozen=True, slots=True)
 class ConfidenceIntervalResult:
+    """Confidence intervals for dataset estimands."""
+
     means: pd.DataFrame
     correlations: pd.DataFrame
     mean_differences: pd.DataFrame
@@ -52,7 +56,7 @@ def _numeric(dataset: TabularDataset) -> tuple[str, ...]:
     )
 
 
-def _correlation_statistic(method: CorrelationMethod):
+def _correlation_statistic(method: CorrelationMethod) -> Callable[[np.ndarray, np.ndarray], float]:
     if method is CorrelationMethod.PEARSON:
         return lambda x, y: float(stats.pearsonr(x, y).statistic)
     if method is CorrelationMethod.SPEARMAN:

@@ -15,6 +15,8 @@ from ruddy.results import AnalysisProvenance
 
 @dataclass(frozen=True, slots=True)
 class CompositionalResult:
+    """Results of explicit log-ratio compositional analysis."""
+
     transformed: FeatureMatrix
     variation_matrix: pd.DataFrame
     aitchison_distances: pd.DataFrame
@@ -23,6 +25,7 @@ class CompositionalResult:
 
 
 def closure(array: np.ndarray, *, total: float = 1.0) -> np.ndarray:
+    """Normalize rows of a matrix to sum to a constant."""
     x = np.asarray(array, dtype=float)
     if x.ndim != 2:
         msg = "Compositional closure requires a two-dimensional matrix."
@@ -46,6 +49,7 @@ def multiplicative_zero_replacement(
     fraction: float = 0.65,
     total: float = 1.0,
 ) -> tuple[np.ndarray, pd.DataFrame]:
+    """Replace structural zeros using multiplicative replacement."""
     if not 0 < fraction < 1:
         msg = "zero_replacement_fraction must lie strictly between 0 and 1."
         raise ValueError(msg)
@@ -74,6 +78,7 @@ def multiplicative_zero_replacement(
 
 
 def clr_transform(array: np.ndarray) -> np.ndarray:
+    """Apply the centered log-ratio transform."""
     x = closure(array)
     if (x <= 0).any():
         msg = "CLR requires strictly positive compositions; enable explicit zero replacement first."
@@ -83,6 +88,7 @@ def clr_transform(array: np.ndarray) -> np.ndarray:
 
 
 def alr_transform(array: np.ndarray, *, denominator: int = -1) -> np.ndarray:
+    """Apply the additive log-ratio transform."""
     x = closure(array)
     if (x <= 0).any():
         msg = "ALR requires strictly positive compositions; enable explicit zero replacement first."
@@ -94,6 +100,7 @@ def alr_transform(array: np.ndarray, *, denominator: int = -1) -> np.ndarray:
 
 
 def ilr_transform(array: np.ndarray) -> np.ndarray:
+    """Apply the isometric log-ratio transform."""
     x = closure(array)
     if (x <= 0).any():
         msg = "ILR requires strictly positive compositions; enable explicit zero replacement first."
@@ -104,6 +111,7 @@ def ilr_transform(array: np.ndarray) -> np.ndarray:
 
 
 def variation_matrix(array: np.ndarray, feature_names: tuple[str, ...]) -> pd.DataFrame:
+    """Compute the Aitchison variation matrix for the features."""
     x = closure(array)
     if (x <= 0).any():
         msg = "Variation matrix requires strictly positive compositions."
@@ -118,6 +126,7 @@ def variation_matrix(array: np.ndarray, feature_names: tuple[str, ...]) -> pd.Da
 
 
 def aitchison_distance_matrix(array: np.ndarray, observation_ids: pd.Index) -> pd.DataFrame:
+    """Compute pairwise Aitchison distances between observations."""
     clr = clr_transform(array)
     dist = squareform(pdist(clr, metric="euclidean"))
     return pd.DataFrame(dist, index=observation_ids, columns=observation_ids)
@@ -133,7 +142,10 @@ def analyze_composition(
 ) -> CompositionalResult:
     """Apply explicit log-ratio compositional analysis to a dense feature matrix."""
     if features.is_sparse:
-        msg = "Compositional analysis currently requires dense input; Ruddy will not silently densify sparse matrices."
+        msg = (
+            "Compositional analysis currently requires dense input; "
+            "Ruddy will not silently densify sparse matrices."
+        )
         raise ValueError(msg)
     raw = features.to_array().astype(float)
     if not np.isfinite(raw).all():
@@ -153,7 +165,10 @@ def analyze_composition(
             }
         )
         if (prepared <= 0).any():
-            msg = "Log-ratio transforms require strictly positive compositions; set replace_zeros=True explicitly."
+            msg = (
+                "Log-ratio transforms require strictly positive compositions; "
+                "set replace_zeros=True explicitly."
+            )
             raise ValueError(msg)
     transform = str(transform).lower()
     if transform == "clr":

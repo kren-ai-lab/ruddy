@@ -260,7 +260,10 @@ def analyze(
             response = cfg.marginal_response
             if response is None:
                 if len(cfg.responses) != 1:
-                    msg = "Marginal-means block requires marginal_response, marginal_formula, or exactly one configured response."
+                    msg = (
+                        "Marginal-means block requires marginal_response, marginal_formula, "
+                        "or exactly one configured response."
+                    )
                     raise ValueError(msg)
                 response = cfg.responses[0]
             mm_factors = cfg.marginal_factors or factors
@@ -290,7 +293,10 @@ def analyze(
             response = cfg.mixed_response
             if response is None:
                 if len(cfg.responses) != 1:
-                    msg = "Mixed-effects block requires mixed_response, mixed_formula, or exactly one configured response."
+                    msg = (
+                        "Mixed-effects block requires mixed_response, mixed_formula, "
+                        "or exactly one configured response."
+                    )
                     raise ValueError(msg)
                 response = cfg.responses[0]
             mixed_factors = cfg.mixed_factors or factors

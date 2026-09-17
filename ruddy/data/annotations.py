@@ -37,6 +37,7 @@ class AlignedAnnotations:
         roles: Mapping[str, ColumnRole],
         kinds: Mapping[str, ColumnKind],
     ) -> None:
+        """Initialize an aligned annotation source."""
         name = str(source_name).strip()
         if not name:
             msg = "source_name must be non-empty."
@@ -50,36 +51,45 @@ class AlignedAnnotations:
 
     @property
     def source_name(self) -> str:
+        """Return the logical name of this annotation source."""
         return self._source_name
 
     @property
     def coverage(self) -> AnnotationCoverage:
+        """Return the observation coverage state."""
         return self._coverage
 
     @property
     def report(self) -> AlignmentReport | None:
+        """Return the metadata alignment report, if any."""
         return self._report
 
     @property
     def columns(self) -> tuple[str, ...]:
+        """Return the column names in this annotation source."""
         return tuple(str(column) for column in self._data.columns)
 
     @property
     def roles(self) -> Mapping[str, ColumnRole]:
+        """Return the assigned statistical roles for the annotation columns."""
         return self._roles
 
     @property
     def kinds(self) -> Mapping[str, ColumnKind]:
+        """Return the inferred data kinds for the annotation columns."""
         return self._kinds
 
     @property
     def available(self) -> bool:
+        """Return whether this annotation source contains data."""
         return self._coverage is not AnnotationCoverage.ABSENT
 
     def to_frame(self) -> pd.DataFrame:
+        """Return a defensive copy of the aligned annotations."""
         return self._data.copy(deep=True)
 
     def summary(self) -> dict[str, Any]:
+        """Return a summary of the alignment and coverage."""
         payload: dict[str, Any] = {
             "source_name": self.source_name,
             "coverage": self.coverage.value,

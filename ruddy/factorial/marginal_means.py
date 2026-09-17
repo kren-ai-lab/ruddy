@@ -19,6 +19,8 @@ from ruddy.results import AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
 
 if TYPE_CHECKING:
+    from patsy.design_info import DesignInfo
+
     from ruddy.data import TabularDataset
 
 MEAN_COLUMNS = (
@@ -127,7 +129,7 @@ def _grid_l_vectors(
     design: FactorialDesign,
     factor_safe: dict[str, str],
     covariate_safe: dict[str, str],
-    design_info,
+    design_info: DesignInfo,
     term: tuple[str, ...],
 ) -> list[tuple[tuple[object, ...], np.ndarray]]:
     levels = {name: list(pd.unique(model_frame[name])) for name in design.factors}

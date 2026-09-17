@@ -64,6 +64,7 @@ class UnifiedAnalysisResult:
     provenance: AnalysisProvenance | None = None
 
     def __post_init__(self) -> None:
+        """Normalize executed block enums and check for duplicates."""
         blocks = tuple(
             block if isinstance(block, AnalysisBlock) else AnalysisBlock(block)
             for block in self.executed_blocks

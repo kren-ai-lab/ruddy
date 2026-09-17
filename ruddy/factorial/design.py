@@ -51,14 +51,17 @@ class FactorialTerm:
 
     @property
     def order(self) -> int:
+        """Return the number of constituent columns in the term."""
         return len(self.columns)
 
     @property
     def label(self) -> str:
+        """Return the colon-separated string representation of the term."""
         return ":".join(self.columns)
 
     @property
     def term_type(self) -> str:
+        """Return the term classification as factor, covariate, or interaction."""
         if self.order == 1:
             return self.kinds[0]
         return "interaction"
@@ -79,6 +82,7 @@ class FactorialDesign:
 
     @property
     def predictors(self) -> tuple[str, ...]:
+        """Return the combined sequence of all factors and covariates."""
         return (*self.factors, *self.covariates)
 
 
@@ -311,21 +315,20 @@ def build_factorial_design(
                     hierarchical.append(canonical)
 
     factor_set = set(factor_names)
-    terms: list[FactorialTerm] = []
-    for name in predictor_order:
-        terms.append(
-            FactorialTerm(
-                columns=(name,),
-                kinds=("factor" if name in factor_set else "covariate",),
-            )
+    terms: list[FactorialTerm] = [
+        FactorialTerm(
+            columns=(name,),
+            kinds=("factor" if name in factor_set else "covariate",),
         )
-    for term in hierarchical:
-        terms.append(
-            FactorialTerm(
-                columns=term,
-                kinds=tuple("factor" if name in factor_set else "covariate" for name in term),
-            )
+        for name in predictor_order
+    ]
+    terms.extend(
+        FactorialTerm(
+            columns=term,
+            kinds=tuple("factor" if name in factor_set else "covariate" for name in term),
         )
+        for term in hierarchical
+    )
 
     if not terms:
         msg = "Factorial analysis requires at least one factor or covariate."

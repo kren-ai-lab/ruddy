@@ -11,6 +11,7 @@ from pandas.api.types import (
     is_complex_dtype,
     is_datetime64_any_dtype,
     is_numeric_dtype,
+    is_object_dtype,
     is_timedelta64_dtype,
 )
 
@@ -46,7 +47,7 @@ def infer_column_kind(series: pd.Series) -> ColumnKind:
         return ColumnKind.DATETIME
     if is_numeric_dtype(dtype):
         return ColumnKind.NUMERIC
-    if isinstance(dtype, pd.CategoricalDtype) or dtype == object or isinstance(dtype, pd.StringDtype):
+    if isinstance(dtype, pd.CategoricalDtype) or is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype):
         return ColumnKind.CATEGORICAL
     return ColumnKind.UNKNOWN
 

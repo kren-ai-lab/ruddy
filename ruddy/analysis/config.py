@@ -197,6 +197,7 @@ class AnalysisConfig:
     anomaly_lof_neighbors: int = 20
 
     def __post_init__(self) -> None:
+        """Initialize computed fields and normalize inputs."""
         roles = {
             column: role if isinstance(role, ColumnRole) else ColumnRole(role)
             for column, role in self.role_overrides.items()
@@ -821,6 +822,7 @@ class AnalysisConfig:
         }
 
     def permanova_kwargs(self) -> dict[str, Any]:
+        """Return controls used by PERMANOVA analysis."""
         return {
             "metric": self.permanova_metric,
             "n_permutations": self.permanova_permutations,
@@ -831,6 +833,7 @@ class AnalysisConfig:
         }
 
     def posthoc_kwargs(self) -> dict[str, Any]:
+        """Return controls used by post-hoc analysis."""
         return {
             "methods": self.posthoc_methods,
             "confidence_level": self.confidence_level,
@@ -839,6 +842,7 @@ class AnalysisConfig:
         }
 
     def marginal_means_kwargs(self) -> dict[str, Any]:
+        """Return controls used by marginal means analysis."""
         return {
             "confidence_level": self.confidence_level,
             "p_adjust": self.marginal_p_adjust,
@@ -846,6 +850,7 @@ class AnalysisConfig:
         }
 
     def mixed_effects_kwargs(self) -> dict[str, Any]:
+        """Return controls used by mixed-effects analysis."""
         return {
             "random_slopes": self.mixed_random_slopes,
             "reml": self.mixed_reml,
@@ -858,6 +863,7 @@ class AnalysisConfig:
         }
 
     def representation_kwargs(self) -> dict[str, Any]:
+        """Return controls used by representation analysis."""
         return {
             "alignment": self.representation_alignment,
             "cca_components": self.representation_cca_components,
@@ -871,6 +877,7 @@ class AnalysisConfig:
         }
 
     def compositional_kwargs(self) -> dict[str, Any]:
+        """Return controls used by compositional analysis."""
         return {
             "transform": self.compositional_transform,
             "replace_zeros": self.compositional_replace_zeros,
@@ -879,6 +886,7 @@ class AnalysisConfig:
         }
 
     def bayesian_kwargs(self) -> dict[str, Any]:
+        """Return controls used by Bayesian analysis."""
         return {
             "variables": self.bayesian_variables or None,
             "groups": self.bayesian_groups or self.groups,
@@ -890,6 +898,7 @@ class AnalysisConfig:
         }
 
     def anomaly_kwargs(self) -> dict[str, Any]:
+        """Return controls used by anomaly detection."""
         return {
             "methods": self.anomaly_methods,
             "scaling": self.anomaly_scaling,

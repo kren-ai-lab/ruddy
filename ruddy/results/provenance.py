@@ -25,10 +25,12 @@ class AnalysisProvenance:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
+        """Freeze provenance mappings to prevent mutation."""
         object.__setattr__(self, "parameters", MappingProxyType(dict(self.parameters)))
         object.__setattr__(self, "input_summary", MappingProxyType(dict(self.input_summary)))
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the provenance record serialized as a native dictionary."""
         return {
             "analysis": self.analysis,
             "parameters": dict(self.parameters),

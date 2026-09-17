@@ -44,13 +44,16 @@ class AlignmentReport:
 
     @property
     def coverage_fraction(self) -> float:
+        """Return the fraction of base observations present in the annotations."""
         return self.covered_count / self.base_count if self.base_count else 1.0
 
     @property
     def complete(self) -> bool:
+        """Return whether alignment matched exactly one-to-one."""
         return not self.missing_ids and not self.unmatched_ids
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a dictionary representation of the alignment report."""
         return {
             "mode": self.mode.value,
             "base_count": self.base_count,

@@ -17,6 +17,8 @@ from ruddy.core.enums import ResultStatus
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from statsmodels.regression.linear_model import RegressionResultsWrapper
+
 DIAGNOSTIC_COLUMNS = (
     "diagnostic",
     "statistic",
@@ -139,7 +141,7 @@ def build_factorial_cells(
 
 
 def model_diagnostics(
-    model,
+    model: RegressionResultsWrapper,
     *,
     model_frame: pd.DataFrame,
     source_row_indices: np.ndarray,

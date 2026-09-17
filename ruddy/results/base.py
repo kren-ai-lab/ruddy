@@ -25,11 +25,13 @@ class Advisory:
     context: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        """Normalize the advisory level and freeze the context mapping."""
         level = self.level if isinstance(self.level, AdvisoryLevel) else AdvisoryLevel(self.level)
         object.__setattr__(self, "level", level)
         object.__setattr__(self, "context", MappingProxyType(dict(self.context)))
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the advisory serialized as a native dictionary."""
         return {
             "code": self.code,
             "message": self.message,
@@ -48,6 +50,7 @@ class AnalysisResult:
     provenance: AnalysisProvenance | None = None
 
     def __post_init__(self) -> None:
+        """Normalize the status enum and validate the reason contract."""
         status = self.status if isinstance(self.status, ResultStatus) else ResultStatus(self.status)
         object.__setattr__(self, "status", status)
         if self.status is ResultStatus.OK and self.reason is not None:
@@ -64,6 +67,7 @@ class AnalysisResult:
         advisories: tuple[Advisory, ...] = (),
         provenance: AnalysisProvenance | None = None,
     ) -> AnalysisResult:
+        """Return an explicitly successful result."""
         return cls(
             status=ResultStatus.OK,
             advisories=advisories,
@@ -78,6 +82,7 @@ class AnalysisResult:
         advisories: tuple[Advisory, ...] = (),
         provenance: AnalysisProvenance | None = None,
     ) -> AnalysisResult:
+        """Return an explicitly degenerate result."""
         return cls(
             status=ResultStatus.DEGENERATE,
             reason=reason,
@@ -93,6 +98,7 @@ class AnalysisResult:
         advisories: tuple[Advisory, ...] = (),
         provenance: AnalysisProvenance | None = None,
     ) -> AnalysisResult:
+        """Return an explicitly skipped result."""
         return cls(
             status=ResultStatus.SKIPPED,
             reason=reason,
@@ -101,6 +107,7 @@ class AnalysisResult:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the base result state serialized as a native dictionary."""
         return {
             "status": self.status.value,
             "reason": self.reason,
