@@ -22,7 +22,7 @@ def _assert_value(observed, expected) -> None:
         np.testing.assert_allclose(observed, expected, rtol=1e-10, atol=1e-12)
 
 
-def test_shared_phase3_metrics_match_frozen_reference() -> None:
+def test_bivariate_metrics_match_frozen_reference() -> None:
     frame = pd.read_csv(ROOT / "fixtures" / "mixed_tabular.csv")
     dataset = TabularDataset(frame, id_column="observation_id")
     expected = json.loads((ROOT / "reference" / "bivariate_reference.json").read_text())

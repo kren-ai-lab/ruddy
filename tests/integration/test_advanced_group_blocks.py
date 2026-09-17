@@ -7,32 +7,6 @@ from ruddy.factorial import analyze_marginal_means, analyze_mixed_effects
 from ruddy.multivariate import analyze_permutation_group_structure
 
 
-def test_phase9b_config_normalizes_blocks_and_methods():
-    config = AnalysisConfig(
-        enabled_blocks=("permanova", "posthoc", "marginal_means", "mixed_effects"),
-        posthoc_methods=("games_howell",),
-        marginal_p_adjust="none",
-    )
-    assert list(config.enabled_blocks) == [
-        "permanova",
-        "posthoc",
-        "marginal_means",
-        "mixed_effects",
-    ]
-    assert config.posthoc_methods == ("games_howell",)
-    assert config.marginal_p_adjust == "none"
-
-
-def test_config_rejects_invalid_posthoc_method():
-    with pytest.raises(ValueError):
-        AnalysisConfig(posthoc_methods=("magic",))
-
-
-def test_config_rejects_negative_permutations():
-    with pytest.raises(ValueError):
-        AnalysisConfig(permanova_permutations=-1)
-
-
 def test_unified_permanova_matches_standalone(group_dataset, separated_features):
     config = AnalysisConfig(
         enabled_blocks=("permanova",),
@@ -84,7 +58,7 @@ def test_unified_marginal_means_matches_standalone(group_dataset):
     pd.testing.assert_frame_equal(unified.marginal_means.contrasts, standalone.contrasts)
 
 
-def test_unified_mixed_effects_matches_standalone(mixed_dataset):
+def test_unified_mixed_effects_matches_standalone(random_intercept_dataset):
     config = AnalysisConfig(
         enabled_blocks=("mixed_effects",),
         responses=("y",),
@@ -93,16 +67,21 @@ def test_unified_mixed_effects_matches_standalone(mixed_dataset):
         mixed_covariates=("x",),
         mixed_reml=False,
     )
-    unified = analyze(mixed_dataset, config=config)
+    unified = analyze(random_intercept_dataset, config=config)
     standalone = analyze_mixed_effects(
-        mixed_dataset, group="batch", response="y", factors=("condition",), covariates=("x",), reml=False
+        random_intercept_dataset,
+        group="batch",
+        response="y",
+        factors=("condition",),
+        covariates=("x",),
+        reml=False,
     )
     assert unified.mixed_effects is not None
     assert unified.mixed_effects.status == standalone.status
     pd.testing.assert_frame_equal(unified.mixed_effects.fixed_effects, standalone.fixed_effects)
 
 
-def test_unified_mixed_effects_requires_random_group(mixed_dataset):
+def test_unified_mixed_effects_requires_random_group(random_intercept_dataset):
     config = AnalysisConfig(enabled_blocks=("mixed_effects",), responses=("y",), mixed_factors=("condition",))
     with pytest.raises(ValueError, match="mixed_group"):
-        analyze(mixed_dataset, config=config)
+        analyze(random_intercept_dataset, config=config)

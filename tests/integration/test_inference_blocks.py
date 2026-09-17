@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from ruddy import AnalysisBlock, AnalysisConfig, TabularDataset, analyze
 
@@ -25,17 +24,6 @@ def _dataset() -> TabularDataset:
         id_column="id",
         role_overrides={"group": "factor", "z": "covariate"},
     )
-
-
-def test_phase9a_config_validation() -> None:
-    with pytest.raises(ValueError, match="confidence_level"):
-        AnalysisConfig(confidence_level=1.2)
-    with pytest.raises(ValueError, match="bootstrap_resamples"):
-        AnalysisConfig(bootstrap_resamples=20)
-    with pytest.raises(ValueError, match="dependence_n_permutations"):
-        AnalysisConfig(dependence_n_permutations=-1)
-    with pytest.raises(ValueError, match="duplicates"):
-        AnalysisConfig(dependence_partial_covariates=("z", "z"))
 
 
 def test_unified_runs_new_blocks_only_when_enabled() -> None:

@@ -124,7 +124,7 @@ def test_intervals_cli(tmp_path: Path) -> None:
     assert (out / "effect_size_intervals.csv").exists()
 
 
-def test_unified_cli_writes_phase9a_subdirectories(tmp_path: Path) -> None:
+def test_pipeline_cli_writes_inference_subdirectories(tmp_path: Path) -> None:
     source = tmp_path / "data.csv"
     out = tmp_path / "all"
     _write_dataset(source)

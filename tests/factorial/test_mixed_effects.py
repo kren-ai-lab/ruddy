@@ -3,9 +3,9 @@ import numpy as np
 from ruddy.factorial import analyze_mixed_effects
 
 
-def test_random_intercept_mixed_model_recovers_fixed_effects(mixed_dataset):
+def test_random_intercept_mixed_model_recovers_fixed_effects(random_intercept_dataset):
     result = analyze_mixed_effects(
-        mixed_dataset,
+        random_intercept_dataset,
         group="batch",
         response="y",
         factors=("condition",),
@@ -19,9 +19,9 @@ def test_random_intercept_mixed_model_recovers_fixed_effects(mixed_dataset):
     assert len(result.fixed_effects) == 3
 
 
-def test_mixed_model_requires_enough_groups(mixed_dataset):
+def test_mixed_model_requires_enough_groups(random_intercept_dataset):
     result = analyze_mixed_effects(
-        mixed_dataset,
+        random_intercept_dataset,
         group="batch",
         response="y",
         factors=("condition",),
@@ -32,10 +32,10 @@ def test_mixed_model_requires_enough_groups(mixed_dataset):
     assert result.reason == "insufficient_groups"
 
 
-def test_random_slope_must_be_numeric_covariate(mixed_dataset):
+def test_random_slope_must_be_numeric_covariate(random_intercept_dataset):
     try:
         analyze_mixed_effects(
-            mixed_dataset,
+            random_intercept_dataset,
             group="batch",
             response="y",
             factors=("condition",),
@@ -49,10 +49,10 @@ def test_random_slope_must_be_numeric_covariate(mixed_dataset):
         raise AssertionError(msg)
 
 
-def test_mixed_model_tracks_exclusions(mixed_dataset):
+def test_mixed_model_tracks_exclusions(random_intercept_dataset):
     from ruddy import TabularDataset
 
-    frame = mixed_dataset.to_frame()
+    frame = random_intercept_dataset.to_frame()
     frame.loc[0, "x"] = np.nan
     ds = TabularDataset(
         frame,

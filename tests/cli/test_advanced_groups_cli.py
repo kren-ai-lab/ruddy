@@ -154,7 +154,7 @@ def test_mixed_effects_cli(tmp_path):
     assert (out / "mixed_model_summary.json").exists()
 
 
-def test_unified_cli_phase9b_blocks(tmp_path):
+def test_pipeline_cli_writes_advanced_group_subdirectories(tmp_path):
     data = tmp_path / "data.csv"
     feat = tmp_path / "feat.csv"
     out = tmp_path / "all"
