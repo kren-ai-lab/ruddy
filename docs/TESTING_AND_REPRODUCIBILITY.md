@@ -7,23 +7,21 @@ Ruddy's current scientific MVP is protected by unit, integration, parity, pathol
 From a working checkout:
 
 ```bash
-python -m compileall -q ruddy tests
-pytest -q
+uv run pytest -q
 ```
 
-The reconstructed Phase 11 codebase used to prepare this documentation passes the complete test suite before documentation-only additions.
+## Test layout
 
-## Scientific freeze gate
+`tests/` has one directory per `ruddy/` package (`tests/bivariate`, `tests/factorial`, ...) plus four cross-cutting suites:
 
-Phase 10 introduced:
+| Directory | Purpose |
+| --- | --- |
+| `tests/integration` | Unified `analyze()` blocks versus their standalone APIs |
+| `tests/robustness` | Pathological data, high-dimensional guards and invariants (see below) |
+| `tests/parity` | Frozen numerical references for univariate and bivariate statistics |
+| `tests/examples` | Structural checks on the example notebooks |
 
-```bash
-python tools/run_scientific_freeze_gate.py
-```
-
-The gate runs compilation, the dedicated Phase 10 torture suite and the global suite.
-
-## What the torture suite targets
+## What the robustness suite targets
 
 The scientific freeze is not based only on ordinary happy-path unit tests. It deliberately exercises conditions such as:
 
@@ -133,13 +131,7 @@ Benjamini–Hochberg correction uses deterministic stable sorting. `family_id`, 
 
 ## Notebook validation
 
-Phase 11 adds tests under:
-
-```text
-tests/phase11/
-```
-
-These verify that the rich demo notebooks:
+Tests under `tests/examples/` verify that the rich demo notebooks:
 
 - exist and are executed;
 - contain no error outputs;
@@ -167,3 +159,9 @@ After freeze, a change should be treated carefully if it alters:
 - provenance semantics.
 
 Such changes can invalidate notebooks, downstream applications or scientific reproducibility and should therefore receive dedicated tests and release notes.
+
+Scientific modules are only modified for a reproducible bug, a real backend incompatibility, an inconsistency between the standalone and unified APIs, or a demonstrated numerical problem, never for stylistic reasons alone. The procedure is:
+
+```text
+reproducible bug → failing test → minimal fix → full test suite → documented change
+```

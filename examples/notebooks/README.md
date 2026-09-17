@@ -1,6 +1,6 @@
 # Ruddy strong analytical and visualization notebooks
 
-Phase 11 is the demonstration layer for Ruddy. These notebooks intentionally go beyond smoke-test plots: each notebook combines structured Ruddy results with raw observations where appropriate to show distributions, group differences, uncertainty, nonlinear dependence, multivariate geometry, representation similarity and anomaly structure.
+These notebooks are the demonstration layer for Ruddy. They intentionally go beyond smoke-test plots: each notebook combines structured Ruddy results with raw observations where appropriate to show distributions, group differences, uncertainty, nonlinear dependence, multivariate geometry, representation similarity and anomaly structure.
 
 Visualization dependencies remain entirely outside `ruddy`. The scientific core produces structured results; the notebooks demonstrate how a future local visual application can render those results.
 
@@ -42,4 +42,4 @@ python tools/run_notebook_gate.py --mode python
 
 Full Jupyter execution for one or all notebooks can be performed with `nbconvert`; the checked-in notebooks are already executed and contain static figure outputs. Selected notebooks also contain interactive Plotly views.
 
-The Phase-11 tests require multiple rendered figures per notebook and verify that visualization packages do not leak into the Ruddy core.
+The tests under `tests/examples` require multiple rendered figures per notebook and verify that visualization packages do not leak into the Ruddy core.

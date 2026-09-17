@@ -20,7 +20,7 @@ def validate_result_table(
 ) -> pd.DataFrame:
     """Validate a result table and return a defensive copy.
 
-    Analysis-specific schemas will extend this small global contract in later phases.
+    Analysis-specific tables declare their own columns through ``required_columns``.
     """
     if not isinstance(frame, pd.DataFrame):
         raise TypeError("Result tables must be pandas DataFrames.")

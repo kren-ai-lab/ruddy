@@ -25,7 +25,9 @@ task commands.
 
 ## Package Layout
 
-The package is a **flat layout** at `ruddy/` (migrated from `src/ruddy/`).
+The package is a **flat layout** at `ruddy/`. `tests/` mirrors it one directory
+per package, plus the cross-cutting suites `integration/`, `robustness/`,
+`parity/` and `examples/`.
 
 ## Development Workflow
 
@@ -37,8 +39,7 @@ format|lint|lint-fix|test|test-v|test-cov|pyrefly`).
 
 These are the most important rules for an agent working in this repository.
 They come from the "Design principles" section of `README.md` and the
-scientific-freeze rule in `docs/` (originally `RUDDY_PHASE14_HANDOFF_DIEGO.md`
-section 4.1).
+scientific-freeze rule described in `docs/TESTING_AND_REPRODUCIBILITY.md`.
 
 - **No silent coercion, row deletion, scaling, or dimensionality reduction.**
   Anything that changes what data is used or how it's transformed must be

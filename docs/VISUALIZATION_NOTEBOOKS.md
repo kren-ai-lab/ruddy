@@ -2,7 +2,7 @@
 
 Visualization is intentionally external to the Ruddy scientific core. The notebooks under `examples/notebooks/` demonstrate how the structured outputs can support publication-oriented and interactive figures.
 
-The plotting layer currently uses notebook-only dependencies such as Matplotlib and Plotly. No Matplotlib/Plotly imports are required by `src/ruddy`.
+The plotting layer currently uses notebook-only dependencies such as Matplotlib and Plotly. No Matplotlib/Plotly imports are required by `ruddy`.
 
 ## Notebook catalog
 

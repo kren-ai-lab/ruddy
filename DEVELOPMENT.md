@@ -11,6 +11,8 @@
 git clone https://github.com/kren-ai-lab/ruddy
 cd ruddy
 uv sync --all-extras
+# optional: dependencies for the example notebooks
+uv sync --all-extras --group notebooks
 ```
 
 ## Common Tasks
@@ -32,36 +34,31 @@ uv run ruddy --version
 uv run ruddy --help
 ```
 
-## Scientific Gates
+## Notebook Gate
 
-In addition to the regular test suite, Ruddy ships two dedicated gates under
-`tools/`:
+`tools/run_notebook_gate.py` executes every notebook under `examples/notebooks/`
+against the current scientific core (requires the `notebooks` group). Default
+mode runs each notebook's code cells in an isolated Python process
+(`MPLBACKEND=Agg`); `--mode jupyter` performs a full nbconvert execution
+(`--inplace` persists outputs).
 
 ```bash
-# Full scientific-freeze gate: compiles the package and tests, then runs the
-# phase10 regression suite followed by the full test suite.
-python tools/run_scientific_freeze_gate.py
-
-# Executes every visualization notebook under examples/notebooks/ to confirm
-# they still run against the current scientific core. Default mode runs each
-# notebook's code cells in an isolated Python process (MPLBACKEND=Agg); pass
-# --mode jupyter for a full nbconvert execution (--inplace to persist outputs).
-python tools/run_notebook_gate.py
-python tools/run_notebook_gate.py --mode jupyter --inplace
+uv run python tools/run_notebook_gate.py
+uv run python tools/run_notebook_gate.py --mode jupyter --inplace
 ```
 
-Run the scientific freeze gate before and after any change to a module under
-`ruddy/` other than the CLI or non-scientific plumbing — see `AGENTS.md` for
-the scientific-freeze rule.
+Run the full test suite before and after any change to a module under `ruddy/`
+other than the CLI or non-scientific plumbing — see `AGENTS.md` for the
+scientific-freeze rule.
 
 ## Project Structure
 
 See `AGENTS.md` for the full package layout under `ruddy/`.
 
 ```text
-ruddy/       # Flat package layout (migrated from src/ruddy/)
-tests/       # Mirrors the source tree
-tools/       # Scientific freeze and notebook validation gates
+ruddy/       # Flat package layout
+tests/       # One directory per ruddy/ package + integration, robustness, parity, examples
+tools/       # Notebook validation gate
 examples/    # Scripts and visualization notebooks
 docs/        # Technical documentation
 ```

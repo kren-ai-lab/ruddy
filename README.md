@@ -55,7 +55,7 @@ Ruddy is intentionally conservative about scientific automation.
 
 ## Installation
 
-Ruddy currently targets Python 3.11–3.13.
+Ruddy currently targets Python 3.11–3.14.
 
 ```bash
 python -m pip install -e .
@@ -268,17 +268,10 @@ Detailed technical documentation is available in [`docs/`](docs/README.md):
 The scientific core is covered by unit, integration, parity, pathological-data and reproducibility tests. To validate a working checkout:
 
 ```bash
-python -m compileall -q src tests
 pytest -q
 ```
 
-The dedicated scientific freeze gate is:
-
-```bash
-python tools/run_scientific_freeze_gate.py
-```
-
-The Phase 11 notebook demos have their own validation gates under `tests/phase11`.
+The example notebooks are checked by `tests/examples` and can be executed with `tools/run_notebook_gate.py`.
 
 ## Scope boundary
 
