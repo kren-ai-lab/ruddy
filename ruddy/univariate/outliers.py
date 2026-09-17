@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole, OutlierMethod, ResultStatus
 from ruddy.data import TabularDataset
@@ -131,14 +132,19 @@ def _status_for_numeric(
 
 def summarize_numeric_quality(
     dataset: TabularDataset,
-    columns: pd.DataFrame | None = None,
+    columns: pd.DataFrame | pl.DataFrame | None = None,
     *,
     min_numeric_n: int = 3,
 ) -> pd.DataFrame:
     """Summarize numeric data-quality states without changing source values."""
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
-    columns = profile_columns(dataset) if columns is None else columns
+    # ponytail: temporary pandas adapter, removed in task 3B
+    columns = (
+        profile_columns(dataset).to_pandas()
+        if columns is None
+        else (columns.to_pandas() if isinstance(columns, pl.DataFrame) else columns)
+    )
     selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []
@@ -469,7 +475,7 @@ def _robust_z_result(
 
 def summarize_outliers(
     dataset: TabularDataset,
-    columns: pd.DataFrame | None = None,
+    columns: pd.DataFrame | pl.DataFrame | None = None,
     *,
     methods: Iterable[OutlierMethod | str] = (OutlierMethod.IQR, OutlierMethod.ROBUST_Z),
     min_numeric_n: int = 3,
@@ -492,7 +498,12 @@ def summarize_outliers(
     if len(set(resolved_methods)) != len(resolved_methods):
         raise ValueError("methods cannot contain duplicates.")
 
-    columns = profile_columns(dataset) if columns is None else columns
+    # ponytail: temporary pandas adapter, removed in task 3B
+    columns = (
+        profile_columns(dataset).to_pandas()
+        if columns is None
+        else (columns.to_pandas() if isinstance(columns, pl.DataFrame) else columns)
+    )
     selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
     frame = dataset.to_frame()
     observation_ids = dataset.observation_ids
@@ -558,7 +569,8 @@ def analyze_outliers(
     resolved_methods = tuple(
         method if isinstance(method, OutlierMethod) else OutlierMethod(method) for method in methods
     )
-    columns = profile_columns(dataset)
+    # ponytail: temporary pandas adapter, removed in task 3B
+    columns = profile_columns(dataset).to_pandas()
     quality = summarize_numeric_quality(
         dataset,
         columns,

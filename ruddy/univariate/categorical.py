@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
@@ -157,7 +158,7 @@ def _profile(
 
 def summarize_categorical_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
+    columns: pd.DataFrame | pl.DataFrame,
     *,
     max_category_levels: int = 50,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -165,6 +166,9 @@ def summarize_categorical_statistics(
     if max_category_levels < 2:
         raise ValueError("max_category_levels must be at least 2.")
 
+    # ponytail: temporary pandas adapter, removed in task 3B
+    if isinstance(columns, pl.DataFrame):
+        columns = columns.to_pandas()
     selected = columns.loc[columns.apply(_eligible_categorical, axis=1)]
     frame = dataset.to_frame()
     summaries: list[dict[str, Any]] = []

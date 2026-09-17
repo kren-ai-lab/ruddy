@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
@@ -195,7 +196,7 @@ def _numeric_row(
 
 def summarize_numeric_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
+    columns: pd.DataFrame | pl.DataFrame,
     *,
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99),
     min_numeric_n: int = 3,
@@ -205,6 +206,9 @@ def summarize_numeric_statistics(
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
 
+    # ponytail: temporary pandas adapter, removed in task 3B
+    if isinstance(columns, pl.DataFrame):
+        columns = columns.to_pandas()
     selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
     frame = dataset.to_frame()
     rows = [

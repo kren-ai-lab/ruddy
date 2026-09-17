@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
+import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
@@ -56,9 +57,12 @@ def _eligible_datetime(profile: pd.Series) -> bool:
 
 def summarize_datetime_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
+    columns: pd.DataFrame | pl.DataFrame,
 ) -> pd.DataFrame:
     """Summarize eligible datetime variables without time-series interpretation."""
+    # ponytail: temporary pandas adapter, removed in task 3B
+    if isinstance(columns, pl.DataFrame):
+        columns = columns.to_pandas()
     frame = dataset.to_frame()
     rows: list[dict[str, Any]] = []
     selected = columns.loc[columns.apply(_eligible_datetime, axis=1)]
@@ -100,13 +104,16 @@ def summarize_datetime_statistics(
 
 def summarize_univariate(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
+    columns: pd.DataFrame | pl.DataFrame,
     *,
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99),
     min_numeric_n: int = 3,
     max_category_levels: int = 50,
 ) -> UnivariateTables:
     """Compute all univariate descriptive tables."""
+    # ponytail: temporary pandas adapter, removed in task 3B
+    if isinstance(columns, pl.DataFrame):
+        columns = columns.to_pandas()
     quantiles = validate_quantiles(quantiles)
     numeric = summarize_numeric_statistics(
         dataset,
@@ -144,9 +151,11 @@ def analyze_univariate(
         max_missingness_patterns=max_missingness_patterns,
         max_pairwise_columns=max_pairwise_columns,
     )
+    # ponytail: temporary pandas adapter, removed in task 3B
+    columns = profiling.columns.to_pandas()
     tables = summarize_univariate(
         dataset,
-        profiling.columns,
+        columns,
         quantiles=quantiles,
         min_numeric_n=min_numeric_n,
         max_category_levels=max_category_levels,

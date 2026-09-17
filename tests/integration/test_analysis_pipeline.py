@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import polars.testing as pl_testing
 import pytest
 from pandas.testing import assert_frame_equal
 
@@ -50,8 +51,8 @@ def test_profiling_matches_standalone(pipeline_dataset):
     standalone = profile_dataset(pipeline_dataset, **config.profiling_kwargs())
     assert result.profiling is not None
     assert result.profiling.overview == standalone.overview
-    assert_frame_equal(result.profiling.columns, standalone.columns)
-    assert_frame_equal(result.profiling.missingness, standalone.missingness)
+    pl_testing.assert_frame_equal(result.profiling.columns, standalone.columns)
+    pl_testing.assert_frame_equal(result.profiling.missingness, standalone.missingness)
 
 
 def test_univariate_matches_standalone(pipeline_dataset):
