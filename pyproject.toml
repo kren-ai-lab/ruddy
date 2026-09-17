@@ -104,7 +104,6 @@ ignore = [
     "CPY001",
     "D203",
     "D213",
-    "N802",
     "N803",
     "N806",
     "PLR0913",
@@ -113,9 +112,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "ruddy/cli/*" = [
     "A002",    # `input` is the documented positional argument of every command
-    "B008",    # typer.Option() in function defaults is the intended pattern
     "FBT001",  # bool flags are standard in CLI functions
-    "FBT002",
     "FBT003",
     "PLR0917", # a command signature exposes one parameter per CLI option
     "T201",    # commands print machine-readable JSON to stdout by contract
@@ -141,7 +138,6 @@ ignore = [
     "ANN001",
     "ANN202",
     "ANN401",
-    "ARG001",
     "B023",
     "B905",
     "BLE001",
@@ -180,8 +176,6 @@ ignore = [
 "examples/*" = [
     "INP001",  # example scripts are intentionally standalone modules
     "PLR2004", # small referential scripts can compare against literal sizes
-    "S101",    # lightweight runtime checks are fine in examples
-    "S603",    # subprocess usage is explicit in CLI examples
     "T201",    # examples print result snippets by design
 ]
 
