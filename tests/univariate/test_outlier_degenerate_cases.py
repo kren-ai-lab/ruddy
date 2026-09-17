@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
 
 from ruddy import TabularDataset, analyze_outliers
 
 
-def _summary(result, column: str, method: str) -> pd.Series:
-    return result.summaries.loc[
-        result.summaries["column"].eq(column) & result.summaries["method"].eq(method)
-    ].iloc[0]
+def _summary(result, column: str, method: str) -> dict[str, Any]:
+    return result.summaries.filter((pl.col("column") == column) & (pl.col("method") == method)).row(
+        0, named=True
+    )
 
 
 def test_missing_nonfinite_and_finite_counts_are_transparent() -> None:
@@ -21,7 +24,7 @@ def test_missing_nonfinite_and_finite_counts_are_transparent() -> None:
         }
     )
     result = analyze_outliers(TabularDataset(frame, id_column="id"), include_flags=True)
-    quality = result.quality.set_index("column").loc["x"]
+    quality = result.quality.filter(pl.col("column") == "x").row(0, named=True)
     assert quality["n_total"] == 7
     assert quality["n_finite"] == 4
     assert quality["n_missing"] == 1
@@ -31,9 +34,9 @@ def test_missing_nonfinite_and_finite_counts_are_transparent() -> None:
     for method in ("iqr", "robust_z"):
         row = _summary(result, "x", method)
         assert row["n_finite"] == 4
-        flags = result.flags.loc[(result.flags["column"] == "x") & (result.flags["method"] == method)]
-        assert np.isfinite(flags["value"].to_numpy(dtype=float)).all()
-        assert not set(flags["source_row_index"].astype(int)) & {2, 3, 4}
+        flags = result.flags.filter((pl.col("column") == "x") & (pl.col("method") == method))
+        assert np.isfinite(flags["value"].to_numpy()).all()
+        assert not set(flags["source_row_index"].to_list()) & {2, 3, 4}
 
 
 def test_constant_all_missing_no_finite_and_insufficient_are_explicit() -> None:
@@ -67,7 +70,7 @@ def test_zero_mad_is_degenerate_but_zero_iqr_nonconstant_remains_valid_iqr_rule(
     robust = _summary(result, "x", "robust_z")
     assert robust["status"] == "degenerate"
     assert robust["reason"] == "zero_mad"
-    assert pd.isna(robust["n_flagged"])
+    assert robust["n_flagged"] is None
 
     iqr = _summary(result, "x", "iqr")
     assert iqr["status"] == "ok"
@@ -76,6 +79,6 @@ def test_zero_mad_is_degenerate_but_zero_iqr_nonconstant_remains_valid_iqr_rule(
     assert iqr["upper_bound"] == pytest.approx(0.0)
     assert iqr["n_flagged"] == 1
 
-    quality = result.quality.set_index("column").loc["x"]
+    quality = result.quality.filter(pl.col("column") == "x").row(0, named=True)
     assert bool(quality["zero_iqr_nonconstant"])
     assert bool(quality["zero_mad_nonconstant"])

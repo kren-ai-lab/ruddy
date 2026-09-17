@@ -92,9 +92,9 @@ def test_outliers_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_outliers(pipeline_dataset, **config.outlier_kwargs())
     assert result.outliers is not None
-    assert_frame_equal(result.outliers.summaries, standalone.summaries)
-    assert_frame_equal(result.outliers.flags, standalone.flags)
-    assert_frame_equal(result.outliers.quality, standalone.quality)
+    pl_testing.assert_frame_equal(result.outliers.summaries, standalone.summaries)
+    pl_testing.assert_frame_equal(result.outliers.flags, standalone.flags)
+    pl_testing.assert_frame_equal(result.outliers.quality, standalone.quality)
 
 
 def test_feature_block_requires_feature_matrix(pipeline_dataset):

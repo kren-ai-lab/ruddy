@@ -27,7 +27,7 @@ def test_single_observation_numeric_analysis_is_observable_not_crash():
     uni = analyze_univariate(ds)
     out = analyze_outliers(ds)
     assert uni.numeric_statistics.filter(pl.col("column") == "x")["status"][0] != "ok"
-    assert set(out.summaries.loc[out.summaries.column == "x", "status"]) <= {"skipped", "degenerate"}
+    assert set(out.summaries.filter(pl.col("column") == "x")["status"].to_list()) <= {"skipped", "degenerate"}
 
 
 def test_all_missing_and_nonfinite_are_distinguished():
@@ -43,11 +43,12 @@ def test_all_missing_and_nonfinite_are_distinguished():
         kind_overrides={"missing": "numeric"},
     )
     out = analyze_outliers(ds)
-    quality = out.quality.set_index("column")
-    assert quality.loc["missing", "n_missing"] == 4
-    assert quality.loc["missing", "n_non_finite"] == 0
-    assert quality.loc["nonfinite", "n_missing"] == 0
-    assert quality.loc["nonfinite", "n_non_finite"] == 4
+    missing_row = out.quality.filter(pl.col("column") == "missing").row(0, named=True)
+    nonfinite_row = out.quality.filter(pl.col("column") == "nonfinite").row(0, named=True)
+    assert missing_row["n_missing"] == 4
+    assert missing_row["n_non_finite"] == 0
+    assert nonfinite_row["n_missing"] == 0
+    assert nonfinite_row["n_non_finite"] == 4
 
 
 def test_one_level_factor_group_analysis_is_degenerate():

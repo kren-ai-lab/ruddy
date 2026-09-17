@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import polars as pl
 
-from ruddy.core.enums import ColumnKind, ColumnRole, OutlierMethod, ResultStatus
+from ruddy.core.enums import OutlierMethod, ResultStatus
+from ruddy.core.types import ObservationID
 from ruddy.data import TabularDataset
 from ruddy.profiling import profile_columns
 from ruddy.results import AnalysisProvenance
@@ -21,25 +21,61 @@ from ruddy.statistics.robust import (
     tukey_fences,
 )
 
-OUTLIER_SUMMARY_COLUMNS: tuple[str, ...] = (
-    "column",
-    "role",
-    "method",
-    "n_total",
-    "n_finite",
-    "n_missing",
-    "n_non_finite",
-    "center",
-    "scale",
-    "lower_bound",
-    "upper_bound",
-    "criterion",
-    "threshold",
-    "n_flagged",
-    "flagged_fraction",
-    "status",
-    "reason",
-)
+NUMERIC_QUALITY_SCHEMA: dict[str, pl.DataType] = {
+    "column": pl.String,
+    "role": pl.String,
+    "n_total": pl.Int64,
+    "n_present": pl.Int64,
+    "n_finite": pl.Int64,
+    "n_missing": pl.Int64,
+    "n_non_finite": pl.Int64,
+    "n_unique_finite": pl.Int64,
+    "missing_fraction": pl.Float64,
+    "non_finite_fraction": pl.Float64,
+    "iqr": pl.Float64,
+    "mad": pl.Float64,
+    "has_missing": pl.Boolean,
+    "has_non_finite": pl.Boolean,
+    "zero_iqr_nonconstant": pl.Boolean,
+    "zero_mad_nonconstant": pl.Boolean,
+    "status": pl.String,
+    "reason": pl.String,
+}
+NUMERIC_QUALITY_COLUMNS: tuple[str, ...] = tuple(NUMERIC_QUALITY_SCHEMA)
+
+OUTLIER_SUMMARY_SCHEMA: dict[str, pl.DataType] = {
+    "column": pl.String,
+    "role": pl.String,
+    "method": pl.String,
+    "n_total": pl.Int64,
+    "n_finite": pl.Int64,
+    "n_missing": pl.Int64,
+    "n_non_finite": pl.Int64,
+    "center": pl.Float64,
+    "scale": pl.Float64,
+    "lower_bound": pl.Float64,
+    "upper_bound": pl.Float64,
+    "criterion": pl.String,
+    "threshold": pl.Float64,
+    "n_flagged": pl.Int64,
+    "flagged_fraction": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+OUTLIER_SUMMARY_COLUMNS: tuple[str, ...] = tuple(OUTLIER_SUMMARY_SCHEMA)
+
+OUTLIER_FLAG_SCHEMA_BASE: dict[str, pl.DataType] = {
+    "column": pl.String,
+    "role": pl.String,
+    "method": pl.String,
+    "source_row_index": pl.Int64,
+    "value": pl.Float64,
+    "score": pl.Float64,
+    "direction": pl.String,
+    "threshold": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
 
 OUTLIER_FLAG_COLUMNS: tuple[str, ...] = (
     "column",
@@ -55,52 +91,38 @@ OUTLIER_FLAG_COLUMNS: tuple[str, ...] = (
     "reason",
 )
 
-NUMERIC_QUALITY_COLUMNS: tuple[str, ...] = (
-    "column",
-    "role",
-    "n_total",
-    "n_present",
-    "n_finite",
-    "n_missing",
-    "n_non_finite",
-    "n_unique_finite",
-    "missing_fraction",
-    "non_finite_fraction",
-    "iqr",
-    "mad",
-    "has_missing",
-    "has_non_finite",
-    "zero_iqr_nonconstant",
-    "zero_mad_nonconstant",
-    "status",
-    "reason",
-)
-
 
 @dataclass(frozen=True, slots=True)
 class OutlierResult:
     """Complete univariate outlier and quality output."""
 
-    summaries: pd.DataFrame
-    flags: pd.DataFrame
-    quality: pd.DataFrame
+    summaries: pl.DataFrame
+    flags: pl.DataFrame
+    quality: pl.DataFrame
     provenance: AnalysisProvenance
 
 
-def _eligible_numeric(profile: pd.Series) -> bool:
-    if not bool(profile["analysis_eligible"]):
-        return False
-    role = ColumnRole(str(profile["role"]))
-    kind = ColumnKind(str(profile["data_kind"]))
-    return role is not ColumnRole.FACTOR and kind is ColumnKind.NUMERIC
+def _build_flags_frame(
+    rows: list[dict[str, Any]],
+    dataset: TabularDataset,
+) -> pl.DataFrame:
+    id_dtype = pl.Series(dataset.observation_id_tuple).dtype
+    if not rows:
+        schema = {**OUTLIER_FLAG_SCHEMA_BASE, "observation_id": id_dtype}
+        return pl.DataFrame(schema={col: schema[col] for col in OUTLIER_FLAG_COLUMNS})
+    frame = pl.DataFrame(rows, schema_overrides=OUTLIER_FLAG_SCHEMA_BASE)
+    return frame.select(list(OUTLIER_FLAG_COLUMNS))
 
 
 def _finite_values_with_positions(
-    series: pd.Series,
+    series: pl.Series,
 ) -> tuple[np.ndarray, np.ndarray, int, int, int, int]:
-    n_total = len(series)
-    missing = series.isna().to_numpy(dtype=bool)
-    numeric = series.to_numpy(dtype=np.float64, na_value=np.nan)
+    n_total = series.len()
+    if series.dtype.is_float():
+        missing = (series.is_null() | series.is_nan()).to_numpy()
+    else:
+        missing = series.is_null().to_numpy()
+    numeric = series.cast(pl.Float64).fill_null(float("nan")).to_numpy()
     finite = np.isfinite(numeric)
     positions = np.flatnonzero(finite).astype(np.int64)
     values = numeric[finite].astype(np.float64, copy=False)
@@ -132,27 +154,26 @@ def _status_for_numeric(
 
 def summarize_numeric_quality(
     dataset: TabularDataset,
-    columns: pd.DataFrame | pl.DataFrame | None = None,
+    columns: pl.DataFrame | None = None,
     *,
     min_numeric_n: int = 3,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Summarize numeric data-quality states without changing source values."""
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
-    # ponytail: temporary pandas adapter, removed in task 3C
-    columns = (
-        profile_columns(dataset).to_pandas()
-        if columns is None
-        else (columns.to_pandas() if isinstance(columns, pl.DataFrame) else columns)
+    columns = profile_columns(dataset) if columns is None else columns
+    selected = columns.filter(
+        pl.col("analysis_eligible") & (pl.col("role") != "factor") & (pl.col("data_kind") == "numeric")
     )
-    selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
-    frame = dataset.to_frame()
+    frame = dataset.frame
     rows: list[dict[str, Any]] = []
 
-    for _, profile in selected.iterrows():
+    for profile in selected.iter_rows(named=True):
         column = str(profile["column"])
         role = str(profile["role"])
-        values, _, n_total, n_finite, n_missing, n_non_finite = _finite_values_with_positions(frame[column])
+        values, _, n_total, n_finite, n_missing, n_non_finite = _finite_values_with_positions(
+            frame.get_column(column)
+        )
         status, reason = _status_for_numeric(
             values,
             n_total=n_total,
@@ -198,7 +219,7 @@ def summarize_numeric_quality(
             }
         )
 
-    return pd.DataFrame(rows, columns=pd.Index(NUMERIC_QUALITY_COLUMNS))
+    return pl.DataFrame(rows, schema=NUMERIC_QUALITY_SCHEMA)
 
 
 def _summary_base(
@@ -245,7 +266,7 @@ def _summary_base(
 def _flag_rows(
     *,
     summary: dict[str, Any],
-    observation_ids: pd.Index,
+    observation_ids: tuple[ObservationID, ...],
     positions: np.ndarray,
     values: np.ndarray,
     flagged_indices: np.ndarray,
@@ -280,7 +301,7 @@ def _iqr_result(
     role: str,
     values: np.ndarray,
     positions: np.ndarray,
-    observation_ids: pd.Index,
+    observation_ids: tuple[ObservationID, ...],
     n_total: int,
     n_finite: int,
     n_missing: int,
@@ -367,7 +388,7 @@ def _robust_z_result(
     role: str,
     values: np.ndarray,
     positions: np.ndarray,
-    observation_ids: pd.Index,
+    observation_ids: tuple[ObservationID, ...],
     n_total: int,
     n_finite: int,
     n_missing: int,
@@ -475,14 +496,14 @@ def _robust_z_result(
 
 def summarize_outliers(
     dataset: TabularDataset,
-    columns: pd.DataFrame | pl.DataFrame | None = None,
+    columns: pl.DataFrame | None = None,
     *,
     methods: Iterable[OutlierMethod | str] = (OutlierMethod.IQR, OutlierMethod.ROBUST_Z),
     min_numeric_n: int = 3,
     iqr_multiplier: float = 1.5,
     robust_z_threshold: float = 3.5,
     include_flags: bool = False,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Compute deterministic univariate outlier summaries and optional row flags."""
     if min_numeric_n < 2:
         raise ValueError("min_numeric_n must be at least 2.")
@@ -498,23 +519,20 @@ def summarize_outliers(
     if len(set(resolved_methods)) != len(resolved_methods):
         raise ValueError("methods cannot contain duplicates.")
 
-    # ponytail: temporary pandas adapter, removed in task 3C
-    columns = (
-        profile_columns(dataset).to_pandas()
-        if columns is None
-        else (columns.to_pandas() if isinstance(columns, pl.DataFrame) else columns)
+    columns = profile_columns(dataset) if columns is None else columns
+    selected = columns.filter(
+        pl.col("analysis_eligible") & (pl.col("role") != "factor") & (pl.col("data_kind") == "numeric")
     )
-    selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
-    frame = dataset.to_frame()
-    observation_ids = dataset.observation_ids
+    frame = dataset.frame
+    observation_ids = dataset.observation_id_tuple
     summaries: list[dict[str, Any]] = []
     flags: list[dict[str, Any]] = []
 
-    for _, profile in selected.iterrows():
+    for profile in selected.iter_rows(named=True):
         column = str(profile["column"])
         role = str(profile["role"])
         values, positions, n_total, n_finite, n_missing, n_non_finite = _finite_values_with_positions(
-            frame[column]
+            frame.get_column(column)
         )
         for method in resolved_methods:
             if method is OutlierMethod.IQR:
@@ -551,8 +569,8 @@ def summarize_outliers(
             flags.extend(method_flags)
 
     return (
-        pd.DataFrame(summaries, columns=pd.Index(OUTLIER_SUMMARY_COLUMNS)),
-        pd.DataFrame(flags, columns=pd.Index(OUTLIER_FLAG_COLUMNS)),
+        pl.DataFrame(summaries, schema=OUTLIER_SUMMARY_SCHEMA),
+        _build_flags_frame(flags, dataset),
     )
 
 
@@ -569,8 +587,7 @@ def analyze_outliers(
     resolved_methods = tuple(
         method if isinstance(method, OutlierMethod) else OutlierMethod(method) for method in methods
     )
-    # ponytail: temporary pandas adapter, removed in task 3C
-    columns = profile_columns(dataset).to_pandas()
+    columns = profile_columns(dataset)
     quality = summarize_numeric_quality(
         dataset,
         columns,
