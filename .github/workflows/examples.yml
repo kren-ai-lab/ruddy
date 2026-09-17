@@ -5,7 +5,6 @@ on:
     paths:
       - "ruddy/**"
       - "examples/**"
-      - "tools/run_notebook_gate.py"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/examples.yml"
@@ -13,7 +12,6 @@ on:
     paths:
       - "ruddy/**"
       - "examples/**"
-      - "tools/run_notebook_gate.py"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/examples.yml"
@@ -27,8 +25,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: uv sync --all-extras --group notebooks
-      - name: Regenerate demo data
+        run: uv sync --all-extras --group examples
+      - name: Run examples
         run: bash examples/run_ci_examples.sh
-      - name: Execute notebooks
-        run: uv run python tools/run_notebook_gate.py

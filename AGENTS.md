@@ -66,5 +66,5 @@ needs a test that pins the new behavior.
 The scientific core (`ruddy/`) has no dependency on plotting libraries
 (Matplotlib, Plotly, etc.) and must never import one. It returns structured,
 traceable result objects only. All visualization lives externally, in the
-example notebooks under `examples/notebooks/`, which consume those result
+marimo examples under `examples/`, which consume those result
 objects — they never recompute statistics themselves.

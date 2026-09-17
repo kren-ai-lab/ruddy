@@ -72,13 +72,11 @@ dev = [
     "pyrefly",
     "taskipy>=1.14",
     "prek",
-    "nbformat>=5.10",
 ]
-notebooks = [
+examples = [
+    "marimo>=0.24",
     "matplotlib>=3.8",
     "plotly>=5.20",
-    "jupyter>=1.0",
-    "nbconvert>=7.0",
 ]
 
 [tool.hatch.version]
@@ -137,11 +135,6 @@ ignore = [
     "S101",    # assert is how a test asserts
     "TC003",   # pytest resolves fixture annotations at runtime
 ]
-"tools/*" = [
-    "INP001",  # gate scripts are intentionally standalone modules
-    "S603",    # subprocess usage is explicit in the gate scripts
-    "T201",    # gates print their progress by design
-]
 # Transitional. The rules below are not enforced in the scientific modules
 # yet; they come off this list in later passes, one package at a time.
 "ruddy/{analysis,anomaly,bayesian,bivariate,compositional,data,factorial,multivariate,profiling,projections,representation,results,statistics,univariate}/*" = [
@@ -196,14 +189,14 @@ ignore = [
 # Without a config section Pyrefly falls back to the `basic` preset, which
 # silences most of its checks; `default` is the real baseline.
 preset = "default"
-project-includes = ["ruddy", "tests", "tools"]
+project-includes = ["ruddy", "tests"]
 
 [tool.taskipy.tasks]
-sort-imports = "ruff check --fix --select I,F401 ruddy/ tests/ tools/"
-format = "task sort-imports && ruff format ruddy/ tests/ tools/"
-lint = "ruff check ruddy/ tests/ tools/"
-lint-fix = "ruff check --fix ruddy/ tests/ tools/"
+sort-imports = "ruff check --fix --select I,F401 ruddy/ tests/"
+format = "task sort-imports && ruff format ruddy/ tests/"
+lint = "ruff check ruddy/ tests/"
+lint-fix = "ruff check --fix ruddy/ tests/"
 test = "pytest -q"
 test-v = "pytest -v"
 test-cov = "pytest --cov=ruddy --cov-report=html"
-pyrefly = "pyrefly check ruddy/ tests/ tools/"
+pyrefly = "pyrefly check ruddy/ tests/"

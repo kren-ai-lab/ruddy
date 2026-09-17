@@ -1,6 +1,6 @@
 # Testing, reproducibility and feature freeze
 
-Ruddy's current scientific MVP is protected by unit, integration, parity, pathological-data and notebook validation tests.
+Ruddy's current scientific MVP is protected by unit, integration, parity and pathological-data tests, and by executing the examples in CI.
 
 ## Core validation commands
 
@@ -19,7 +19,6 @@ uv run pytest -q
 | `tests/integration` | Unified `analyze()` blocks versus their standalone APIs |
 | `tests/robustness` | Pathological data, high-dimensional guards and invariants (see below) |
 | `tests/parity` | Frozen numerical references for univariate and bivariate statistics |
-| `tests/examples` | Structural checks on the example notebooks |
 
 ## What the robustness suite targets
 
@@ -129,18 +128,9 @@ Permutation analyses retain the requested permutation count in provenance/output
 
 Benjamini–Hochberg correction uses deterministic stable sorting. `family_id`, `family_size` and `correction` are included in outputs so adjusted values can be audited.
 
-## Notebook validation
+## Example validation
 
-Tests under `tests/examples/` verify that the rich demo notebooks:
-
-- exist and are executed;
-- contain no error outputs;
-- contain multiple rendered visualizations;
-- use real Ruddy APIs/results;
-- retain aligned demo observation IDs;
-- keep plotting dependencies out of `ruddy`.
-
-The notebooks can also be executed using the notebook gate tooling under `tools/`.
+The CI `examples` job runs `examples/run_ci_examples.sh`, which regenerates the demo data and executes every marimo example as a script; any failing cell fails the job. `tests/test_public_api.py` additionally checks that `ruddy` never imports Matplotlib or Plotly.
 
 ## Feature freeze
 
@@ -158,4 +148,4 @@ A change should be treated carefully if it alters:
 - result schemas;
 - provenance semantics.
 
-Such changes can invalidate notebooks, downstream applications or scientific reproducibility and should therefore receive dedicated tests and release notes.
+Such changes can invalidate examples, downstream applications or scientific reproducibility and should therefore receive dedicated tests and release notes.

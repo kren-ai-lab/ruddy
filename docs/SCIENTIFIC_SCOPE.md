@@ -96,7 +96,7 @@ Those interpretations require scientific context and are deliberately left to th
 
 ## Visualization boundary
 
-Visualization is a first-class downstream use case but not currently implemented in the core package. The notebooks under `examples/notebooks/` demonstrate how structured Ruddy results can be rendered using external plotting libraries.
+Visualization is a first-class downstream use case but not currently implemented in the core package. The marimo examples under `examples/` demonstrate how structured Ruddy results can be rendered using external plotting libraries.
 
 This boundary is intentional:
 
@@ -107,7 +107,7 @@ Ruddy core
     ↓
 structured results + provenance
     ↓
-notebooks / future local visual application
+examples / future local visual application
     ↓
 plots, interactive exploration, figure export
 ```

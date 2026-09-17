@@ -1,4 +1,4 @@
-"""Visualization helpers for Ruddy demonstration notebooks.
+"""Visualization helpers for the Ruddy marimo examples.
 
 These helpers deliberately live under ``examples/``.  They consume structured
 Ruddy outputs but are not imported by the scientific core.
@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import inspect
-import sys
 from typing import Iterable, Sequence
 
+import marimo as mo
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import numpy as np
@@ -17,22 +17,7 @@ import pandas as pd
 from scipy.stats import gaussian_kde
 
 
-def repo_root() -> Path:
-    here = Path.cwd().resolve()
-    for candidate in (here, *here.parents):
-        if (candidate / "pyproject.toml").exists() and (candidate / "src" / "ruddy").exists():
-            return candidate
-    fallback = Path(__file__).resolve().parents[2]
-    if (fallback / "pyproject.toml").exists():
-        return fallback
-    raise RuntimeError("Could not locate Ruddy repository root.")
-
-
-ROOT = repo_root()
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
-DATA = ROOT / "examples" / "data"
+DATA = Path(__file__).resolve().parent / "data"
 
 
 def load_tabular_demo():
@@ -96,6 +81,18 @@ def load_compositional_demo():
         observation_ids=frame["id"].tolist(),
         feature_names=feature_names,
     )
+
+
+def display(obj) -> None:
+    """Append a table or object to the current marimo cell output."""
+    mo.output.append(obj)
+
+
+def show() -> None:
+    """Render the current Matplotlib figure into the cell output and close it."""
+    fig = plt.gcf()
+    mo.output.append(mo.as_html(fig))
+    plt.close(fig)
 
 
 def configure_plots() -> None:
@@ -370,14 +367,6 @@ def stacked_composition(frame: pd.DataFrame, *, id_col: str = "id", n: int = 35,
     ax.set_title(title)
     ax.legend(ncol=3, fontsize=8)
     return finish(fig), ax
-
-
-def save_figure(fig, name: str) -> Path:
-    out = ROOT / "examples" / "notebooks" / "figures"
-    out.mkdir(parents=True, exist_ok=True)
-    path = out / name
-    fig.savefig(path, bbox_inches="tight")
-    return path
 
 
 def labeled_boxplot(ax, data, labels, **kwargs):

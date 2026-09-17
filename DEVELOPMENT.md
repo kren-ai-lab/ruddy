@@ -11,8 +11,8 @@
 git clone https://github.com/kren-ai-lab/ruddy
 cd ruddy
 uv sync --all-extras
-# optional: dependencies for the example notebooks
-uv sync --all-extras --group notebooks
+# optional: dependencies for the examples
+uv sync --all-extras --group examples
 ```
 
 ## Common Tasks
@@ -34,19 +34,15 @@ uv run ruddy --version
 uv run ruddy --help
 ```
 
-## Notebook Gate
+## Examples
 
-`tools/run_notebook_gate.py` executes every notebook under `examples/notebooks/`
-against the current scientific core (requires the `notebooks` group). Default
-mode runs each notebook's code cells in an isolated Python process
-(`MPLBACKEND=Agg`); `--mode jupyter` performs a full nbconvert execution
-(`--inplace` persists outputs).
+The examples under `examples/` are marimo notebooks stored as plain Python files
+(requires the `examples` group):
 
 ```bash
-uv run python tools/run_notebook_gate.py
-uv run python tools/run_notebook_gate.py --mode jupyter --inplace
+bash examples/run_ci_examples.sh                         # run them all, as CI does
+uv run marimo edit examples/01_profiling_univariate.py   # open one interactively
 ```
-
 
 ## Project Structure
 
@@ -55,7 +51,6 @@ See `AGENTS.md` for the full package layout under `ruddy/`.
 ```text
 ruddy/       # Flat package layout
 tests/       # One directory per ruddy/ package + integration, robustness, parity, examples
-tools/       # Notebook validation gate
-examples/    # Scripts and visualization notebooks
+examples/    # marimo examples (plain .py) and demo data
 docs/        # Technical documentation
 ```

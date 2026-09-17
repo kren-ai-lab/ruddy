@@ -1,12 +1,12 @@
-# Visualization notebooks
+# Visualization examples
 
-Visualization is intentionally external to the Ruddy scientific core. The notebooks under `examples/notebooks/` demonstrate how the structured outputs can support publication-oriented and interactive figures.
+Visualization is intentionally external to the Ruddy scientific core. The marimo examples under `examples/` demonstrate how the structured outputs can support publication-oriented and interactive figures.
 
-The plotting layer currently uses notebook-only dependencies such as Matplotlib and Plotly. No Matplotlib/Plotly imports are required by `ruddy`.
+The plotting layer uses example-only dependencies (the `examples` dependency group) such as Matplotlib and Plotly. No Matplotlib/Plotly imports are required by `ruddy`.
 
-## Notebook catalog
+## Catalog
 
-### `01_profiling_univariate.ipynb`
+### `01_profiling_univariate.py`
 
 Demonstrates:
 
@@ -18,9 +18,9 @@ Demonstrates:
 - violin/box/raw-observation combinations;
 - categorical frequencies.
 
-This notebook shows that Ruddy's descriptive tables are sufficient to build more than simple histograms.
+This example shows that Ruddy's descriptive tables are sufficient to build more than simple histograms.
 
-### `02_bivariate_dependence.ipynb`
+### `02_bivariate_dependence.py`
 
 Demonstrates:
 
@@ -34,7 +34,7 @@ Demonstrates:
 - contingency residual heatmaps;
 - interactive scatter exploration.
 
-### `03_groups_posthoc_intervals.ipynb`
+### `03_groups_posthoc_intervals.py`
 
 Demonstrates:
 
@@ -46,7 +46,7 @@ Demonstrates:
 - pairwise difference/effect-size forests;
 - matrix summaries of pairwise effects.
 
-### `04_factorial_marginal_mixed.ipynb`
+### `04_factorial_marginal_mixed.py`
 
 Demonstrates:
 
@@ -59,7 +59,7 @@ Demonstrates:
 - Cook's distance/leverage/influence;
 - mixed-effect fixed/random components.
 
-### `05_feature_spaces_projections.ipynb`
+### `05_feature_spaces_projections.py`
 
 Demonstrates:
 
@@ -71,7 +71,7 @@ Demonstrates:
 - t-SNE exploratory projection;
 - interactive PCA exploration.
 
-### `06_multivariate_permanova.ipynb`
+### `06_multivariate_permanova.py`
 
 Demonstrates:
 
@@ -82,7 +82,7 @@ Demonstrates:
 - PERMANOVA separation;
 - PERMDISP distance-to-centroid distributions.
 
-### `07_representation_comparison.ipynb`
+### `07_representation_comparison.py`
 
 Demonstrates:
 
@@ -95,9 +95,9 @@ Demonstrates:
 - Procrustes geometry;
 - interactive canonical-space plots.
 
-This is one of the key notebooks for the numerical-representation use case.
+This is one of the key examples for the numerical-representation use case.
 
-### `08_compositional.ipynb`
+### `08_compositional.py`
 
 Demonstrates:
 
@@ -109,7 +109,7 @@ Demonstrates:
 - within-versus-between group compositional geometry;
 - PCA on ILR coordinates.
 
-### `09_outliers_anomaly.ipynb`
+### `09_outliers_anomaly.py`
 
 Demonstrates different notions of unusualness:
 
@@ -122,7 +122,7 @@ Demonstrates different notions of unusualness:
 - method-agreement views;
 - anomalies overlaid on a projection.
 
-### `10_bayesian_eda.ipynb`
+### `10_bayesian_eda.py`
 
 Demonstrates:
 
@@ -133,7 +133,7 @@ Demonstrates:
 - ROPE probability;
 - density and interval visualizations.
 
-### `11_numerical_representation_framework.ipynb`
+### `11_numerical_representation_framework.py`
 
 The central representation-analysis demo. It compares multiple aligned numerical spaces through:
 
@@ -146,13 +146,13 @@ The central representation-analysis demo. It compares multiple aligned numerical
 - Mantel;
 - anomaly behavior.
 
-The notebook is deliberately agnostic about the source of each representation; each is simply a `FeatureMatrix` with shared observation identity.
+The example is deliberately agnostic about the source of each representation; each is simply a `FeatureMatrix` with shared observation identity.
 
-### `12_end_to_end_generic_eda.ipynb`
+### `12_end_to_end_generic_eda.py`
 
 Shows a complete domain-agnostic workflow from tabular loading/roles through unified analysis and feature-space integration.
 
-### `13_visualization_gallery.ipynb`
+### `13_visualization_gallery.py`
 
 Acts as a visual catalog for future local-application design. It maps result types to candidate visual forms and provides a practical starting point for the later product specification.
 
