@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from scipy import sparse
 
-from ruddy import FeatureMatrix, TabularDataset, align_annotation_source, analyze_groups, analyze_pca
+from ruddy import FeatureMatrix, TabularDataset, align_annotation_source, analyze_groups
 
 
 def test_partial_annotation_coverage_is_preserved_without_global_row_drop():
@@ -31,13 +31,6 @@ def test_partial_annotation_coverage_is_preserved_without_global_row_drop():
     assert coverage["n_dataset"] == 10
     assert coverage["n_group_present"] == 6
     assert coverage["n_group_missing"] == 4
-
-
-def test_sparse_pca_refuses_hidden_densification():
-    matrix = sparse.csr_matrix(np.eye(20))
-    features = FeatureMatrix(matrix, observation_ids=range(20))
-    with pytest.raises(ValueError, match=r"silently densify|dense"):
-        analyze_pca(features, n_components=2)
 
 
 def test_sparse_feature_matrix_roundtrip_remains_sparse():

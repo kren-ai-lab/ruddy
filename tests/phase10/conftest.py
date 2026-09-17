@@ -4,12 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ruddy import FeatureMatrix, TabularDataset
-
-
-@pytest.fixture
-def rng() -> np.random.Generator:
-    return np.random.default_rng(20260910)
+from ruddy import TabularDataset
 
 
 @pytest.fixture
@@ -52,18 +47,4 @@ def robust_tabular() -> TabularDataset:
             "x": "covariate",
             "z": "covariate",
         },
-    )
-
-
-@pytest.fixture
-def representation_pair() -> tuple[FeatureMatrix, FeatureMatrix]:
-    rng = np.random.default_rng(44)
-    n = 80
-    latent = rng.normal(size=(n, 5))
-    x = latent @ rng.normal(size=(5, 12)) + rng.normal(0, 0.03, size=(n, 12))
-    y = latent @ rng.normal(size=(5, 8)) + rng.normal(0, 0.03, size=(n, 8))
-    ids = [f"r{i}" for i in range(n)]
-    return (
-        FeatureMatrix(x, observation_ids=ids, feature_names=[f"x{i}" for i in range(x.shape[1])]),
-        FeatureMatrix(y, observation_ids=ids, feature_names=[f"y{i}" for i in range(y.shape[1])]),
     )

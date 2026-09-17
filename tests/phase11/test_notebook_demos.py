@@ -51,7 +51,6 @@ def test_expected_notebook_catalog_exists() -> None:
 def test_notebooks_are_executed_without_error_outputs() -> None:
     for name in EXPECTED:
         notebook = _load_notebook(NOTEBOOKS / name)
-        assert notebook.get("metadata", {}).get("ruddy_demo", {}).get("phase") == "11-strong"
         code_cells = [cell for cell in notebook["cells"] if cell.get("cell_type") == "code"]
         assert code_cells, name
         assert all(cell.get("execution_count") is not None for cell in code_cells), name

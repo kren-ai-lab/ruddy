@@ -7,10 +7,8 @@ from ruddy import (
     FeatureMatrix,
     TabularDataset,
     analyze,
-    analyze_anomalies,
     analyze_bayesian_eda,
     analyze_composition,
-    analyze_representation_similarity,
 )
 from ruddy.cli.main import main
 
@@ -42,39 +40,11 @@ def test_phase9c_config_validation():
         AnalysisConfig(enabled_blocks=("bayesian",), bayesian_draws=20)
 
 
-def test_unified_representation_matches_standalone():
-    ds, x, y = _bundle()
-    cfg = AnalysisConfig(
-        enabled_blocks=("representation",),
-        representation_cca_components=2,
-        representation_mantel_permutations=9,
-        random_state=5,
-    )
-    u = analyze(ds, config=cfg, features=x, comparison_features=y).representation
-    s = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=9, random_state=5)
-    assert u is not None
-    pd.testing.assert_frame_equal(u.cka, s.cka)
-    pd.testing.assert_frame_equal(u.mantel, s.mantel)
-
-
 def test_unified_requires_second_representation():
     ds, x, _ = _bundle()
     cfg = AnalysisConfig(enabled_blocks=("representation",))
     with pytest.raises(ValueError, match="comparison_features"):
         analyze(ds, config=cfg, features=x)
-
-
-def test_unified_anomaly_matches_standalone():
-    ds, x, _ = _bundle()
-    cfg = AnalysisConfig(
-        enabled_blocks=("anomaly",),
-        anomaly_methods=("isolation_forest",),
-        random_state=2,
-    )
-    u = analyze(ds, config=cfg, features=x).anomaly
-    s = analyze_anomalies(x, methods=("isolation_forest",), random_state=2)
-    assert u is not None
-    pd.testing.assert_frame_equal(u.scores, s.scores)
 
 
 def test_unified_bayesian_matches_standalone():

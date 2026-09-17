@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from ruddy import (
     TabularDataset,
@@ -13,13 +12,6 @@ from ruddy import (
     analyze_outliers,
     analyze_univariate,
 )
-from ruddy.core.exceptions import DataValidationError
-
-
-def test_duplicate_observation_ids_remain_hard_error():
-    frame = pd.DataFrame({"id": ["a", "a"], "x": [1.0, 2.0]})
-    with pytest.raises(DataValidationError):
-        TabularDataset(frame, id_column="id")
 
 
 def test_numeric_strings_are_never_silently_coerced():

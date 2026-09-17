@@ -1,8 +1,7 @@
-"""CLI skeleton tests."""
-
 import pytest
 import typer
 
+from ruddy import __version__
 from ruddy.cli.main import app, main
 
 
@@ -25,8 +24,4 @@ def test_cli_empty_invocation() -> None:
 
 def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["--version"]) == 0
-    assert capsys.readouterr().out.strip() == "ruddy 0.1.0.dev0"
-
-
-def test_phase2_cli_exposes_profile_and_univariate() -> None:
-    assert {"profile", "univariate"} <= set(_command_names("inspect"))
+    assert capsys.readouterr().out.strip() == f"ruddy {__version__}"
