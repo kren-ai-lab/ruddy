@@ -107,6 +107,23 @@ ignore = [
     "N803",
     "N806",
     "PLR0913",
+    # Permanent, deliberate exceptions for a scientific library.
+    # A raise here names the offending data ("n_components (5) exceeds
+    # rank (3)"), which is more useful than a class per failure mode.
+    "TRY003",
+    "EM101",
+    "EM102",
+    # Statistical thresholds and minimum sample sizes read better inline
+    # (`if n < 3`, `if p < 0.05`) than behind a named constant.
+    "PLR2004",
+    # Estimators branch on diagnostics and degenerate cases by design;
+    # splitting them to satisfy a complexity budget would obscure the
+    # numerical path and risk changing results.
+    "C901",
+    "PLR0911",
+    "PLR0912",
+    "PLR0915",
+    "PLR0917",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -114,7 +131,6 @@ ignore = [
     "A002",    # `input` is the documented positional argument of every command
     "FBT001",  # bool flags are standard in CLI functions
     "FBT003",
-    "PLR0917", # a command signature exposes one parameter per CLI option
     "T201",    # commands print machine-readable JSON to stdout by contract
     "TC001",   # typer resolves annotations at runtime, so they stay imported
     "TC002",
@@ -140,7 +156,6 @@ ignore = [
     "ANN401",
     "B023",
     "BLE001",
-    "C901",
     "D101",
     "D102",
     "D103",
@@ -152,13 +167,7 @@ ignore = [
     "PD101",
     "PERF401",
     "PLC0415",
-    "PLR0911",
-    "PLR0912",
-    "PLR0915",
-    "PLR0917",
-    "PLR2004",
     "RUF002",
-    "TRY003",
     "TRY004",
 ]
 "examples/*" = [
