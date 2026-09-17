@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any, cast
 
-import pandas as pd
+import polars as pl
 
 from ruddy.analysis.config import AnalysisConfig
 from ruddy.analysis.intervals import analyze_confidence_intervals
@@ -72,7 +72,8 @@ def analyze(
     if features is not None:
         _, feature_alignment = align_annotations(
             dataset.observation_ids,
-            pd.DataFrame(index=features.observation_ids),
+            pl.DataFrame({"__id": features.observation_id_tuple}),
+            id_column="__id",
             mode=cfg.feature_alignment,
         )
 

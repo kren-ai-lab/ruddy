@@ -4,15 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import pandas as pd
 import polars as pl
-from pandas.api.types import (
-    is_bool_dtype,
-    is_complex_dtype,
-    is_datetime64_any_dtype,
-    is_numeric_dtype,
-    is_timedelta64_dtype,
-)
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.core.exceptions import (
@@ -42,22 +34,6 @@ def infer_column_kind(dtype: pl.DataType) -> ColumnKind:
     if dtype in (pl.Date, pl.Datetime) or isinstance(dtype, pl.Datetime):
         return ColumnKind.DATETIME
     if dtype == pl.String or isinstance(dtype, (pl.Categorical, pl.Enum)):
-        return ColumnKind.CATEGORICAL
-    return ColumnKind.UNKNOWN
-
-
-def _infer_pandas_kind(series: pd.Series) -> ColumnKind:
-    # ponytail: temporary pandas adapter for annotations.py, removed in task 2B
-    dtype = series.dtype
-    if is_bool_dtype(dtype):
-        return ColumnKind.BOOLEAN
-    if is_complex_dtype(dtype) or is_timedelta64_dtype(dtype):
-        return ColumnKind.UNKNOWN
-    if is_datetime64_any_dtype(dtype):
-        return ColumnKind.DATETIME
-    if is_numeric_dtype(dtype):
-        return ColumnKind.NUMERIC
-    if isinstance(dtype, pd.CategoricalDtype) or dtype == object or isinstance(dtype, pd.StringDtype):
         return ColumnKind.CATEGORICAL
     return ColumnKind.UNKNOWN
 

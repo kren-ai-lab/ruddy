@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from scipy.stats import f_oneway
 from sklearn.metrics import pairwise_distances
 
@@ -74,16 +75,17 @@ def _aligned_factor(
     factor: str,
     alignment: AlignmentMode | str,
 ) -> tuple[pd.Series, AlignmentReport]:
-    if factor not in dataset.columns:
+    if factor not in dataset.frame.columns:
         raise ValueError(f"Unknown grouping factor: {factor!r}.")
-    annotations = dataset.select([factor])
-    annotations.index = dataset.observation_ids
+    annotations = dataset.frame.select(factor).with_columns(pl.Series("__id", dataset.observation_id_tuple))
     aligned, report = align_annotations(
         features.observation_ids,
         annotations,
+        id_column="__id",
         mode=alignment,
     )
-    return aligned[factor], report
+    # ponytail: temporary pandas adapter, removed in phase 5
+    return aligned[factor].to_pandas(), report
 
 
 def _permanova_statistic(distance_matrix: np.ndarray, labels: np.ndarray) -> tuple[float, float, int, int]:

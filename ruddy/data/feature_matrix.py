@@ -2,21 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 from typing import Any, cast
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ruddy.core.enums import AlignmentMode
 from ruddy.core.exceptions import FeatureMatrixValidationError
-from ruddy.core.types import FeatureInput, ObservationIDs
+from ruddy.core.types import FeatureInput, ObservationID, ObservationIDs
 from ruddy.data.validation import (
     AlignmentReport,
-    _validated_index,
     align_annotations,
+    validate_observation_ids,
 )
 
 
@@ -29,7 +30,7 @@ class FeatureMatrix:
         *,
         observation_ids: ObservationIDs | None = None,
         feature_names: list[str] | tuple[str, ...] | None = None,
-        metadata: pd.DataFrame | None = None,
+        metadata: pl.DataFrame | pd.DataFrame | None = None,
         metadata_id_column: str | None = None,
         metadata_alignment: AlignmentMode | str = AlignmentMode.STRICT,
         provenance: Mapping[str, Any] | None = None,
@@ -37,10 +38,10 @@ class FeatureMatrix:
         matrix, inferred_ids, inferred_names = self._normalize_matrix(data)
         n_rows, n_features = matrix.shape
 
-        ids = inferred_ids if observation_ids is None else observation_ids
-        if ids is None:
-            ids = pd.RangeIndex(n_rows)
-        validated_ids = _validated_index(ids)
+        raw_ids = inferred_ids if observation_ids is None else observation_ids
+        if raw_ids is None:
+            raw_ids = range(n_rows)
+        validated_ids = validate_observation_ids(raw_ids)
         if len(validated_ids) != n_rows:
             raise FeatureMatrixValidationError("observation_ids length must match the number of matrix rows.")
 
@@ -58,7 +59,7 @@ class FeatureMatrix:
         self._matrix = matrix
         self._observation_ids = validated_ids
         self._feature_names = names
-        self._metadata: pd.DataFrame | None = None
+        self._metadata: pl.DataFrame | None = None
         self._alignment_report: AlignmentReport | None = None
         self._provenance = MappingProxyType(dict(provenance or {}))
 
@@ -75,14 +76,27 @@ class FeatureMatrix:
     @staticmethod
     def _normalize_matrix(
         data: FeatureInput,
-    ) -> tuple[Any, pd.Index | None, tuple[str, ...] | None]:
+    ) -> tuple[Any, Sequence[ObservationID] | None, tuple[str, ...] | None]:
+        if isinstance(data, pl.DataFrame):
+            if not all(dtype.is_numeric() for dtype in data.dtypes):
+                raise FeatureMatrixValidationError(
+                    "FeatureMatrix DataFrames must contain only numeric columns."
+                )
+            matrix = data.to_numpy()
+            return matrix, None, tuple(str(c) for c in data.columns)
+
         if isinstance(data, pd.DataFrame):
+            # ponytail: temporary pandas adapter, removed in phase 5
             if not all(pd.api.types.is_numeric_dtype(dtype) for dtype in data.dtypes):
                 raise FeatureMatrixValidationError(
                     "FeatureMatrix DataFrames must contain only numeric columns."
                 )
             matrix = data.to_numpy(copy=True)
-            return matrix, data.index.copy(), tuple(str(c) for c in data.columns)
+            default_index = (
+                isinstance(data.index, pd.RangeIndex) and data.index.start == 0 and data.index.step == 1
+            )
+            inferred_ids = None if default_index else data.index.copy()
+            return matrix, inferred_ids, tuple(str(c) for c in data.columns)
 
         if sparse.issparse(data):
             matrix = cast("sparse.spmatrix", data).copy()  # pyrefly: ignore[missing-attribute]
@@ -113,7 +127,12 @@ class FeatureMatrix:
 
     @property
     def observation_ids(self) -> pd.Index:
-        return self._observation_ids.copy()
+        # ponytail: temporary pandas adapter, removed in phase 5
+        return pd.Index(self._observation_ids)
+
+    @property
+    def observation_id_tuple(self) -> tuple[ObservationID, ...]:
+        return self._observation_ids
 
     @property
     def feature_names(self) -> tuple[str, ...]:
@@ -124,8 +143,8 @@ class FeatureMatrix:
         return sparse.issparse(self._matrix)
 
     @property
-    def metadata(self) -> pd.DataFrame | None:
-        return None if self._metadata is None else self._metadata.copy(deep=True)
+    def metadata(self) -> pl.DataFrame | None:
+        return self._metadata
 
     @property
     def alignment_report(self) -> AlignmentReport | None:

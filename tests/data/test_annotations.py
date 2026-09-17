@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from ruddy import (
@@ -46,6 +47,7 @@ def test_partial_annotations_preserve_coverage_and_do_not_mutate_inputs(
     )
     assert aligned.report.unmatched_ids == ("outside",)
     assert aligned.roles["batch"] is ColumnRole.FACTOR
+    assert aligned.frame.shape == (8, 2)
     assert aligned.to_frame().shape == (8, 2)
 
     augmented = attach_annotations(response_dataset, (aligned,))
@@ -78,7 +80,10 @@ def test_absent_annotation_source_is_explicit_and_attachment_is_noop(
     )
     assert absent.coverage is AnnotationCoverage.ABSENT
     assert absent.report is None
-    assert absent.summary()["coverage_fraction"] == 0.0
+    summary = absent.summary()
+    assert summary["coverage_fraction"] == 0.0
+    assert summary["base_count"] == len(response_dataset.observation_id_tuple)
+    assert summary["missing_ids"] == list(response_dataset.observation_id_tuple)
 
     augmented = attach_annotations(response_dataset, (absent,))
     pd.testing.assert_frame_equal(
@@ -101,3 +106,23 @@ def test_annotation_column_collision_fails_explicitly(response_dataset) -> None:
     )
     with pytest.raises(ValueError, match="collides"):
         attach_annotations(response_dataset, (aligned,))
+
+
+def test_aligned_annotations_frame_and_to_frame_with_polars(response_dataset) -> None:
+    annotations = pl.DataFrame(
+        {
+            "id": ["obs_1", "obs_2"],
+            "batch": [1, 2],
+        }
+    )
+    aligned = align_annotation_source(
+        response_dataset,
+        annotations,
+        id_column="id",
+        mode="partial",
+    )
+    assert isinstance(aligned.frame, pl.DataFrame)
+    assert isinstance(aligned.to_frame(), pd.DataFrame)
+    assert aligned.frame.shape == (8, 1)
+    assert aligned.to_frame().shape == (8, 1)
+    assert "id" not in aligned.frame.columns

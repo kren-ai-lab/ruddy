@@ -7,38 +7,41 @@ from types import MappingProxyType
 from typing import Any
 
 import pandas as pd
+import polars as pl
 
 from ruddy.core.enums import AlignmentMode, AnnotationCoverage, ColumnKind, ColumnRole
 from ruddy.core.exceptions import RoleConflictError, UnknownColumnError
-from ruddy.core.types import KindOverrides, RoleOverrides
+from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides
 from ruddy.data.dataset import TabularDataset
-from ruddy.data.roles import _infer_pandas_kind
+from ruddy.data.roles import infer_column_kind
 from ruddy.data.validation import AlignmentReport, align_annotations
 
 
 class AlignedAnnotations:
     """One external annotation source aligned to a base observation index.
 
-    The source data are copied on construction and every public accessor returns a
-    defensive copy. ``ABSENT`` represents an explicitly unavailable source, while
-    ``PARTIAL`` preserves incomplete coverage without silently dropping observations.
+    The source data are stored as a Polars DataFrame. ``ABSENT`` represents an
+    explicitly unavailable source, while ``PARTIAL`` preserves incomplete coverage
+    without silently dropping observations.
     """
 
     def __init__(
         self,
         *,
         source_name: str,
-        data: pd.DataFrame,
+        data: pl.DataFrame,
         coverage: AnnotationCoverage,
         report: AlignmentReport | None,
         roles: Mapping[str, ColumnRole],
         kinds: Mapping[str, ColumnKind],
+        base_ids: tuple[ObservationID, ...],
     ) -> None:
         name = str(source_name).strip()
         if not name:
             raise ValueError("source_name must be non-empty.")
         self._source_name = name
-        self._data = data.copy(deep=True)
+        self._data = data
+        self._base_ids = tuple(base_ids)
         self._coverage = coverage
         self._report = report
         self._roles = MappingProxyType(dict(roles))
@@ -57,6 +60,10 @@ class AlignedAnnotations:
         return self._report
 
     @property
+    def frame(self) -> pl.DataFrame:
+        return self._data
+
+    @property
     def columns(self) -> tuple[str, ...]:
         return tuple(str(column) for column in self._data.columns)
 
@@ -73,7 +80,8 @@ class AlignedAnnotations:
         return self._coverage is not AnnotationCoverage.ABSENT
 
     def to_frame(self) -> pd.DataFrame:
-        return self._data.copy(deep=True)
+        # ponytail: temporary pandas adapter, removed in phase 5
+        return self._data.to_pandas()
 
     def summary(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -83,11 +91,11 @@ class AlignedAnnotations:
         }
         if self.report is None:
             payload.update(
-                base_count=len(self._data.index),
+                base_count=len(self._base_ids),
                 annotation_count=0,
                 covered_count=0,
                 coverage_fraction=0.0,
-                missing_ids=list(self._data.index),
+                missing_ids=list(self._base_ids),
                 unmatched_ids=[],
             )
         else:
@@ -116,7 +124,7 @@ def _resolve_annotation_roles(
 
 
 def _resolve_annotation_kinds(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     overrides: KindOverrides | None,
 ) -> dict[str, ColumnKind]:
     overrides = overrides or {}
@@ -125,7 +133,7 @@ def _resolve_annotation_kinds(
         raise UnknownColumnError(f"Annotation kind overrides reference unknown columns: {unknown}.")
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:
-        observed = _infer_pandas_kind(frame[column])
+        observed = infer_column_kind(frame.schema[column])
         if column not in overrides:
             resolved[column] = observed
             continue
@@ -150,7 +158,7 @@ def _resolve_annotation_kinds(
 
 def align_annotation_source(
     dataset: TabularDataset,
-    annotations: pd.DataFrame | None,
+    annotations: pl.DataFrame | pd.DataFrame | None,
     *,
     source_name: str = "annotations",
     id_column: str | None = None,
@@ -165,25 +173,25 @@ def align_annotation_source(
     """
     resolved_mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     if annotations is None:
-        empty = pd.DataFrame(index=dataset.observation_ids)
         return AlignedAnnotations(
             source_name=source_name,
-            data=empty,
+            data=pl.DataFrame(),
             coverage=AnnotationCoverage.ABSENT,
             report=None,
             roles={},
             kinds={},
+            base_ids=dataset.observation_id_tuple,
         )
 
     aligned, report = align_annotations(
-        dataset.observation_ids,
+        dataset.observation_id_tuple,
         annotations,
         id_column=id_column,
         mode=resolved_mode,
     )
     if id_column is not None and id_column in aligned.columns:
-        aligned = aligned.drop(columns=[id_column])
-    if not aligned.columns.is_unique:
+        aligned = aligned.drop(id_column)
+    if len(set(aligned.columns)) != len(aligned.columns):
         raise ValueError("Annotation column names must be unique.")
     non_string = [column for column in aligned.columns if not isinstance(column, str)]
     if non_string:
@@ -199,6 +207,7 @@ def align_annotation_source(
         report=report,
         roles=roles,
         kinds=kinds,
+        base_ids=dataset.observation_id_tuple,
     )
 
 
@@ -212,9 +221,7 @@ def attach_annotations(
     collisions are rejected instead of overwritten.
     """
     sources = tuple(sources)
-    base = dataset.to_frame()
-    original_index = base.index.copy()
-    base.index = dataset.observation_ids
+    base = dataset.frame
 
     roles = {spec.name: spec.role for spec in dataset.schema}
     kinds = {spec.name: spec.kind for spec in dataset.schema}
@@ -224,22 +231,21 @@ def attach_annotations(
             raise TypeError("sources must contain AlignedAnnotations objects.")
         if not source.available:
             continue
-        frame = source.to_frame()
+        frame = source.frame
         collisions = sorted(set(frame.columns) & set(base.columns))
         if collisions:
             raise ValueError(
                 f"Annotation source {source.source_name!r} collides with existing columns: {collisions}."
             )
-        base = base.join(frame, how="left")
+        if frame.width > 0:
+            base = base.hstack(frame)
         roles.update(source.roles)
         kinds.update(source.kinds)
-
-    if dataset.id_column is not None:
-        base.index = original_index
 
     return TabularDataset(
         base,
         id_column=dataset.id_column,
+        observation_ids=None if dataset.id_column else dataset.observation_id_tuple,
         role_overrides=roles,
         kind_overrides=kinds,
     )
