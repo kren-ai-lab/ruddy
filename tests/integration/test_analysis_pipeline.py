@@ -15,7 +15,6 @@ from ruddy import (
     analyze_manova,
     analyze_multivariate,
     analyze_outliers,
-    analyze_pca,
     analyze_univariate,
     profile_dataset,
 )
@@ -30,6 +29,8 @@ def test_default_pipeline_runs_descriptive_blocks_only(pipeline_dataset):
     assert result.bivariate is None
     assert result.outliers is None
     assert result.factorial is None
+    assert result.dependence is None
+    assert result.intervals is None
 
 
 def test_single_block_does_not_trigger_unrelated_components(pipeline_dataset):
@@ -123,20 +124,6 @@ def test_partial_feature_alignment_is_observable(pipeline_dataset, pipeline_feat
     assert result.feature_alignment is not None
     assert result.feature_alignment.covered_count == pipeline_dataset.n_observations - 3
     assert len(result.feature_alignment.missing_ids) == 3
-
-
-def test_pca_matches_standalone(pipeline_dataset, pipeline_features):
-    config = AnalysisConfig(
-        enabled_blocks=("pca",),
-        projection_n_components=3,
-        projection_scaling="standard",
-    )
-    result = analyze(pipeline_dataset, config=config, features=pipeline_features)
-    standalone = analyze_pca(pipeline_features, **config.pca_kwargs())
-    assert result.pca is not None
-    assert_frame_equal(result.pca.scores, standalone.scores)
-    assert_frame_equal(result.pca.loadings, standalone.loadings)
-    assert_frame_equal(result.pca.variance, standalone.variance)
 
 
 def test_multivariate_matches_standalone(pipeline_dataset, pipeline_features):

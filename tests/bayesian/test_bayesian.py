@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from ruddy import TabularDataset, analyze_bayesian_eda
 
@@ -44,7 +45,16 @@ def test_nonbinary_group_is_skipped_for_difference():
     assert r.mean_differences.loc[0, "status"] == "skipped"
 
 
-def test_rope_probability_bounded():
-    r = analyze_bayesian_eda(_dataset(delta=0.0), groups=("g",), draws=1000, rope=(-0.5, 0.5))
+@pytest.mark.parametrize(
+    ("delta", "rope", "probability_bounds"),
+    [
+        pytest.param(0.0, (-0.5, 0.5), (0.95, 1.0), id="equivalent_groups"),
+        pytest.param(2.0, (-0.5, 0.5), (0.0, 0.05), id="separated_groups"),
+        pytest.param(2.0, (-2.5, -1.5), (0.95, 1.0), id="rope_contains_negative_difference"),
+    ],
+)
+def test_rope_probability_tracks_group_difference_and_requested_interval(delta, rope, probability_bounds):
+    r = analyze_bayesian_eda(_dataset(delta=delta), groups=("g",), draws=2000, rope=rope, random_state=5)
     p = float(r.mean_differences.loc[0, "rope_probability"])  # pyrefly: ignore[bad-argument-type]
-    assert 0 <= p <= 1
+    lower, upper = probability_bounds
+    assert lower <= p <= upper

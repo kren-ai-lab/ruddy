@@ -58,7 +58,10 @@ def test_non_euclidean_metric_records_pcoa_advisory(group_dataset, separated_fea
         separated_features, group_dataset, factor="group", metric="cosine", n_permutations=9
     )
     assert result.status.value == "ok"
-    assert all(advisory.code != "mixed_model_fit_error" for advisory in result.advisories)
+    advisory = next(a for a in result.advisories if a.code == "negative_pcoa_eigenvalues")
+    assert advisory.context["metric"] == "cosine"
+    assert 0 < advisory.context["negative_eigenvalue_fraction"] < 1
+    assert result.provenance.parameters["metric"] == "cosine"
 
 
 def test_permanova_matches_direct_sum_of_squares_formula():

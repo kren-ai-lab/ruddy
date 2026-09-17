@@ -49,10 +49,3 @@ def test_unified_runs_new_blocks_only_when_enabled() -> None:
     assert result.intervals is not None
     assert result.profiling is None
     assert set(result.components) == set(result.executed_blocks)
-
-
-def test_unified_default_is_unchanged() -> None:
-    result = analyze(_dataset())
-    assert result.executed_blocks == (AnalysisBlock.PROFILING, AnalysisBlock.UNIVARIATE)
-    assert result.dependence is None
-    assert result.intervals is None

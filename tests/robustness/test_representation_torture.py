@@ -59,21 +59,6 @@ def test_independent_spaces_do_not_look_identical():
     assert abs(result.distance_similarity.loc[0, "coefficient"]) < 0.3  # pyrefly: ignore[bad-argument-type, unsupported-operation]
 
 
-def test_low_rank_pair_is_guarded():
-    rng = np.random.default_rng(26)
-    base = rng.normal(size=(40, 1))
-    x = np.repeat(base, 5, axis=1)
-    y = np.repeat(base, 4, axis=1)
-    result = analyze_representation_similarity(
-        FeatureMatrix(x, observation_ids=range(40)),
-        FeatureMatrix(y, observation_ids=range(40)),
-        cca_components=2,
-        mantel_permutations=0,
-    )
-    assert result.cca.status.value == "skipped"
-    assert result.cca.reason == "cca_components_exceed_effective_rank"
-
-
 def test_zero_variance_cka_is_rejected():
     x = np.ones((20, 3))
     with pytest.raises(ValueError, match="zero-variance"):

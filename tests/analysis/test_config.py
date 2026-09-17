@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from ruddy import (
+    AlignmentMode,
     AnalysisBlock,
     AnalysisConfig,
     ColumnKind,
@@ -24,7 +25,7 @@ def test_analysis_config_normalizes_and_freezes_overrides() -> None:
 
     assert config.role_overrides["group"] is ColumnRole.FACTOR
     assert config.kind_overrides["code"] is ColumnKind.CATEGORICAL
-    assert config.annotation_alignment == "partial"
+    assert config.annotation_alignment is AlignmentMode.PARTIAL
     assert config.dataset_kwargs()["id_column"] == "id"
 
     with pytest.raises(TypeError):
@@ -218,11 +219,17 @@ def test_enabled_blocks_cannot_repeat():
 
 
 def test_feature_alignment_normalizes():
-    assert AnalysisConfig(feature_alignment="partial").feature_alignment == "partial"
+    assert AnalysisConfig(feature_alignment="partial").feature_alignment is AlignmentMode.PARTIAL
 
 
 def test_factorial_interactions_are_immutable_tuples():
-    config = AnalysisConfig(factorial_interactions=(("A", "B"),))
+    interactions = [["A", "B"]]
+    # Mutable inputs are accepted and normalized at runtime.
+    config = AnalysisConfig(factorial_interactions=interactions)  # pyrefly: ignore[bad-argument-type]
+    assert config.factorial_interactions == (("A", "B"),)
+
+    interactions[0].append("C")
+    interactions.append(["B", "C"])
     assert config.factorial_interactions == (("A", "B"),)
 
 

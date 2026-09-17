@@ -117,7 +117,12 @@ def test_feature_alignment_never_uses_row_position(robust_tabular):
     assert result.feature_alignment.complete
     assert result.pca is not None
     assert result.pca.scores is not None
-    assert set(result.pca.scores.observation_id) == set(ids)
+    components = ["PC1", "PC2"]
+    scores_by_id = result.pca.scores.set_index("observation_id").loc[ids]
+    # Project the original rows onto the returned axes to avoid PCA sign ambiguity.
+    expected_scores = (x - x.mean(axis=0)) @ result.pca.loadings[components].to_numpy()
+    np.testing.assert_allclose(scores_by_id[components], expected_scores, rtol=1e-12, atol=1e-12)
+    np.testing.assert_array_equal(scores_by_id["source_row_index"], np.argsort(order))
 
 
 def test_actual_cli_roundtrip_matches_standalone_univariate(tmp_path):

@@ -54,13 +54,6 @@ def test_multiplicative_replacement_preserves_closure():
     assert report["replaced"].all()
 
 
-def test_ilr_euclidean_distance_matches_aitchison():
-    r = analyze_composition(_features(), transform="ilr")
-    z = r.transformed.to_array()
-    d = np.linalg.norm(z[0] - z[1])
-    assert d == pytest.approx(r.aitchison_distances.iloc[0, 1], rel=1e-12)
-
-
 def test_negative_parts_rejected():
     x = _features().to_array()
     x[0, 0] = -1

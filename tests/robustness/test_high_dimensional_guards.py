@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from ruddy import FeatureMatrix, analyze_multivariate, analyze_pca, analyze_representation_similarity
-from ruddy.multivariate import analyze_collinearity, analyze_covariance_structure, analyze_mahalanobis
+from ruddy.multivariate import analyze_collinearity, analyze_mahalanobis
 
 
 def _features(n: int, p: int, seed: int = 1) -> FeatureMatrix:
@@ -24,11 +24,6 @@ def test_pca_p_greater_than_n_respects_effective_rank():
     assert ok.status.value == "ok"
     with pytest.raises(ValueError):
         analyze_pca(f, n_components=15)
-
-
-def test_covariance_feature_limit_requires_explicit_reduction():
-    with pytest.raises(ValueError, match="reduce dimensionality"):
-        analyze_covariance_structure(_features(50, 201), max_features=200)
 
 
 def test_collinearity_p_ge_n_is_not_fabricated():

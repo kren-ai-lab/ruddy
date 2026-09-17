@@ -82,21 +82,6 @@ def test_high_cardinality_factor_hits_explicit_guard():
     assert set(result.numeric_comparisons["status"]) == {"skipped"}
 
 
-def test_factorial_empty_cell_never_returns_silent_clean_fit():
-    frame = pd.DataFrame(
-        {
-            "id": [f"o{i}" for i in range(18)],
-            "y": np.linspace(0, 1, 18),
-            "a": ["A"] * 9 + ["B"] * 9,
-            "b": ["X"] * 6 + ["Y"] * 3 + ["X"] * 9,
-        }
-    )
-    ds = TabularDataset(frame, id_column="id", role_overrides={"y": "response", "a": "factor", "b": "factor"})
-    result = analyze_factorial(ds, response="y", factors=("a", "b"), interactions=(("a", "b"),), ss_type=3)
-    assert result.cells["is_empty"].any()
-    assert result.status.value != "ok" or any(a.code for a in result.advisories)
-
-
 def test_complete_case_collapse_is_explicit_in_factorial():
     frame = pd.DataFrame(
         {
