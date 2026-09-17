@@ -12,7 +12,7 @@ from ruddy.core.enums import AlignmentMode, AnnotationCoverage, ColumnKind, Colu
 from ruddy.core.exceptions import RoleConflictError, UnknownColumnError
 from ruddy.core.types import KindOverrides, RoleOverrides
 from ruddy.data.dataset import TabularDataset
-from ruddy.data.roles import infer_column_kind
+from ruddy.data.roles import _infer_pandas_kind
 from ruddy.data.validation import AlignmentReport, align_annotations
 
 
@@ -125,7 +125,7 @@ def _resolve_annotation_kinds(
         raise UnknownColumnError(f"Annotation kind overrides reference unknown columns: {unknown}.")
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:
-        observed = infer_column_kind(frame[column])
+        observed = _infer_pandas_kind(frame[column])
         if column not in overrides:
             resolved[column] = observed
             continue

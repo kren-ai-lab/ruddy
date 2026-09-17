@@ -99,18 +99,18 @@ def test_profile_dataset_is_non_destructive_and_has_provenance() -> None:
     assert not result.missingness_patterns.empty
 
 
-def test_complex_and_timedelta_columns_are_not_silently_treated_as_numeric() -> None:
-    frame = pd.DataFrame(
-        {
-            "complex": np.asarray([1 + 2j, 3 + 4j]),
-            "delta": pd.to_timedelta(["1 day", "2 days"]),
-        }
-    )
+def test_timedelta_columns_are_not_silently_treated_as_numeric() -> None:
+    frame = pd.DataFrame({"delta": pd.to_timedelta(["1 day", "2 days"])})
     dataset = TabularDataset(frame)
     table = profile_columns(dataset).set_index("column")
-    assert table.loc["complex", "data_kind"] == "unknown"
     assert table.loc["delta", "data_kind"] == "unknown"
-    assert bool(table.loc["complex", "analysis_eligible"]) is False
+    assert bool(table.loc["delta", "analysis_eligible"]) is False
+
+
+def test_complex_columns_are_rejected_explicitly() -> None:
+    frame = pd.DataFrame({"complex": np.asarray([1 + 2j, 3 + 4j])})
+    with pytest.raises(TypeError, match="cannot represent"):
+        TabularDataset(frame)
 
 
 def test_pairwise_column_guard_is_explicit() -> None:

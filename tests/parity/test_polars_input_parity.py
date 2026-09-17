@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
-from patsy import PatsyError, dmatrices
+from patsy import PatsyError, dmatrices  # pyrefly: ignore[missing-module-attribute]
 from scipy import stats
 from sklearn.covariance import MinCovDet
 from sklearn.decomposition import PCA

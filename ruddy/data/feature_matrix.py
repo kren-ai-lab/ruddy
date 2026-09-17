@@ -15,8 +15,8 @@ from ruddy.core.exceptions import FeatureMatrixValidationError
 from ruddy.core.types import FeatureInput, ObservationIDs
 from ruddy.data.validation import (
     AlignmentReport,
+    _validated_index,
     align_annotations,
-    validate_observation_ids,
 )
 
 
@@ -40,7 +40,7 @@ class FeatureMatrix:
         ids = inferred_ids if observation_ids is None else observation_ids
         if ids is None:
             ids = pd.RangeIndex(n_rows)
-        validated_ids = validate_observation_ids(ids)
+        validated_ids = _validated_index(ids)
         if len(validated_ids) != n_rows:
             raise FeatureMatrixValidationError("observation_ids length must match the number of matrix rows.")
 

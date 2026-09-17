@@ -2,51 +2,72 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 import pandas as pd
+import polars as pl
+import pyarrow as pa
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.core.types import KindOverrides, RoleOverrides
+from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides
 from ruddy.data.roles import ColumnSpec, build_schema, resolve_kinds, resolve_roles
 from ruddy.data.validation import validate_observation_ids
 
 
 class TabularDataset:
-    """Immutable-by-contract wrapper around a pandas DataFrame.
+    """Immutable-by-contract wrapper around a polars DataFrame.
 
     Ruddy never coerces values, imputes missing observations, or deletes rows while
-    constructing this object. Internal data are copied from the caller and public
+    constructing this object. Internal data are stored as polars frames and public
     accessors return copies, preventing accidental mutation of the scientific input.
     """
 
     def __init__(
         self,
-        data: pd.DataFrame,
+        data: pl.DataFrame | pd.DataFrame,
         *,
         id_column: str | None = None,
+        observation_ids: Sequence[ObservationID] | None = None,
         role_overrides: RoleOverrides | None = None,
         kind_overrides: KindOverrides | None = None,
     ) -> None:
-        if not isinstance(data, pd.DataFrame):
-            raise TypeError("data must be a pandas DataFrame.")
-
-        if not data.columns.is_unique:
-            duplicates = data.columns[data.columns.duplicated()].tolist()
-            raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
-        non_string = [column for column in data.columns if not isinstance(column, str)]
-        if non_string:
-            raise TypeError(
-                f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
+        if isinstance(data, pd.DataFrame):
+            default_index = (
+                isinstance(data.index, pd.RangeIndex) and data.index.start == 0 and data.index.step == 1
             )
+            if id_column is None and observation_ids is None and not default_index:
+                raise ValueError(
+                    "pandas DataFrame has a non-default index; pass observation_ids=frame.index or reset_index()."
+                )
+            if not data.columns.is_unique:
+                duplicates = data.columns[data.columns.duplicated()].tolist()
+                raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
+            non_string = [column for column in data.columns if not isinstance(column, str)]
+            if non_string:
+                raise TypeError(
+                    f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
+                )
+            input_backend = "pandas"
+            try:
+                self._frame = pl.from_pandas(data, include_index=False)
+            except (pa.ArrowNotImplementedError, pa.ArrowInvalid, TypeError) as exc:
+                raise TypeError(
+                    "pandas DataFrame contains a dtype Polars cannot represent (e.g. complex); "
+                    f"drop or convert it explicitly before constructing TabularDataset: {exc}"
+                ) from exc
+        elif isinstance(data, pl.DataFrame):
+            input_backend = "polars"
+            self._frame = data
+        else:
+            raise TypeError("data must be a polars or pandas DataFrame.")
 
-        self._data = data.copy(deep=True)
         self._roles = resolve_roles(
-            self._data,
+            self._frame,
             id_column=id_column,
             overrides=role_overrides,
         )
-        self._kinds = resolve_kinds(self._data, overrides=kind_overrides)
+        self._kinds = resolve_kinds(self._frame, overrides=kind_overrides)
 
         inferred_id_columns = [
             column for column, role in self._roles.items() if role is ColumnRole.IDENTIFIER
@@ -55,37 +76,59 @@ class TabularDataset:
             id_column if id_column is not None else (inferred_id_columns[0] if inferred_id_columns else None)
         )
 
-        raw_ids = self._data[self._id_column] if self._id_column is not None else self._data.index
-        self._observation_ids = validate_observation_ids(raw_ids)
+        if self._id_column is not None and observation_ids is not None:
+            raise ValueError("Cannot pass both id_column and observation_ids.")
+
+        n = self._frame.height
+        if self._id_column is not None:
+            raw_ids = self._frame[self._id_column].to_list()
+            id_source = "column"
+        elif observation_ids is not None:
+            if len(observation_ids) != n:
+                raise ValueError("observation_ids length must equal frame.height.")
+            raw_ids = observation_ids
+            id_source = "argument"
+        else:
+            raw_ids = range(n)
+            id_source = "generated"
+
+        self._observation_id_tuple = validate_observation_ids(raw_ids)
+
         self._schema = build_schema(
-            self._data,
+            self._frame,
             roles=self._roles,
             kinds=self._kinds,
         )
 
-    @property
-    def n_observations(self) -> int:
-        return len(self._data)
+        self._provenance = {
+            "input_backend": input_backend,
+            "id_source": id_source,
+        }
 
     @property
-    def n_columns(self) -> int:
-        return self._data.shape[1]
+    def frame(self) -> pl.DataFrame:
+        return self._frame
 
     @property
-    def columns(self) -> tuple[str, ...]:
-        return tuple(str(column) for column in self._data.columns)
+    def observation_ids(self) -> pd.Index:
+        # ponytail: temporary pandas adapter, removed in phase 5
+        return pd.Index(self._observation_id_tuple)
+
+    @property
+    def observation_id_tuple(self) -> tuple[ObservationID, ...]:
+        return self._observation_id_tuple
 
     @property
     def id_column(self) -> str | None:
         return self._id_column
 
     @property
-    def observation_ids(self) -> pd.Index:
-        return self._observation_ids.copy()
-
-    @property
     def schema(self) -> tuple[ColumnSpec, ...]:
         return self._schema
+
+    @property
+    def provenance(self) -> Mapping[str, Any]:
+        return self._provenance
 
     def role_of(self, column: str) -> ColumnRole:
         return self._roles[column]
@@ -95,21 +138,45 @@ class TabularDataset:
 
     def columns_with_role(self, *roles: ColumnRole | str) -> tuple[str, ...]:
         wanted = {role if isinstance(role, ColumnRole) else ColumnRole(role) for role in roles}
-        return tuple(column for column in self._data.columns if self._roles[column] in wanted)
+        return tuple(column for column in self._frame.columns if self._roles[column] in wanted)
 
     def columns_with_kind(self, *kinds: ColumnKind | str) -> tuple[str, ...]:
         wanted = {kind if isinstance(kind, ColumnKind) else ColumnKind(kind) for kind in kinds}
-        return tuple(column for column in self._data.columns if self._kinds[column] in wanted)
+        return tuple(column for column in self._frame.columns if self._kinds[column] in wanted)
 
     def select(self, columns: Iterable[str]) -> pd.DataFrame:
-        return self._data.loc[:, list(columns)].copy(deep=True)
+        # ponytail: temporary pandas adapter, removed in phase 5
+        df = self._frame.select(list(columns)).to_pandas()
+        if self._id_column is None:
+            df.index = pd.Index(self._observation_id_tuple)
+        return df
 
     def to_frame(self) -> pd.DataFrame:
-        """Return a defensive copy of the stored table."""
-        return self._data.copy(deep=True)
+        """Return the stored table as pandas."""
+        # ponytail: temporary pandas adapter, removed in phase 5
+        df = self._frame.to_pandas()
+        if self._id_column is None:
+            df.index = pd.Index(self._observation_id_tuple)
+        return df
 
+    # ponytail: temporary pandas adapter, removed in phase 5
+    @property
+    def n_observations(self) -> int:
+        return self._frame.height
+
+    # ponytail: temporary pandas adapter, removed in phase 5
+    @property
+    def n_columns(self) -> int:
+        return self._frame.width
+
+    # ponytail: temporary pandas adapter, removed in phase 5
+    @property
+    def columns(self) -> tuple[str, ...]:
+        return tuple(self._frame.columns)
+
+    # ponytail: temporary pandas adapter, removed in phase 5
     def __len__(self) -> int:
-        return self.n_observations
+        return self._frame.height
 
     def __repr__(self) -> str:
         return (

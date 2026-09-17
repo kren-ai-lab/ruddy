@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pandas as pd
+import polars as pl
 from pandas.api.types import (
     is_bool_dtype,
     is_complex_dtype,
@@ -32,8 +33,21 @@ class ColumnSpec:
     dtype: str
 
 
-def infer_column_kind(series: pd.Series) -> ColumnKind:
-    """Infer a statistical kind without coercing or transforming values."""
+def infer_column_kind(dtype: pl.DataType) -> ColumnKind:
+    """Infer a statistical kind from a Polars dtype without coercing values."""
+    if dtype == pl.Boolean:
+        return ColumnKind.BOOLEAN
+    if dtype.is_numeric() or dtype.is_decimal():
+        return ColumnKind.NUMERIC
+    if dtype in (pl.Date, pl.Datetime) or isinstance(dtype, pl.Datetime):
+        return ColumnKind.DATETIME
+    if dtype == pl.String or isinstance(dtype, (pl.Categorical, pl.Enum)):
+        return ColumnKind.CATEGORICAL
+    return ColumnKind.UNKNOWN
+
+
+def _infer_pandas_kind(series: pd.Series) -> ColumnKind:
+    # ponytail: temporary pandas adapter for annotations.py, removed in task 2B
     dtype = series.dtype
     if is_bool_dtype(dtype):
         return ColumnKind.BOOLEAN
@@ -63,7 +77,7 @@ def _coerce_kind(value: ColumnKind | str) -> ColumnKind:
 
 
 def resolve_roles(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     *,
     id_column: str | None,
     overrides: RoleOverrides | None = None,
@@ -126,7 +140,7 @@ def _validate_kind_override(
 
 
 def resolve_kinds(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     *,
     overrides: KindOverrides | None = None,
 ) -> dict[str, ColumnKind]:
@@ -138,7 +152,7 @@ def resolve_kinds(
 
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:
-        observed = infer_column_kind(frame[column])
+        observed = infer_column_kind(frame.schema[column])
         if column not in overrides:
             resolved[column] = observed
             continue
@@ -149,7 +163,7 @@ def resolve_kinds(
 
 
 def build_schema(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     *,
     roles: dict[str, ColumnRole],
     kinds: dict[str, ColumnKind],
@@ -160,7 +174,7 @@ def build_schema(
             name=str(column),
             role=roles[column],
             kind=kinds[column],
-            dtype=str(frame[column].dtype),
+            dtype=str(frame.schema[column]),
         )
         for column in frame.columns
     )

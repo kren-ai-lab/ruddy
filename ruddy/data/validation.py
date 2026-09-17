@@ -14,10 +14,13 @@ from ruddy.core.exceptions import (
     MissingObservationIDError,
     UnknownColumnError,
 )
+from ruddy.core.types import ObservationID
 
 
-def validate_observation_ids(values: Any, *, source: str = "observations") -> pd.Index:
+def validate_observation_ids(values: Any, *, source: str = "observations") -> tuple[ObservationID, ...]:
     """Validate non-missing, unique observation identifiers."""
+    if hasattr(values, "to_list") and not isinstance(values, (pd.Index, pd.Series)):
+        values = values.to_list()
     ids = pd.Index(values, copy=True)
     if ids.hasnans:
         raise MissingObservationIDError(f"{source.capitalize()} contain missing observation identifiers.")
@@ -28,7 +31,12 @@ def validate_observation_ids(values: Any, *, source: str = "observations") -> pd
         raise DuplicateObservationIDError(
             f"{source.capitalize()} contain duplicate observation identifiers: {preview}{suffix}."
         )
-    return ids
+    return tuple(ids.tolist())
+
+
+def _validated_index(values: Any, *, source: str = "observations") -> pd.Index:
+    # ponytail: temporary pandas adapter for feature_matrix/annotations, removed in task 2B
+    return pd.Index(validate_observation_ids(values, source=source))
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,17 +88,17 @@ def align_annotations(
         raise TypeError("annotations must be a pandas DataFrame.")
 
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
-    base_index = validate_observation_ids(base_ids, source="base data")
+    base_index = _validated_index(base_ids, source="base data")
 
     source = annotations.copy(deep=True)
     if id_column is None:
-        annotation_ids = validate_observation_ids(source.index, source="annotations")
+        annotation_ids = _validated_index(source.index, source="annotations")
         indexed = source.copy(deep=True)
         indexed.index = annotation_ids
     else:
         if id_column not in source.columns:
             raise UnknownColumnError(f"Unknown annotation ID column: {id_column!r}.")
-        annotation_ids = validate_observation_ids(source[id_column], source="annotations")
+        annotation_ids = _validated_index(source[id_column], source="annotations")
         indexed = source.set_index(id_column, drop=False)
         indexed.index = annotation_ids
 

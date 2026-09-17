@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import pandas as pd
+import polars as pl
 import pytest
+from polars.testing import assert_frame_equal
 
 from ruddy import ColumnKind, ColumnRole, TabularDataset
 from ruddy.core.exceptions import (
@@ -10,6 +12,7 @@ from ruddy.core.exceptions import (
     MissingObservationIDError,
     RoleConflictError,
 )
+from ruddy.data.validation import validate_observation_ids
 
 
 def make_frame() -> pd.DataFrame:
@@ -120,3 +123,82 @@ def test_non_string_column_names_are_rejected_for_stable_schema() -> None:
     frame = pd.DataFrame([[1, 2]], columns=pd.Index([0, 1]))
     with pytest.raises(TypeError, match="string column names"):
         TabularDataset(frame)
+
+
+def test_polars_input_round_trips() -> None:
+    df = pl.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+    dataset = TabularDataset(df)
+    assert_frame_equal(dataset.frame, df)
+    assert dataset.provenance["input_backend"] == "polars"
+
+
+def test_pandas_input() -> None:
+    df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+    dataset = TabularDataset(df)
+    assert dataset.provenance["input_backend"] == "pandas"
+    assert_frame_equal(dataset.frame, pl.from_pandas(df, include_index=False))
+
+
+def test_pandas_input_non_default_index_no_id() -> None:
+    df = pd.DataFrame({"a": [1, 2]}, index=[1, 2])
+    with pytest.raises(ValueError, match="pandas DataFrame has a non-default index"):
+        TabularDataset(df)
+
+
+def test_observation_ids_argument_sets_identity() -> None:
+    df = pl.DataFrame({"a": [1, 2]})
+    dataset = TabularDataset(df, observation_ids=["x", "y"])
+    assert dataset.observation_id_tuple == ("x", "y")
+    assert dataset.provenance["id_source"] == "argument"
+
+
+def test_observation_ids_wrong_length() -> None:
+    df = pl.DataFrame({"a": [1, 2]})
+    with pytest.raises(ValueError, match="observation_ids length must equal"):
+        TabularDataset(df, observation_ids=["x"])
+
+
+def test_observation_ids_with_id_column_fails() -> None:
+    df = pl.DataFrame({"id": ["x", "y"], "a": [1, 2]})
+    with pytest.raises(ValueError, match="Cannot pass both id_column and observation_ids"):
+        TabularDataset(df, id_column="id", observation_ids=["x", "y"])
+
+
+def test_generated_ids() -> None:
+    df = pl.DataFrame({"a": [1, 2]})
+    dataset = TabularDataset(df)
+    assert dataset.observation_id_tuple == (0, 1)
+    assert dataset.provenance["id_source"] == "generated"
+
+
+def test_kind_inference_polars_frame() -> None:
+    df = pl.DataFrame(
+        {
+            "bool": pl.Series([True], dtype=pl.Boolean),
+            "int": pl.Series([1], dtype=pl.Int64),
+            "float": pl.Series([1.5], dtype=pl.Float64),
+            "str": pl.Series(["a"], dtype=pl.String),
+            "cat": pl.Series(["a"], dtype=pl.Categorical),
+            "date": pl.Series(["2020-01-01"]).str.strptime(pl.Date),
+            "datetime": pl.Series(["2020-01-01T00:00:00"]).str.strptime(pl.Datetime),
+            "duration": pl.Series([100], dtype=pl.Duration),
+            "null": pl.Series([None], dtype=pl.Null),
+        }
+    )
+    dataset = TabularDataset(df)
+    assert dataset.kind_of("bool") is ColumnKind.BOOLEAN
+    assert dataset.kind_of("int") is ColumnKind.NUMERIC
+    assert dataset.kind_of("float") is ColumnKind.NUMERIC
+    assert dataset.kind_of("str") is ColumnKind.CATEGORICAL
+    assert dataset.kind_of("cat") is ColumnKind.CATEGORICAL
+    assert dataset.kind_of("date") is ColumnKind.DATETIME
+    assert dataset.kind_of("datetime") is ColumnKind.DATETIME
+    assert dataset.kind_of("duration") is ColumnKind.UNKNOWN
+    assert dataset.kind_of("null") is ColumnKind.UNKNOWN
+
+
+def test_validate_observation_ids_polars_series_with_null_and_nan() -> None:
+    with pytest.raises(MissingObservationIDError):
+        validate_observation_ids(pl.Series(["a", None]))
+    with pytest.raises(MissingObservationIDError):
+        validate_observation_ids(pl.Series([1.0, float("nan")]))
