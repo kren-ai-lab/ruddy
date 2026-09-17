@@ -138,7 +138,12 @@ def _empty_result(
     advisories: tuple[Advisory, ...],
     provenance: AnalysisProvenance,
 ) -> FactorialResult:
-    from ruddy.factorial.diagnostics import DIAGNOSTIC_COLUMNS, OBSERVATION_DIAGNOSTIC_COLUMNS
+    # Local import: ruddy.factorial.diagnostics imports from this module, so a
+    # top-level import here would close the cycle.
+    from ruddy.factorial.diagnostics import (  # noqa: PLC0415
+        DIAGNOSTIC_COLUMNS,
+        OBSERVATION_DIAGNOSTIC_COLUMNS,
+    )
 
     return FactorialResult(
         status=status,

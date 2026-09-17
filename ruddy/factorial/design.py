@@ -27,8 +27,11 @@ def _unique(values: Iterable[str], *, label: str) -> tuple[str, ...]:
 
 def _normalize_ss_type(value: int | str) -> int:
     if isinstance(value, bool):
+        # A bool is an int, so it would otherwise pass as ss_type=1/0. This is a
+        # domain error, not a type error: the other branches reject 1 and "IV"
+        # with ValueError too, and callers catch one exception type, not two.
         msg = "ss_type must be 2/II or 3/III."
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004
     if isinstance(value, int):
         if value in {2, 3}:
             return value

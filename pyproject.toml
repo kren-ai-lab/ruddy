@@ -113,6 +113,11 @@ ignore = [
     "TRY003",
     "EM101",
     "EM102",
+    # Coercion helpers at the trust boundary (`float(value)` guarded by
+    # try/except) and the heterogeneous result registry genuinely accept
+    # anything. Annotating them `object` only moves the complaint to the
+    # type checker, which then rejects `float(value)`.
+    "ANN401",
     # Statistical thresholds and minimum sample sizes read better inline
     # (`if n < 3`, `if p < 0.05`) than behind a named constant.
     "PLR2004",
@@ -153,7 +158,6 @@ ignore = [
 "ruddy/{analysis,anomaly,bayesian,bivariate,compositional,data,factorial,multivariate,profiling,projections,representation,results,statistics,univariate}/*" = [
     "ANN001",
     "ANN202",
-    "ANN401",
     "B023",
     "BLE001",
     "D101",
@@ -168,7 +172,6 @@ ignore = [
     "PERF401",
     "PLC0415",
     "RUF002",
-    "TRY004",
 ]
 "examples/*" = [
     "INP001",  # example scripts are intentionally standalone modules
