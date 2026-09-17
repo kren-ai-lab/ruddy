@@ -23,7 +23,7 @@ The documentation is code-oriented and describes the current public behavior, no
 | [`UNIFIED_ANALYSIS.md`](UNIFIED_ANALYSIS.md) | `AnalysisConfig`, `AnalysisBlock` and `ruddy.analyze()` |
 | [`CLI_REFERENCE.md`](CLI_REFERENCE.md) | Current functional CLI and command-to-analysis mapping |
 | [`VISUALIZATION_NOTEBOOKS.md`](VISUALIZATION_NOTEBOOKS.md) | External visualization examples and what each notebook demonstrates |
-| [`TESTING_AND_REPRODUCIBILITY.md`](TESTING_AND_REPRODUCIBILITY.md) | Test layout, robustness suite, deterministic stochastic analyses and scientific freeze |
+| [`TESTING_AND_REPRODUCIBILITY.md`](TESTING_AND_REPRODUCIBILITY.md) | Test layout, robustness suite, deterministic stochastic analyses and feature freeze |
 | [`PUBLIC_API.md`](PUBLIC_API.md) | Generated inventory of current public Python call signatures |
 
 ## Current scientific layers

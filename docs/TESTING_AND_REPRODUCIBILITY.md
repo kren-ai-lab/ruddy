@@ -1,4 +1,4 @@
-# Testing, reproducibility and scientific freeze
+# Testing, reproducibility and feature freeze
 
 Ruddy's current scientific MVP is protected by unit, integration, parity, pathological-data and notebook validation tests.
 
@@ -23,7 +23,7 @@ uv run pytest -q
 
 ## What the robustness suite targets
 
-The scientific freeze is not based only on ordinary happy-path unit tests. It deliberately exercises conditions such as:
+The test suite is not based only on ordinary happy-path unit tests. It deliberately exercises conditions such as:
 
 ### Pathological tabular data
 
@@ -142,11 +142,11 @@ Tests under `tests/examples/` verify that the rich demo notebooks:
 
 The notebooks can also be executed using the notebook gate tooling under `tools/`.
 
-## Scientific freeze meaning
+## Feature freeze
 
-"Scientific freeze" means that the MVP method families and their core behavior are considered stable enough to stop adding features while documentation/product design proceeds. It does **not** mean that future versions can never add scientific methods.
+Until the first release, the set of method families is closed: no new analyses are added. The code is not frozen — refactors, cleanups and fixes are expected — and future versions may add new scientific methods.
 
-After freeze, a change should be treated carefully if it alters:
+A change should be treated carefully if it alters:
 
 - numerical definitions;
 - default statistical policies;
@@ -159,9 +159,3 @@ After freeze, a change should be treated carefully if it alters:
 - provenance semantics.
 
 Such changes can invalidate notebooks, downstream applications or scientific reproducibility and should therefore receive dedicated tests and release notes.
-
-Scientific modules are only modified for a reproducible bug, a real backend incompatibility, an inconsistency between the standalone and unified APIs, or a demonstrated numerical problem, never for stylistic reasons alone. The procedure is:
-
-```text
-reproducible bug → failing test → minimal fix → full test suite → documented change
-```

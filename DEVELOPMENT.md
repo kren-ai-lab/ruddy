@@ -47,9 +47,6 @@ uv run python tools/run_notebook_gate.py
 uv run python tools/run_notebook_gate.py --mode jupyter --inplace
 ```
 
-Run the full test suite before and after any change to a module under `ruddy/`
-other than the CLI or non-scientific plumbing — see `AGENTS.md` for the
-scientific-freeze rule.
 
 ## Project Structure
 

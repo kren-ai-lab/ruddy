@@ -260,7 +260,7 @@ Detailed technical documentation is available in [`docs/`](docs/README.md):
 - [Unified analysis and configuration](docs/UNIFIED_ANALYSIS.md)
 - [CLI reference](docs/CLI_REFERENCE.md)
 - [Visualization notebooks](docs/VISUALIZATION_NOTEBOOKS.md)
-- [Testing and scientific freeze](docs/TESTING_AND_REPRODUCIBILITY.md)
+- [Testing and feature freeze](docs/TESTING_AND_REPRODUCIBILITY.md)
 - [Public Python API inventory](docs/PUBLIC_API.md)
 
 ## Validation
