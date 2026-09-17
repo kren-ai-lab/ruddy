@@ -69,9 +69,11 @@ def test_bivariate_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_bivariate(pipeline_dataset, **config.bivariate_kwargs())
     assert result.bivariate is not None
-    assert_frame_equal(result.bivariate.correlations, standalone.correlations)
-    assert_frame_equal(result.bivariate.comparisons, standalone.comparisons)
-    assert_frame_equal(result.bivariate.categorical_associations, standalone.categorical_associations)
+    pl_testing.assert_frame_equal(result.bivariate.correlations, standalone.correlations)
+    pl_testing.assert_frame_equal(result.bivariate.comparisons, standalone.comparisons)
+    pl_testing.assert_frame_equal(
+        result.bivariate.categorical_associations, standalone.categorical_associations
+    )
 
 
 def test_groups_matches_standalone(pipeline_dataset):

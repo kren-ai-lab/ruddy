@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from scipy import stats
 
 from ruddy.bivariate.associations import _eligible_categorical
@@ -26,44 +27,48 @@ from ruddy.statistics import (
 from ruddy.univariate.categorical import _category_label
 from ruddy.univariate.diagnostics import _eligible_numeric
 
-COMPARISON_COLUMNS: tuple[str, ...] = (
-    "group_column",
-    "group_role",
-    "scope",
-    "test",
-    "feature",
-    "feature_role",
-    "n_groups",
-    "group_a",
-    "group_b",
-    "group_a_n",
-    "group_b_n",
-    "min_group_n_used",
-    "max_group_n_used",
-    "n_total",
-    "n_used",
-    "n_missing_or_nonfinite",
-    "statistic",
-    "df1",
-    "df2",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "effect_size_name",
-    "effect_size",
-    "status",
-    "reason",
-)
+COMPARISON_SCHEMA: dict[str, pl.DataType] = {
+    "group_column": pl.String,
+    "group_role": pl.String,
+    "scope": pl.String,
+    "test": pl.String,
+    "feature": pl.String,
+    "feature_role": pl.String,
+    "n_groups": pl.Int64,
+    "group_a": pl.String,
+    "group_b": pl.String,
+    "group_a_n": pl.Int64,
+    "group_b_n": pl.Int64,
+    "min_group_n_used": pl.Int64,
+    "max_group_n_used": pl.Int64,
+    "n_total": pl.Int64,
+    "n_used": pl.Int64,
+    "n_missing_or_nonfinite": pl.Int64,
+    "statistic": pl.Float64,
+    "df1": pl.Float64,
+    "df2": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "effect_size_name": pl.String,
+    "effect_size": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+COMPARISON_COLUMNS: tuple[str, ...] = tuple(COMPARISON_SCHEMA)
 
 _TWO_GROUP_TESTS = (ComparisonTest.WELCH_T, ComparisonTest.MANN_WHITNEY)
 _OMNIBUS_TESTS = (ComparisonTest.WELCH_ANOVA, ComparisonTest.KRUSKAL_WALLIS)
 _DEFAULT_TESTS = _TWO_GROUP_TESTS + _OMNIBUS_TESTS
 
 
-def _finite_values(series: pd.Series) -> np.ndarray:
-    values = series.to_numpy(dtype=np.float64, na_value=np.nan)
+def _finite_values(series: pl.Series) -> np.ndarray:
+    # ponytail: temporary pandas adapter, removed in task 3E
+    if isinstance(series, pd.Series):
+        series = pl.Series(series.name or "", series.to_numpy())
+    values = series.cast(pl.Float64).fill_null(float("nan")).to_numpy()
     return values[np.isfinite(values)]
 
 
@@ -147,16 +152,16 @@ def _base_row(
         "n_total": n_total,
         "n_used": n_used,
         "n_missing_or_nonfinite": n_total - n_used,
-        "statistic": np.nan,
-        "df1": np.nan,
-        "df2": np.nan,
-        "p_value": np.nan,
-        "q_value": np.nan,
+        "statistic": None,
+        "df1": None,
+        "df2": None,
+        "p_value": None,
+        "q_value": None,
         "family_id": family_id,
         "family_size": 0,
         "correction": correction.value,
         "effect_size_name": None,
-        "effect_size": np.nan,
+        "effect_size": None,
         "status": "ok",
         "reason": None,
     }
@@ -288,21 +293,37 @@ def _run_omnibus(
 
 
 def _group_values(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     group_column: str,
     feature: str,
 ) -> tuple[tuple[str, ...], tuple[np.ndarray, ...], tuple[int, ...]]:
-    group_series = frame[group_column]
-    present = group_series.notna()
-    normalized = pd.Series(index=group_series.index, dtype="object")
-    normalized.loc[present] = group_series.loc[present].map(_category_label).astype(str)
-    labels = tuple(sorted(normalized.loc[present].dropna().unique().tolist()))
+    # ponytail: temporary pandas adapter, removed in task 3E
+    if isinstance(frame, pd.DataFrame):
+        frame = pl.from_pandas(frame)
+    group_series = frame.get_column(group_column)
+    if group_series.dtype.is_float():
+        present_mask = ~(group_series.is_null() | group_series.is_nan()).to_numpy()
+    else:
+        present_mask = ~group_series.is_null().to_numpy()
+
+    group_list = group_series.to_list()
+    present_indices = np.flatnonzero(present_mask)
+    labels_present = [_category_label(group_list[i]) for i in present_indices]
+    labels = tuple(sorted(set(labels_present)))
+
+    feature_values = frame.get_column(feature).cast(pl.Float64).fill_null(float("nan")).to_numpy()
+
+    label_array = np.empty(len(group_list), dtype=object)
+    for idx, label in zip(present_indices, labels_present, strict=True):
+        label_array[idx] = label
+
     arrays: list[np.ndarray] = []
     sizes: list[int] = []
     for label in labels:
-        mask = present & normalized.eq(label)
+        mask = present_mask & (label_array == label)
         sizes.append(int(mask.sum()))
-        arrays.append(_finite_values(frame.loc[mask, feature]))
+        vals = feature_values[mask]
+        arrays.append(vals[np.isfinite(vals)])
     return labels, tuple(arrays), tuple(sizes)
 
 
@@ -316,7 +337,7 @@ def summarize_numeric_categorical_comparisons(
     max_group_levels: int = 20,
     pairwise: bool = False,
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Compare selected numeric features across selected categorical group variables."""
     if min_group_n < 2:
         raise ValueError("min_group_n must be at least 2.")
@@ -349,13 +370,19 @@ def summarize_numeric_categorical_comparisons(
             "Selected group columns are not eligible categorical/factor variables: "
             + ", ".join(invalid_groups)
         )
-    frame = dataset.to_frame()
+    frame = dataset.frame
     rows: list[dict[str, Any]] = []
 
     for group_column in categorical:
         group_role = dataset.role_of(group_column).value
-        raw_present = frame[group_column].dropna().map(_category_label).astype(str)
-        observed_levels = tuple(sorted(raw_present.unique().tolist()))
+        group_series = frame.get_column(group_column)
+        if group_series.dtype.is_float():
+            present_mask = ~(group_series.is_null() | group_series.is_nan()).to_numpy()
+        else:
+            present_mask = ~group_series.is_null().to_numpy()
+        group_list = group_series.to_list()
+        labels_present = [_category_label(group_list[i]) for i in np.flatnonzero(present_mask)]
+        observed_levels = tuple(sorted(set(labels_present)))
         n_groups = len(observed_levels)
         if n_groups < 2:
             continue
@@ -451,7 +478,5 @@ def summarize_numeric_categorical_comparisons(
                             )
                         )
 
-    table = pd.DataFrame(rows, columns=pd.Index(COMPARISON_COLUMNS))
-    if table.empty:
-        return table
-    return apply_multiple_testing(table, correction)
+    table = pl.DataFrame(rows, schema=COMPARISON_SCHEMA)
+    return table if table.height == 0 else apply_multiple_testing(table, correction)

@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from scipy import stats
 
 from ruddy.core.enums import (
@@ -24,34 +25,35 @@ from ruddy.statistics import (
 )
 from ruddy.univariate.categorical import _category_label
 
-ASSOCIATION_COLUMNS: tuple[str, ...] = (
-    "test",
-    "column_x",
-    "column_y",
-    "column_x_role",
-    "column_y_role",
-    "n_x_levels",
-    "n_y_levels",
-    "n_total",
-    "n_used",
-    "n_missing",
-    "statistic",
-    "df",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "effect_size_name",
-    "effect_size",
-    "min_expected_count",
-    "n_expected_lt5",
-    "fraction_expected_lt5",
-    "advisory_codes",
-    "contingency_json",
-    "status",
-    "reason",
-)
+ASSOCIATION_SCHEMA: dict[str, pl.DataType] = {
+    "test": pl.String,
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "column_x_role": pl.String,
+    "column_y_role": pl.String,
+    "n_x_levels": pl.Int64,
+    "n_y_levels": pl.Int64,
+    "n_total": pl.Int64,
+    "n_used": pl.Int64,
+    "n_missing": pl.Int64,
+    "statistic": pl.Float64,
+    "df": pl.Int64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "effect_size_name": pl.String,
+    "effect_size": pl.Float64,
+    "min_expected_count": pl.Float64,
+    "n_expected_lt5": pl.Int64,
+    "fraction_expected_lt5": pl.Float64,
+    "advisory_codes": pl.String,
+    "contingency_json": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+ASSOCIATION_COLUMNS: tuple[str, ...] = tuple(ASSOCIATION_SCHEMA)
 
 _DEFAULT_TESTS = (ComparisonTest.CHI_SQUARE, ComparisonTest.FISHER_EXACT)
 
@@ -69,17 +71,31 @@ def _eligible_categorical(dataset: TabularDataset) -> tuple[str, ...]:
     return tuple(selected)
 
 
-def _contingency(frame: pd.DataFrame, x: str, y: str) -> tuple[list[str], list[str], np.ndarray, int]:
-    pair = frame[[x, y]].dropna()
-    x_labels = pair[x].map(_category_label).astype(str)
-    y_labels = pair[y].map(_category_label).astype(str)
-    x_levels = sorted(x_labels.unique().tolist())
-    y_levels = sorted(y_labels.unique().tolist())
+def _contingency(frame: pl.DataFrame, x: str, y: str) -> tuple[list[str], list[str], np.ndarray, int]:
+    # ponytail: temporary pandas adapter, removed in task 3E
+    if isinstance(frame, pd.DataFrame):
+        frame = pl.from_pandas(frame)
+    pair = frame.select(x, y).drop_nulls()
+    col_x = pair.get_column(x)
+    col_y = pair.get_column(y)
+    if col_x.dtype.is_float():
+        pair = pair.filter(~pl.col(x).is_nan())
+    if col_y.dtype.is_float():
+        pair = pair.filter(~pl.col(y).is_nan())
+
+    x_list = pair.get_column(x).to_list()
+    y_list = pair.get_column(y).to_list()
+    x_labels = [_category_label(v) for v in x_list]
+    y_labels = [_category_label(v) for v in y_list]
+    x_levels = sorted(set(x_labels))
+    y_levels = sorted(set(y_labels))
     counts = np.zeros((len(x_levels), len(y_levels)), dtype=int)
-    for i, x_level in enumerate(x_levels):
-        for j, y_level in enumerate(y_levels):
-            counts[i, j] = int((x_labels.eq(x_level) & y_labels.eq(y_level)).sum())
-    return x_levels, y_levels, counts, len(pair)
+    if x_labels:
+        x_idx_map = {lvl: i for i, lvl in enumerate(x_levels)}
+        y_idx_map = {lvl: j for j, lvl in enumerate(y_levels)}
+        for xl, yl in zip(x_labels, y_labels, strict=True):
+            counts[x_idx_map[xl], y_idx_map[yl]] += 1
+    return x_levels, y_levels, counts, pair.height
 
 
 def _contingency_payload(x_levels: list[str], y_levels: list[str], counts: np.ndarray) -> str:
@@ -101,7 +117,7 @@ def summarize_categorical_associations(
     pairs: tuple[tuple[str, str], ...] | None = None,
     max_category_levels: int = 50,
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Compute selected or all unordered categorical-categorical associations."""
     if max_category_levels < 2:
         raise ValueError("max_category_levels must be at least 2.")
@@ -115,7 +131,7 @@ def summarize_categorical_associations(
         raise ValueError("Association tests cannot contain duplicates.")
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
 
-    frame = dataset.to_frame()
+    frame = dataset.frame
     candidates = _eligible_categorical(dataset)
     if pairs is None:
         selected_pairs = tuple(combinations(candidates, 2))
@@ -131,7 +147,7 @@ def summarize_categorical_associations(
     rows: list[dict[str, Any]] = []
     for column_x, column_y in selected_pairs:
         x_levels, y_levels, counts, n_used = _contingency(frame, column_x, column_y)
-        n_total = dataset.n_observations
+        n_total = dataset.frame.height
         for test in resolved_tests:
             base: dict[str, Any] = {
                 "test": test.value,
@@ -144,18 +160,18 @@ def summarize_categorical_associations(
                 "n_total": n_total,
                 "n_used": n_used,
                 "n_missing": n_total - n_used,
-                "statistic": np.nan,
-                "df": np.nan,
-                "p_value": np.nan,
-                "q_value": np.nan,
+                "statistic": None,
+                "df": None,
+                "p_value": None,
+                "q_value": None,
                 "family_id": f"associations:{test.value}",
                 "family_size": 0,
                 "correction": correction.value,
                 "effect_size_name": None,
-                "effect_size": np.nan,
-                "min_expected_count": np.nan,
-                "n_expected_lt5": np.nan,
-                "fraction_expected_lt5": np.nan,
+                "effect_size": None,
+                "min_expected_count": None,
+                "n_expected_lt5": None,
+                "fraction_expected_lt5": None,
                 "advisory_codes": None,
                 "contingency_json": _contingency_payload(x_levels, y_levels, counts),
                 "status": "ok",
@@ -189,7 +205,7 @@ def summarize_categorical_associations(
                 else:
                     base.update(
                         statistic=float(chi2),
-                        df=float(dof),
+                        df=int(dof),
                         p_value=float(chi_p),
                         effect_size_name="cramers_v_bias_corrected",
                         effect_size=effect,
@@ -212,7 +228,5 @@ def summarize_categorical_associations(
             )
             rows.append(base)
 
-    table = pd.DataFrame(rows, columns=pd.Index(ASSOCIATION_COLUMNS))
-    if table.empty:
-        return table
-    return apply_multiple_testing(table, correction)
+    table = pl.DataFrame(rows, schema=ASSOCIATION_SCHEMA)
+    return table if table.height == 0 else apply_multiple_testing(table, correction)

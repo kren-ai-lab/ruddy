@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from ruddy.bivariate.associations import ASSOCIATION_COLUMNS, summarize_categorical_associations
 from ruddy.bivariate.comparisons import (
@@ -522,6 +523,9 @@ def _numeric_response_comparisons(
                 pairwise=pairwise,
                 p_adjust=PAdjustMethod.NONE,
             )
+            # ponytail: temporary pandas adapter, removed in task 3E
+            if isinstance(table, pl.DataFrame):
+                table = table.to_pandas()
             if table.empty:
                 continue
             n_present, n_missing = _group_counts(dataset, group)
@@ -566,6 +570,9 @@ def _categorical_response_comparisons(
                 max_category_levels=max_category_levels,
                 p_adjust=PAdjustMethod.NONE,
             )
+            # ponytail: temporary pandas adapter, removed in task 3E
+            if isinstance(table, pl.DataFrame):
+                table = table.to_pandas()
             if table.empty:
                 continue
             n_present, n_missing = _group_counts(dataset, group)

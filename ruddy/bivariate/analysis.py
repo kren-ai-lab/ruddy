@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import pandas as pd
+import polars as pl
 
 from ruddy.bivariate.associations import summarize_categorical_associations
 from ruddy.bivariate.comparisons import summarize_numeric_categorical_comparisons
@@ -18,9 +18,9 @@ from ruddy.results import AnalysisProvenance
 class BivariateResult:
     """Complete mixed-type bivariate output."""
 
-    correlations: pd.DataFrame
-    comparisons: pd.DataFrame
-    categorical_associations: pd.DataFrame
+    correlations: pl.DataFrame
+    comparisons: pl.DataFrame
+    categorical_associations: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -105,8 +105,8 @@ def analyze_bivariate(
             "categorical_low_expected_count_policy": "advisory_no_automatic_test_switch",
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_columns": dataset.n_columns,
+            "n_observations": dataset.frame.height,
+            "n_columns": dataset.frame.width,
             "id_column": dataset.id_column,
         },
     )
