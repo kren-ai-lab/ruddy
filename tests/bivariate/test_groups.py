@@ -13,7 +13,7 @@ def test_any_categorical_column_can_be_selected_as_group(response_dataset) -> No
     groups = resolve_groups(response_dataset, ("category_group",))
     assert groups == ("category_group",)
 
-    coverage = summarize_group_coverage(response_dataset, groups).iloc[0]
+    coverage = summarize_group_coverage(response_dataset, groups).row(0, named=True)
     assert coverage["n_dataset"] == 8
     assert coverage["n_group_present"] == 7
     assert coverage["n_group_missing"] == 1
@@ -29,8 +29,8 @@ def test_numeric_coded_factor_is_valid_group(response_dataset) -> None:
         responses=("activity",),
         groups=groups,
     )
-    assert set(table["group_level"]) == {"0", "1"}
-    assert table["n_group_observations"].tolist() == [4, 4]
+    assert set(table.get_column("group_level").to_list()) == {"0", "1"}
+    assert table.get_column("n_group_observations").to_list() == [4, 4]
 
 
 def test_plain_numeric_variable_is_not_silently_treated_as_group(response_dataset) -> None:
@@ -44,5 +44,5 @@ def test_grouped_numeric_summary_uses_only_group_covered_rows(response_dataset) 
         responses=("activity",),
         groups=("category_group",),
     )
-    assert table["n_group_observations"].sum() == 7
-    assert (table["n_dataset"] == 8).all()
+    assert table.get_column("n_group_observations").sum() == 7
+    assert bool((table.get_column("n_dataset") == 8).all())

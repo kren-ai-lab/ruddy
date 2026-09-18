@@ -98,9 +98,9 @@ def run_dependence(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "partial_rows": len(result.partial_correlations),
-                    "distance_rows": len(result.distance_correlations),
-                    "mi_rows": len(result.mutual_information),
+                    "partial_rows": result.partial_correlations.height,
+                    "distance_rows": result.distance_correlations.height,
+                    "mi_rows": result.mutual_information.height,
                 },
                 indent=2,
             )

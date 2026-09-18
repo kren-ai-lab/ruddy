@@ -72,7 +72,7 @@ def _eligible_categorical(dataset: TabularDataset) -> tuple[str, ...]:
 
 
 def _contingency(frame: pl.DataFrame, x: str, y: str) -> tuple[list[str], list[str], np.ndarray, int]:
-    # ponytail: temporary pandas adapter, removed in task 3E
+    # ponytail: temporary pandas adapter, removed in task 3F
     if isinstance(frame, pd.DataFrame):
         frame = pl.from_pandas(frame)
     pair = frame.select(x, y).drop_nulls()

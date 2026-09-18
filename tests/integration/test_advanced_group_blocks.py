@@ -1,4 +1,5 @@
 import pandas as pd
+import polars.testing as pl_testing
 import pytest
 
 from ruddy import AnalysisConfig, analyze
@@ -41,7 +42,7 @@ def test_unified_posthoc_matches_standalone(group_dataset):
         group_dataset, response="y", factor="group", methods=("tukey_hsd",), min_group_n=2
     )
     assert unified.posthoc is not None
-    pd.testing.assert_frame_equal(unified.posthoc.comparisons, standalone.comparisons)
+    pl_testing.assert_frame_equal(unified.posthoc.comparisons, standalone.comparisons)
 
 
 def test_unified_marginal_means_matches_standalone(group_dataset):

@@ -106,13 +106,13 @@ def run_groups(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "responses": len(result.response_catalog),
-                    "groups": len(result.group_coverage),
-                    "numeric_summary_rows": len(result.numeric_summaries),
-                    "categorical_summary_rows": len(result.categorical_summaries),
-                    "numeric_comparisons": len(result.numeric_comparisons),
-                    "categorical_comparisons": len(result.categorical_comparisons),
-                    "annotation_sources": len(result.annotation_coverage),
+                    "responses": result.response_catalog.height,
+                    "groups": result.group_coverage.height,
+                    "numeric_summary_rows": result.numeric_summaries.height,
+                    "categorical_summary_rows": result.categorical_summaries.height,
+                    "numeric_comparisons": result.numeric_comparisons.height,
+                    "categorical_comparisons": result.categorical_comparisons.height,
+                    "annotation_sources": result.annotation_coverage.height,
                 },
                 indent=2,
                 sort_keys=True,

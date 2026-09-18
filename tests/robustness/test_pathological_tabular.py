@@ -58,10 +58,10 @@ def test_one_level_factor_group_analysis_is_degenerate():
         role_overrides={"y": "response", "g": "factor"},
     )
     result = analyze_groups(ds, responses=("y",), groups=("g",))
-    row = result.group_coverage.set_index("group_column").loc["g"]
+    row = result.group_coverage.filter(pl.col("group_column") == "g").row(0, named=True)
     assert row["status"] == "degenerate"
     assert row["reason"] == "insufficient_group_levels"
-    assert result.numeric_comparisons.empty
+    assert result.numeric_comparisons.is_empty()
 
 
 def test_high_cardinality_factor_hits_explicit_guard():
@@ -78,10 +78,10 @@ def test_high_cardinality_factor_hits_explicit_guard():
         role_overrides={"y": "response", "g": "factor"},
     )
     result = analyze_groups(ds, responses=("y",), groups=("g",), max_group_levels=20)
-    coverage = result.group_coverage.set_index("group_column").loc["g"]
+    coverage = result.group_coverage.filter(pl.col("group_column") == "g").row(0, named=True)
     assert coverage["status"] == "skipped"
     assert coverage["reason"] == "group_levels_exceed_max_group_levels"
-    assert set(result.numeric_comparisons["status"]) == {"skipped"}
+    assert set(result.numeric_comparisons["status"].to_list()) == {"skipped"}
 
 
 def test_complete_case_collapse_is_explicit_in_factorial():

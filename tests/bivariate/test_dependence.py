@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import polars.testing as pl_testing
 import pytest
 
 from ruddy import TabularDataset, analyze_dependence, distance_correlation
@@ -27,9 +28,9 @@ def test_partial_correlation_removes_shared_covariate() -> None:
         role_overrides={"z": "covariate"},
     )
     table = summarize_partial_correlations(ds, covariates=("z",), methods=("pearson",), p_adjust="none")
-    row = table.iloc[0]
-    assert abs(row.coefficient) < 0.1
-    assert row.df == n - 3
+    row = table.row(0, named=True)
+    assert abs(row["coefficient"]) < 0.1
+    assert row["df"] == n - 3
 
 
 def test_rank_deficient_partial_covariates_are_degenerate() -> None:
@@ -38,8 +39,9 @@ def test_rank_deficient_partial_covariates_are_degenerate() -> None:
     z = np.linspace(0, 1, 30)
     ds = TabularDataset(pd.DataFrame({"id": range(30), "x": x, "y": y, "z1": z, "z2": 2 * z}), id_column="id")
     table = summarize_partial_correlations(ds, covariates=("z1", "z2"), methods=("pearson",), p_adjust="none")
-    assert table.iloc[0].status == "degenerate"
-    assert table.iloc[0].reason == "rank_deficient_covariates"
+    row = table.row(0, named=True)
+    assert row["status"] == "degenerate"
+    assert row["reason"] == "rank_deficient_covariates"
 
 
 def test_distance_correlation_finds_nonlinear_dependence() -> None:
@@ -47,9 +49,11 @@ def test_distance_correlation_finds_nonlinear_dependence() -> None:
     y = x * x
     ds = TabularDataset(pd.DataFrame({"id": range(80), "x": x, "y": y}), id_column="id")
     dcor, mi = summarize_general_dependence(ds, n_permutations=49, p_adjust="none", random_state=3)
-    assert dcor.iloc[0].statistic > 0.4
-    assert dcor.iloc[0].p_value <= 0.1
-    assert mi.iloc[0].statistic > 0.0
+    d_row = dcor.row(0, named=True)
+    mi_row = mi.row(0, named=True)
+    assert d_row["statistic"] > 0.4
+    assert d_row["p_value"] <= 0.1
+    assert mi_row["statistic"] > 0.0
 
 
 def test_dependence_permutation_is_deterministic() -> None:
@@ -59,8 +63,8 @@ def test_dependence_permutation_is_deterministic() -> None:
     ds = TabularDataset(pd.DataFrame({"id": range(40), "x": x, "y": y}), id_column="id")
     a = analyze_dependence(ds, n_permutations=29, random_state=9, p_adjust="none")
     b = analyze_dependence(ds, n_permutations=29, random_state=9, p_adjust="none")
-    pd.testing.assert_frame_equal(a.distance_correlations, b.distance_correlations)
-    pd.testing.assert_frame_equal(a.mutual_information, b.mutual_information)
+    pl_testing.assert_frame_equal(a.distance_correlations, b.distance_correlations)
+    pl_testing.assert_frame_equal(a.mutual_information, b.mutual_information)
 
 
 def test_mutual_information_supports_numeric_categorical() -> None:
@@ -72,9 +76,9 @@ def test_mutual_information_supports_numeric_categorical() -> None:
     _, mi = summarize_general_dependence(
         ds, methods=("mutual_information",), n_permutations=19, p_adjust="none"
     )
-    row = mi.iloc[0]
-    assert row.statistic > 0.5
-    assert row.column_y_kind == "categorical"
+    row = mi.row(0, named=True)
+    assert row["statistic"] > 0.5
+    assert row["column_y_kind"] == "categorical"
 
 
 def test_distance_correlation_skips_mixed_pair() -> None:
@@ -84,5 +88,6 @@ def test_distance_correlation_skips_mixed_pair() -> None:
     dcor, _ = summarize_general_dependence(
         ds, methods=("distance_correlation",), n_permutations=0, p_adjust="none"
     )
-    assert dcor.iloc[0].status == "skipped"
-    assert dcor.iloc[0].reason == "distance_correlation_requires_numeric_pair"
+    row = dcor.row(0, named=True)
+    assert row["status"] == "skipped"
+    assert row["reason"] == "distance_correlation_requires_numeric_pair"

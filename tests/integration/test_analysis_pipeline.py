@@ -85,8 +85,8 @@ def test_groups_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_grouped_responses(pipeline_dataset, **config.grouped_kwargs())
     assert result.groups is not None
-    assert_frame_equal(result.groups.numeric_summaries, standalone.numeric_summaries)
-    assert_frame_equal(result.groups.numeric_comparisons, standalone.numeric_comparisons)
+    pl_testing.assert_frame_equal(result.groups.numeric_summaries, standalone.numeric_summaries)
+    pl_testing.assert_frame_equal(result.groups.numeric_comparisons, standalone.numeric_comparisons)
 
 
 def test_outliers_matches_standalone(pipeline_dataset):

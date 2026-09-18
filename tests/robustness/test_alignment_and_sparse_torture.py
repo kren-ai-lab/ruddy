@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
 from scipy import sparse
 
@@ -27,7 +28,7 @@ def test_partial_annotation_coverage_is_preserved_without_global_row_drop():
     assert aligned.report is not None
     assert aligned.report.covered_count == 6
     assert aligned.report.missing_ids == tuple(ids[6:])
-    coverage = result.group_coverage.set_index("group_column").loc["cohort"]
+    coverage = result.group_coverage.filter(pl.col("group_column") == "cohort").row(0, named=True)
     assert coverage["n_dataset"] == 10
     assert coverage["n_group_present"] == 6
     assert coverage["n_group_missing"] == 4

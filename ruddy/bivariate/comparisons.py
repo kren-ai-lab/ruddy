@@ -7,7 +7,6 @@ from itertools import combinations
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import polars as pl
 from scipy import stats
 
@@ -65,9 +64,6 @@ _DEFAULT_TESTS = _TWO_GROUP_TESTS + _OMNIBUS_TESTS
 
 
 def _finite_values(series: pl.Series) -> np.ndarray:
-    # ponytail: temporary pandas adapter, removed in task 3E
-    if isinstance(series, pd.Series):
-        series = pl.Series(series.name or "", series.to_numpy())
     values = series.cast(pl.Float64).fill_null(float("nan")).to_numpy()
     return values[np.isfinite(values)]
 
@@ -297,9 +293,6 @@ def _group_values(
     group_column: str,
     feature: str,
 ) -> tuple[tuple[str, ...], tuple[np.ndarray, ...], tuple[int, ...]]:
-    # ponytail: temporary pandas adapter, removed in task 3E
-    if isinstance(frame, pd.DataFrame):
-        frame = pl.from_pandas(frame)
     group_series = frame.get_column(group_column)
     if group_series.dtype.is_float():
         present_mask = ~(group_series.is_null() | group_series.is_nan()).to_numpy()

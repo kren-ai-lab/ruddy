@@ -8,8 +8,8 @@ from ruddy import analyze_marginal_means, analyze_posthoc
 def test_posthoc_methods_do_not_auto_switch(robust_tabular):
     tukey = analyze_posthoc(robust_tabular, response="y", factor="group", methods=("tukey_hsd",))
     games = analyze_posthoc(robust_tabular, response="y", factor="group", methods=("games_howell",))
-    assert set(tukey.comparisons.method) == {"tukey_hsd"}
-    assert set(games.comparisons.method) == {"games_howell"}
+    assert set(tukey.comparisons.get_column("method").to_list()) == {"tukey_hsd"}
+    assert set(games.comparisons.get_column("method").to_list()) == {"games_howell"}
 
 
 def test_marginal_means_covariate_adjustment_is_finite(robust_tabular):
