@@ -91,7 +91,7 @@ Los paths de implementación son relativos a `ruddy/`.
 | IDs | Secuencia inmutable independiente de pandas, propuesta `tuple[ObservationID, ...]`, y operaciones internas de validación y selección. |
 | Anotaciones/metadatos | Tablas Polars más identidad explícita; conservar cobertura y `AlignmentReport`. |
 | Tablas de resultados | Polars con esquema declarado, incluso sin filas o con columnas enteramente nulas. |
-| Matrices con etiquetas | Contrato pequeño con `values: np.ndarray`, `row_ids` y `column_ids`; conversión tabular explícita al exportar. |
+| Matrices con etiquetas | Tabla Polars: la primera columna (`feature` u `observation_id`) conserva la etiqueta de fila con su tipo; las demás columnas son la matriz, con nombres `str(etiqueta)`. Decisión del 18 de septiembre de 2026: se descartó un contrato aparte con `values`/`row_ids`/`column_ids` por complejidad. |
 | Modelos con fórmulas | Ruddy construye el marco seguro (`Y`, `F0..`, `X0..`, `G`) en Polars y lo convierte con `.to_pandas()` en un único punto por módulo justo antes de statsmodels/Patsy. Los resultados vuelven a NumPy/Polars ahí mismo. |
 | I/O | Polars para tablas, NumPy/SciPy para `.npy`/`.npz`. |
 
@@ -109,13 +109,12 @@ dependían de un índice. Rechazar la combinación ambigua de ese argumento e
 `id_column`. En anotaciones externas exigir columna ID o IDs separados; la
 ausencia de índice en Polars no debe convertirse en alineación por posición.
 
-El contrato de matrices con etiquetas resuelve un caso concreto: Aitchison usa
-IDs de observación como nombres de columnas, que pueden ser enteros o tipos
-heterogéneos. La conversión directa a nombres Polars perdería información.
-Aplicar el mismo contrato a covarianza, correlaciones, conteos por pares y
-variación composicional conserva ambos ejes sin convertir una matriz de tamaño
-N×N en una tabla larga de N² filas. Su exportador debe conservar las etiquetas y
-definir cómo representar colisiones de nombres y tipos en CSV/Parquet.
+Las matrices con etiquetas (covarianza, correlaciones, conteos por pares,
+distancias, variación composicional, Aitchison) se exportan como tabla Polars
+con la etiqueta de fila en la primera columna. Polars exige nombres de columna
+de tipo cadena, así que en el eje de columnas los IDs no textuales quedan como
+`str(id)`; la primera columna conserva el tipo original. Es un cambio público
+documentado. La CLI escribe la tabla sin `index=True` ni `index_label`.
 
 Como el proyecto está en pre-release, el cambio de API es anunciado y
 coordinado, sin período de compatibilidad ni doble backend. Los resultados
