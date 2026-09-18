@@ -7,7 +7,6 @@ from itertools import combinations
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import polars as pl
 from polars._typing import PolarsDataType
 from scipy import stats
@@ -72,12 +71,7 @@ def _eligible_categorical(dataset: TabularDataset) -> tuple[str, ...]:
     return tuple(selected)
 
 
-def _contingency(
-    frame: pl.DataFrame | pd.DataFrame, x: str, y: str
-) -> tuple[list[str], list[str], np.ndarray, int]:
-    # ponytail: temporary pandas adapter, removed in task 3F
-    if isinstance(frame, pd.DataFrame):
-        frame = pl.from_pandas(frame)
+def _contingency(frame: pl.DataFrame, x: str, y: str) -> tuple[list[str], list[str], np.ndarray, int]:
     pair = frame.select(x, y).drop_nulls()
     col_x = pair.get_column(x)
     col_y = pair.get_column(y)

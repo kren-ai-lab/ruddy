@@ -169,8 +169,8 @@ def run_bayesian(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "mean_rows": len(result.means),
-                    "difference_rows": len(result.mean_differences),
+                    "mean_rows": result.means.height,
+                    "difference_rows": result.mean_differences.height,
                 },
                 indent=2,
             )

@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import polars.testing as pl_testing
 import pytest
 
 from ruddy import (
@@ -48,7 +49,7 @@ def test_unified_bayesian_matches_standalone():
     u = analyze(ds, config=cfg).bayesian
     s = analyze_bayesian_eda(ds, variables=("y",), groups=("g",), draws=500, random_state=3)
     assert u is not None
-    pd.testing.assert_frame_equal(u.mean_differences, s.mean_differences)
+    pl_testing.assert_frame_equal(u.mean_differences, s.mean_differences)
 
 
 def test_unified_compositional_matches_standalone():
