@@ -48,6 +48,11 @@ def square_table(
         if len(label_list) > 0
         else (pl.String if label_column == "feature" else pl.Int64)
     )
+    str_labels = [str(label) for label in label_list]
+    if label_column in str_labels or len(set(str_labels)) != len(str_labels):
+        raise ValueError(
+            f"Labels for square table collide with label column {label_column!r} or with each other: {str_labels}."
+        )
     columns: dict[str, pl.Series] = {
         label_column: pl.Series(label_column, label_list, dtype=id_dtype),
     }

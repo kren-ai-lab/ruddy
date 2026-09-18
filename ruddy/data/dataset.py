@@ -49,6 +49,17 @@ class TabularDataset:
                     f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
                 )
             input_backend = "pandas"
+            non_string_categoricals = [
+                column
+                for column in data.columns
+                if isinstance(data[column].dtype, pd.CategoricalDtype)
+                and not pd.api.types.is_string_dtype(data[column].cat.categories)
+            ]
+            if non_string_categoricals:
+                raise TypeError(
+                    "pandas Categorical columns with non-string categories would be reinterpreted as numeric "
+                    f"by Polars; convert them to string categories or to Polars explicitly: {non_string_categoricals}."
+                )
             try:
                 # Deep-copy first: from_pandas may share numeric buffers with the caller's frame.
                 self._frame = pl.from_pandas(data.copy(deep=True), include_index=False)

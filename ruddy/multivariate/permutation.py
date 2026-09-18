@@ -182,7 +182,10 @@ def analyze_permutation_group_structure(
 
     group_series, report = _aligned_factor(features, dataset, factor, alignment)
     valid_features = _feature_valid_rows(features)
-    valid_group = group_series.is_not_null().to_numpy()
+    valid_group = group_series.is_not_null()
+    if group_series.dtype.is_float():
+        valid_group = valid_group & ~group_series.fill_null(0.0).is_nan()
+    valid_group = valid_group.to_numpy()
     keep = valid_features & valid_group
     ids = features.observation_ids
     excluded_rows = np.flatnonzero(~keep).astype(np.int64)

@@ -134,12 +134,15 @@ def align_annotations(
     if covered == 0:
         aligned = columns.clear(n=len(base))
     else:
-        base_key = pl.Series("__ruddy_id", list(base))
-        annotation_key = pl.Series("__ruddy_id", list(annotation_ids), dtype=base_key.dtype)
+        key = "__ruddy_id"
+        while key in columns.columns:
+            key += "_"
+        base_key = pl.Series(key, list(base))
+        annotation_key = pl.Series(key, list(annotation_ids), dtype=base_key.dtype)
         aligned = (
             base_key.to_frame()
-            .join(columns.with_columns(annotation_key), on="__ruddy_id", how="left", maintain_order="left")
-            .drop("__ruddy_id")
+            .join(columns.with_columns(annotation_key), on=key, how="left", maintain_order="left")
+            .drop(key)
         )
     if id_column is not None:
         aligned = aligned.with_columns(pl.Series(id_column, list(base))).select(annotations.columns)

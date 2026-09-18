@@ -179,8 +179,8 @@ def analyze_mixed_effects(
         reason="missing_or_non_finite_model_value",
     )
 
-    group_counts_df = model_frame.get_column(group).value_counts()
-    group_counts = {row[group]: int(row["count"]) for row in group_counts_df.iter_rows(named=True)}
+    group_counts_df = model_frame.get_column(group).value_counts(name="__ruddy_count")
+    group_counts = {row[group]: int(row["__ruddy_count"]) for row in group_counts_df.iter_rows(named=True)}
     provenance = AnalysisProvenance(
         analysis="mixed_effects",
         parameters={

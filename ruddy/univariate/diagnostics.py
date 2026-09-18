@@ -191,6 +191,8 @@ def summarize_dispersion_diagnostics(
             family_id = f"dispersion:{method}:{response}"
             for group in groups:
                 pair = frame.select(response, group).drop_nulls(group)
+                if pair.get_column(group).dtype.is_float():
+                    pair = pair.filter(~pl.col(group).is_nan())
                 raw_values = pair.get_column(response).cast(pl.Float64).fill_null(float("nan")).to_numpy()
                 finite_mask = np.isfinite(raw_values)
                 values = raw_values[finite_mask]

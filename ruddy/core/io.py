@@ -60,7 +60,8 @@ def read_table(path: str | Path) -> pl.DataFrame:
     try:
         if suffix == ".parquet":
             return pl.read_parquet(source)
-        return pl.read_csv(source, separator="\t" if suffix in TAB_SEPARATED else ",")
+        separator = "\t" if suffix in TAB_SEPARATED else ","
+        return pl.read_csv(source, separator=separator, infer_schema_length=None)
     except RuddyIOError:
         raise
     except Exception as exc:

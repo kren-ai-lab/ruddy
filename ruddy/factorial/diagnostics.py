@@ -115,7 +115,7 @@ def build_factorial_cells(
         levels.append(observed)
 
     # Count observed combinations
-    vc = frame.select(list(factor_names)).group_by(list(factor_names)).len()
+    vc = frame.select(list(factor_names)).group_by(list(factor_names)).len(name="__ruddy_len")
     observed_counts: dict[Any, int] = {}
     for row in vc.iter_rows():
         key = row[0] if len(factor_names) == 1 else tuple(row[:-1])

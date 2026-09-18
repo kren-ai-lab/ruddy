@@ -51,6 +51,10 @@ class AlignedAnnotations:
         return self._source_name
 
     @property
+    def base_ids(self) -> tuple[ObservationID, ...]:
+        return self._base_ids
+
+    @property
     def coverage(self) -> AnnotationCoverage:
         return self._coverage
 
@@ -227,6 +231,11 @@ def attach_annotations(
             raise TypeError("sources must contain AlignedAnnotations objects.")
         if not source.available:
             continue
+        if source.base_ids != dataset.observation_ids:
+            raise ValueError(
+                f"Annotation source {source.source_name!r} was aligned to a different observation "
+                "ordering; realign it against this dataset before attaching."
+            )
         frame = source.frame
         collisions = sorted(set(frame.columns) & set(base.columns))
         if collisions:

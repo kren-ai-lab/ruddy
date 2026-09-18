@@ -183,8 +183,8 @@ def analyze_manova(
             raise ValueError(
                 f"MANOVA factor {factor!r} has {len(unique_levels)} levels; maximum is {max_factor_levels}."
             )
-        vc = model_frame.get_column(factor).value_counts()
-        counts_dict = {row[factor]: int(row["count"]) for row in vc.iter_rows(named=True)}
+        vc = model_frame.get_column(factor).value_counts(name="__ruddy_count")
+        counts_dict = {row[factor]: int(row["__ruddy_count"]) for row in vc.iter_rows(named=True)}
         for level in unique_levels:
             count = counts_dict[level]
             level_rows.append(
