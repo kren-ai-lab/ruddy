@@ -165,7 +165,7 @@ def build_factorial_cells(
 
 
 def model_diagnostics(
-    model,
+    model: Any,
     *,
     model_frame: pl.DataFrame,
     source_row_indices: np.ndarray,

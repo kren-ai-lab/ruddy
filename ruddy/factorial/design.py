@@ -26,7 +26,7 @@ def _unique(values: Iterable[str], *, label: str) -> tuple[str, ...]:
 
 def _normalize_ss_type(value: int | str) -> int:
     if isinstance(value, bool):
-        raise ValueError("ss_type must be 2/II or 3/III.")
+        raise TypeError("ss_type must be 2/II or 3/III.")
     if isinstance(value, int):
         if value in {2, 3}:
             return value
@@ -47,14 +47,17 @@ class FactorialTerm:
 
     @property
     def order(self) -> int:
+        """Return the interaction order (number of interacting columns)."""
         return len(self.columns)
 
     @property
     def label(self) -> str:
+        """Return the formula string representation of the term."""
         return ":".join(self.columns)
 
     @property
     def term_type(self) -> str:
+        """Return the statistical classification of the term."""
         if self.order == 1:
             return self.kinds[0]
         return "interaction"
@@ -75,6 +78,7 @@ class FactorialDesign:
 
     @property
     def predictors(self) -> tuple[str, ...]:
+        """Return all factor and covariate predictor column names."""
         return (*self.factors, *self.covariates)
 
 
@@ -284,21 +288,20 @@ def build_factorial_design(
                     hierarchical.append(canonical)
 
     factor_set = set(factor_names)
-    terms: list[FactorialTerm] = []
-    for name in predictor_order:
-        terms.append(
-            FactorialTerm(
-                columns=(name,),
-                kinds=("factor" if name in factor_set else "covariate",),
-            )
+    terms: list[FactorialTerm] = [
+        FactorialTerm(
+            columns=(name,),
+            kinds=("factor" if name in factor_set else "covariate",),
         )
-    for term in hierarchical:
-        terms.append(
-            FactorialTerm(
-                columns=term,
-                kinds=tuple("factor" if name in factor_set else "covariate" for name in term),
-            )
+        for name in predictor_order
+    ]
+    terms.extend(
+        FactorialTerm(
+            columns=term,
+            kinds=tuple("factor" if name in factor_set else "covariate" for name in term),
         )
+        for term in hierarchical
+    )
 
     if not terms:
         raise ValueError("Factorial analysis requires at least one factor or covariate.")

@@ -87,6 +87,8 @@ MANTEL_SCHEMA: dict[str, PolarsDataType] = {
 
 @dataclass(frozen=True, slots=True)
 class AlignedRepresentationPair:
+    """Pair of dense feature representations aligned by observation identity."""
+
     x: np.ndarray
     y: np.ndarray
     observation_ids: tuple[ObservationID, ...]
@@ -98,6 +100,8 @@ class AlignedRepresentationPair:
 
 @dataclass(frozen=True, slots=True)
 class CCAResult:
+    """Results of canonical correlation analysis between two representations."""
+
     status: ResultStatus
     reason: str | None
     correlations: pl.DataFrame
@@ -113,6 +117,8 @@ class CCAResult:
 
 @dataclass(frozen=True, slots=True)
 class RepresentationComparisonResult:
+    """Multivariate comparison results between two aligned representations."""
+
     cca: CCAResult
     cka: pl.DataFrame
     procrustes: pl.DataFrame
@@ -179,7 +185,8 @@ def align_feature_matrices(
     """Align two dense feature matrices by observation identity and finite rows."""
     if x.is_sparse or y.is_sparse:
         raise ValueError(
-            "Representation comparison currently requires dense inputs; Ruddy will not silently densify sparse matrices."
+            "Representation comparison currently requires dense inputs; "
+            "Ruddy will not silently densify sparse matrices."
         )
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     x_ids, y_ids = x.observation_ids, y.observation_ids
@@ -308,7 +315,7 @@ def _cca_result(
     model = CCA(n_components=n_components, scale=False, max_iter=max_iter, tol=tol)
     try:
         xs, ys = model.fit_transform(x, y)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  # CCA fit failure becomes a degenerate result
         advisory = Advisory(code="cca_fit_failed", message=str(exc))
         return _empty_cca_result(
             ResultStatus.DEGENERATE,

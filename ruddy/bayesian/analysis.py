@@ -60,6 +60,8 @@ MEAN_DIFFERENCES_SCHEMA_BASE: dict[str, PolarsDataType] = {
 
 @dataclass(frozen=True, slots=True)
 class BayesianEDAResult:
+    """Results of Bayesian exploratory data analysis."""
+
     means: pl.DataFrame
     mean_differences: pl.DataFrame
     provenance: AnalysisProvenance

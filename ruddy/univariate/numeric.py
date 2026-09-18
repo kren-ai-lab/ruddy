@@ -1,6 +1,7 @@
 """Deterministic numerical univariate statistics.
 
-Skewness and kurtosis use the adjusted Fisher–Pearson G1 and unbiased excess G2 estimators, matching the formulas historically provided by pandas.
+Skewness and kurtosis use the adjusted Fisher-Pearson G1 and unbiased excess G2
+estimators, matching the formulas historically provided by pandas.
 """
 
 from __future__ import annotations
@@ -76,6 +77,7 @@ def numeric_statistics_schema(quantiles: tuple[float, ...]) -> dict[str, PolarsD
 
 
 def validate_quantiles(quantiles: tuple[float, ...]) -> tuple[float, ...]:
+    """Validate quantile probabilities for univariate numerical statistics."""
     values = tuple(float(value) for value in quantiles)
     if not values:
         raise ValueError("At least one quantile must be configured.")

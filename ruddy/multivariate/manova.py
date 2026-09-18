@@ -136,7 +136,8 @@ def analyze_manova(
         role = dataset.role_of(factor)
         if kind not in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN} and role is not ColumnRole.FACTOR:
             raise ValueError(
-                f"MANOVA factor {factor!r} must be categorical/boolean or explicitly assigned the factor role."
+                f"MANOVA factor {factor!r} must be categorical/boolean "
+                "or explicitly assigned the factor role."
             )
 
     selected = (*response_names, *factor_names, *covariate_names)

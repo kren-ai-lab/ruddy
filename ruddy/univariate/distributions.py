@@ -37,6 +37,8 @@ DATETIME_STATISTICS_COLUMNS: tuple[str, ...] = tuple(DATETIME_STATISTICS_SCHEMA)
 
 @dataclass(frozen=True, slots=True)
 class UnivariateTables:
+    """Summary tables for univariate numeric, categorical, and datetime variables."""
+
     numeric_statistics: pl.DataFrame
     categorical_statistics: pl.DataFrame
     categorical_frequencies: pl.DataFrame
@@ -45,6 +47,8 @@ class UnivariateTables:
 
 @dataclass(frozen=True, slots=True)
 class UnivariateResult:
+    """Results of univariate distribution analyses across all eligible dataset columns."""
+
     profiling: ProfilingResult
     numeric_statistics: pl.DataFrame
     categorical_statistics: pl.DataFrame

@@ -35,13 +35,15 @@ class TabularDataset:
         role_overrides: RoleOverrides | None = None,
         kind_overrides: KindOverrides | None = None,
     ) -> None:
+        """Construct an immutable tabular dataset from a Polars or pandas DataFrame."""
         if isinstance(data, pd.DataFrame):
             default_index = (
                 isinstance(data.index, pd.RangeIndex) and data.index.start == 0 and data.index.step == 1
             )
             if id_column is None and observation_ids is None and not default_index:
                 raise ValueError(
-                    "pandas DataFrame has a non-default index; pass observation_ids=frame.index or reset_index()."
+                    "pandas DataFrame has a non-default index; "
+                    "pass observation_ids=frame.index or reset_index()."
                 )
             if not data.columns.is_unique:
                 duplicates = data.columns[data.columns.duplicated()].tolist()
@@ -60,8 +62,9 @@ class TabularDataset:
             ]
             if non_string_categoricals:
                 raise TypeError(
-                    "pandas Categorical columns with non-string categories would be reinterpreted as numeric "
-                    f"by Polars; convert them to string categories or to Polars explicitly: {non_string_categoricals}."
+                    "pandas Categorical columns with non-string categories would be reinterpreted "
+                    "as numeric by Polars; convert them to string categories or to Polars explicitly: "
+                    f"{non_string_categoricals}."
                 )
             try:
                 # Deep-copy first: from_pandas may share numeric buffers with the caller's frame.
@@ -122,39 +125,49 @@ class TabularDataset:
 
     @property
     def frame(self) -> pl.DataFrame:
+        """Return the underlying Polars DataFrame."""
         return self._frame
 
     @property
     def observation_ids(self) -> tuple[ObservationID, ...]:
+        """Return the sequence of observation identifiers."""
         return self._observation_ids
 
     @property
     def id_column(self) -> str | None:
+        """Return the name of the identifier column, if one was specified."""
         return self._id_column
 
     @property
     def schema(self) -> tuple[ColumnSpec, ...]:
+        """Return column specifications defining data types and semantic roles."""
         return self._schema
 
     @property
     def provenance(self) -> Mapping[str, Any]:
+        """Return provenance metadata describing dataset origin and alignment."""
         return self._provenance
 
     def role_of(self, column: str) -> ColumnRole:
+        """Return the semantic role assigned to the specified column."""
         return self._roles[column]
 
     def kind_of(self, column: str) -> ColumnKind:
+        """Return the statistical data kind of the specified column."""
         return self._kinds[column]
 
     def columns_with_role(self, *roles: ColumnRole | str) -> tuple[str, ...]:
+        """Return column names matching any of the specified roles."""
         wanted = {role if isinstance(role, ColumnRole) else ColumnRole(role) for role in roles}
         return tuple(column for column in self._frame.columns if self._roles[column] in wanted)
 
     def columns_with_kind(self, *kinds: ColumnKind | str) -> tuple[str, ...]:
+        """Return column names matching any of the specified data kinds."""
         wanted = {kind if isinstance(kind, ColumnKind) else ColumnKind(kind) for kind in kinds}
         return tuple(column for column in self._frame.columns if self._kinds[column] in wanted)
 
     def __repr__(self) -> str:
+        """Return a string representation of the tabular dataset."""
         return (
             f"TabularDataset(n_observations={self._frame.height}, "
             f"n_columns={self._frame.width}, id_column={self.id_column!r})"

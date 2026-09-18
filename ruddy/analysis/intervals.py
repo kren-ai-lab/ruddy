@@ -25,6 +25,8 @@ from ruddy.statistics.effect_sizes import hedges_g
 from ruddy.univariate.categorical import _category_label
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from polars._typing import PolarsDataType
 
     from ruddy.data import TabularDataset
@@ -115,6 +117,8 @@ ODDS_RATIO_COLUMNS: tuple[str, ...] = tuple(ODDS_RATIO_SCHEMA)
 
 @dataclass(frozen=True, slots=True)
 class ConfidenceIntervalResult:
+    """Confidence intervals for tabular univariate and bivariate estimands."""
+
     means: pl.DataFrame
     correlations: pl.DataFrame
     mean_differences: pl.DataFrame
@@ -148,7 +152,9 @@ def _numeric(dataset: TabularDataset) -> tuple[str, ...]:
     )
 
 
-def _correlation_statistic(method: CorrelationMethod):
+def _correlation_statistic(
+    method: CorrelationMethod,
+) -> Callable[[np.ndarray, np.ndarray], float]:
     if method is CorrelationMethod.PEARSON:
         return lambda x, y: float(stats.pearsonr(x, y).statistic)
     if method is CorrelationMethod.SPEARMAN:

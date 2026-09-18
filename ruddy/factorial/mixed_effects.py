@@ -98,7 +98,7 @@ def _safe_fixed_frame(
     return safe, fixed_formula, expression, random_names
 
 
-def _finite_or_none(value) -> float | None:
+def _finite_or_none(value: Any) -> float | None:
     try:
         number = float(value)
     except (TypeError, ValueError):
@@ -255,14 +255,14 @@ def analyze_mixed_effects(
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
             fit = model.fit(reml=reml, method=optimizer, maxiter=max_iter, disp=False)
-        for warning in captured:
-            advisories.append(
-                Advisory(
-                    code="mixed_model_fit_warning",
-                    message=str(warning.message),
-                    context={"warning_category": warning.category.__name__},
-                )
+        advisories.extend(
+            Advisory(
+                code="mixed_model_fit_warning",
+                message=str(warning.message),
+                context={"warning_category": warning.category.__name__},
             )
+            for warning in captured
+        )
     except (ValueError, np.linalg.LinAlgError) as exc:
         advisories.append(Advisory(code="mixed_model_fit_error", message=str(exc)))
         return MixedEffectsResult(
@@ -312,18 +312,18 @@ def analyze_mixed_effects(
         }
     ]
     cov_re = pd.DataFrame(fit.cov_re)
-    for row_name in cov_re.index:
-        for col_name in cov_re.columns:
-            variance_rows.append(
-                {
-                    "component": "random_effect_covariance",
-                    "row": str(row_name),
-                    "column": str(col_name),
-                    "estimate": float(cov_re.loc[row_name, col_name]),
-                    "status": ResultStatus.OK.value,
-                    "reason": None,
-                }
-            )
+    variance_rows.extend(
+        {
+            "component": "random_effect_covariance",
+            "row": str(row_name),
+            "column": str(col_name),
+            "estimate": float(cov_re.loc[row_name, col_name]),
+            "status": ResultStatus.OK.value,
+            "reason": None,
+        }
+        for row_name in cov_re.index
+        for col_name in cov_re.columns
+    )
 
     random_rows = []
     try:

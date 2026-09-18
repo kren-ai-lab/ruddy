@@ -38,6 +38,7 @@ class AlignedAnnotations:
         kinds: Mapping[str, ColumnKind],
         base_ids: tuple[ObservationID, ...],
     ) -> None:
+        """Construct aligned annotations with metadata and coverage status."""
         name = str(source_name).strip()
         if not name:
             raise ValueError("source_name must be non-empty.")
@@ -51,42 +52,51 @@ class AlignedAnnotations:
 
     @property
     def source_name(self) -> str:
+        """Return the name of the annotation source."""
         return self._source_name
 
     @property
     def base_ids(self) -> tuple[ObservationID, ...]:
+        """Return the base observation identifiers."""
         return self._base_ids
 
     @property
     def coverage(self) -> AnnotationCoverage:
+        """Return the annotation coverage classification."""
         return self._coverage
 
     @property
     def report(self) -> AlignmentReport | None:
+        """Return the alignment diagnostic report if available."""
         return self._report
 
     @property
     def frame(self) -> pl.DataFrame:
+        """Return the underlying Polars DataFrame."""
         return self._data
 
     @property
     def columns(self) -> tuple[str, ...]:
+        """Return the annotation column names."""
         return tuple(str(column) for column in self._data.columns)
 
     @property
     def roles(self) -> Mapping[str, ColumnRole]:
+        """Return the mapping from column names to semantic roles."""
         return self._roles
 
     @property
     def kinds(self) -> Mapping[str, ColumnKind]:
+        """Return the mapping from column names to data kinds."""
         return self._kinds
 
     @property
     def available(self) -> bool:
+        """Return whether the annotation source is present."""
         return self._coverage is not AnnotationCoverage.ABSENT
 
     def summary(self) -> dict[str, Any]:
-
+        """Summarize annotation coverage and metadata as a dictionary."""
         payload: dict[str, Any] = {
             "source_name": self.source_name,
             "coverage": self.coverage.value,

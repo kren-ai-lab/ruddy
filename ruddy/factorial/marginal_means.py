@@ -89,7 +89,7 @@ def _safe_model(
         valid = series.is_not_null()
         if series.dtype.is_float():
             valid = valid & ~series.is_nan()
-        complete &= valid.fill_null(False).to_numpy()
+        complete &= valid.fill_null(value=False).to_numpy()
     model_frame = frame.filter(pl.Series(complete))
 
     # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
@@ -140,7 +140,7 @@ def _grid_l_vectors(
     design: FactorialDesign,
     factor_safe: dict[str, str],
     covariate_safe: dict[str, str],
-    design_info,
+    design_info: Any,
     term: tuple[str, ...],
 ) -> list[tuple[tuple[object, ...], np.ndarray]]:
     levels = {name: list(dict.fromkeys(model_frame.get_column(name).to_list())) for name in design.factors}

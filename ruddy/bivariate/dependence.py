@@ -66,6 +66,8 @@ DEPENDENCE_COLUMNS: tuple[str, ...] = tuple(DEPENDENCE_SCHEMA)
 
 @dataclass(frozen=True, slots=True)
 class DependenceResult:
+    """Results of bivariate dependence analyses including partial and distance correlations."""
+
     partial_correlations: pl.DataFrame
     distance_correlations: pl.DataFrame
     mutual_information: pl.DataFrame

@@ -60,6 +60,8 @@ DISPERSION_COLUMNS: tuple[str, ...] = tuple(DISPERSION_SCHEMA)
 
 @dataclass(frozen=True, slots=True)
 class DistributionDiagnosticsResult:
+    """Results of univariate distribution diagnostics including normality and dispersion."""
+
     normality: pl.DataFrame
     dispersion: pl.DataFrame
     provenance: AnalysisProvenance

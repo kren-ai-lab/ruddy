@@ -43,6 +43,7 @@ def square_table(
     label_column: str,
     dtype: PolarsDataType = pl.Float64,
 ) -> pl.DataFrame:
+    """Format a square matrix as a Polars DataFrame with labelled rows and columns."""
     np_dtype = int if dtype == pl.Int64 else float
     matrix = np.asarray(values, dtype=np_dtype)
     matrix = np.atleast_2d(matrix)
@@ -55,7 +56,8 @@ def square_table(
     str_labels = [str(label) for label in label_list]
     if label_column in str_labels or len(set(str_labels)) != len(str_labels):
         raise ValueError(
-            f"Labels for square table collide with label column {label_column!r} or with each other: {str_labels}."
+            "Labels for square table collide with label column "
+            f"{label_column!r} or with each other: {str_labels}."
         )
     columns: dict[str, pl.Series] = {
         label_column: pl.Series(label_column, label_list, dtype=id_dtype),

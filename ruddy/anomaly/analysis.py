@@ -52,6 +52,8 @@ ANOMALY_METHOD_SCHEMA: dict[str, PolarsDataType] = {
 
 @dataclass(frozen=True, slots=True)
 class AnomalyResult:
+    """Results of anomaly detection algorithms across observations."""
+
     scores: pl.DataFrame
     methods: pl.DataFrame
     exclusions: pl.DataFrame

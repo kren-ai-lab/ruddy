@@ -64,6 +64,8 @@ CELL_COLUMNS: tuple[str, ...] = tuple(CELL_SCHEMA)
 
 @dataclass(frozen=True, slots=True)
 class ContingencyDiagnosticsResult:
+    """Results of contingency table diagnostics and cell statistics."""
+
     summary: pl.DataFrame
     cells: pl.DataFrame
     provenance: AnalysisProvenance
