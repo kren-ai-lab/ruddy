@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import configure_plots, display, finish, load_feature_demo, load_tabular_demo, matrix_heatmap, show
@@ -49,8 +49,8 @@ def _():
         matrix_heatmap,
         np,
         pcs,
-        pd,
         perms,
+        pl,
         plt,
         show,
         spaces,
@@ -66,12 +66,13 @@ def _(mo):
 
 
 @app.cell
-def _(finish, frame, pcs, plt, show):
+def _(finish, frame, pcs, pl, plt, show):
     _fig, axes = plt.subplots(1, 3, figsize=(15, 4.7))
     for _ax, (_name, _res) in zip(axes, pcs.items()):
-        m = _res.scores.merge(frame[['id', 'group']], left_on='observation_id', right_on='id')
-        for level, _sub in m.groupby('group'):
-            _ax.scatter(_sub.PC1, _sub.PC2, label=level, alpha=0.65, s=22)
+        m = _res.scores.join(frame.select(['id', 'group']), left_on='observation_id', right_on='id', how='left')
+        for level in m.get_column('group').unique(maintain_order=True):
+            _sub = m.filter(pl.col('group') == level)
+            _ax.scatter(_sub.get_column('PC1').to_numpy(), _sub.get_column('PC2').to_numpy(), label=str(level), alpha=0.65, s=22)
         _ax.set_title(_name)
         _ax.set_xlabel('PC1')
         _ax.set_ylabel('PC2')
@@ -90,15 +91,15 @@ def _(mo):
 
 
 @app.cell
-def _(display, finish, pd, perms, plt, show):
+def _(display, finish, perms, pl, plt, show):
     _rows = []
     for _name, _res in perms.items():
-        p = _res.summary.query('analysis=="permanova"').iloc[0]
-        d = _res.summary.query('analysis=="permdisp"').iloc[0]
-        _rows.append({'space': _name, 'PERMANOVA_R2': p.r_squared, 'PERMANOVA_p': p.p_value, 'PERMDISP_p': d.p_value})
-    sep = pd.DataFrame(_rows).set_index('space')
+        p = _res.summary.filter(pl.col('analysis') == 'permanova')
+        d = _res.summary.filter(pl.col('analysis') == 'permdisp')
+        _rows.append({'space': _name, 'PERMANOVA_R2': p.item(0, 'r_squared'), 'PERMANOVA_p': p.item(0, 'p_value'), 'PERMDISP_p': d.item(0, 'p_value')})
+    sep = pl.DataFrame(_rows)
     _fig, _ax = plt.subplots(figsize=(7.5, 4.5))
-    sep[['PERMANOVA_R2']].plot(kind='bar', ax=_ax, legend=False)
+    _ax.bar(sep.get_column('space').to_list(), sep.get_column('PERMANOVA_R2').to_numpy())
     _ax.set_ylabel('R²')
     _ax.set_title('Group-separation effect size by representation')
     _ax.tick_params(axis='x', rotation=15)
@@ -117,10 +118,19 @@ def _(mo):
 
 
 @app.cell
-def _(AB, AC, BC, matrix_heatmap, np, pd, show, spaces):
-    labels=list(spaces); cka=pd.DataFrame(np.eye(3),index=labels,columns=labels); pairvals={(0,1):AB.cka.iloc[0].cka,(0,2):AC.cka.iloc[0].cka,(1,2):BC.cka.iloc[0].cka};
-    for (i,j),v in pairvals.items(): cka.iat[i,j]=cka.iat[j,i]=v
-    matrix_heatmap(cka,title='CKA similarity across representation families'); show()
+def _(AB, AC, BC, matrix_heatmap, np, pl, show, spaces):
+    labels = list(spaces)
+    mat = np.eye(3)
+    pairvals = {
+        (0, 1): AB.cka.item(0, 'cka'),
+        (0, 2): AC.cka.item(0, 'cka'),
+        (1, 2): BC.cka.item(0, 'cka'),
+    }
+    for (_i, _j), v in pairvals.items():
+        mat[_i, _j] = mat[_j, _i] = v
+    cka = pl.DataFrame({'space': labels, **{lbl: mat[:, j] for j, lbl in enumerate(labels)}})
+    matrix_heatmap(cka, title='CKA similarity across representation families')
+    show()
     return
 
 
@@ -133,13 +143,23 @@ def _(mo):
 
 
 @app.cell
-def _(AB, AC, BC, finish, pd, plt, show):
-    sim = pd.DataFrame([{'pair': 'Embedding–Descriptor', 'CKA': AB.cka.iloc[0].cka, 'Distance similarity': AB.distance_similarity.iloc[0].coefficient, 'Mantel': AB.mantel.iloc[0].correlation}, {'pair': 'Embedding–Structure', 'CKA': AC.cka.iloc[0].cka, 'Distance similarity': AC.distance_similarity.iloc[0].coefficient, 'Mantel': AC.mantel.iloc[0].correlation}, {'pair': 'Descriptor–Structure', 'CKA': BC.cka.iloc[0].cka, 'Distance similarity': BC.distance_similarity.iloc[0].coefficient, 'Mantel': BC.mantel.iloc[0].correlation}]).set_index('pair')
+def _(AB, AC, BC, finish, np, pl, plt, show):
+    sim = pl.DataFrame([
+        {'pair': 'Embedding–Descriptor', 'CKA': AB.cka.item(0, 'cka'), 'Distance similarity': AB.distance_similarity.item(0, 'coefficient'), 'Mantel': AB.mantel.item(0, 'correlation')},
+        {'pair': 'Embedding–Structure', 'CKA': AC.cka.item(0, 'cka'), 'Distance similarity': AC.distance_similarity.item(0, 'coefficient'), 'Mantel': AC.mantel.item(0, 'correlation')},
+        {'pair': 'Descriptor–Structure', 'CKA': BC.cka.item(0, 'cka'), 'Distance similarity': BC.distance_similarity.item(0, 'coefficient'), 'Mantel': BC.mantel.item(0, 'correlation')},
+    ])
     _fig, _ax = plt.subplots(figsize=(8, 4.6))
-    sim.plot(kind='bar', ax=_ax)
+    metrics = ['CKA', 'Distance similarity', 'Mantel']
+    x_pos = np.arange(sim.height)
+    width = 0.25
+    for _i, met in enumerate(metrics):
+        _ax.bar(x_pos + (_i - 1) * width, sim.get_column(met).to_numpy(), width, label=met)
+    _ax.set_xticks(x_pos, sim.get_column('pair').to_list())
     _ax.set_ylim(-0.1, 1.05)
     _ax.set_title('Cross-space geometry similarity')
     _ax.tick_params(axis='x', rotation=15)
+    _ax.legend()
     finish(_fig)
     show()
     return
@@ -154,18 +174,25 @@ def _(mo):
 
 
 @app.cell
-def _(anoms, finish, pd, plt, show):
+def _(anoms, finish, np, pl, plt, show):
     _rows = []
     for _name, _res in anoms.items():
-        for method, _sub in _res.scores.groupby('method'):
-            _rows.append({'space': _name, 'method': method, 'n_flagged': int(_sub.is_flagged.sum())})
-    flag = pd.DataFrame(_rows)
-    pivot = flag.pivot(index='space', columns='method', values='n_flagged')
+        for method in _res.scores.get_column('method').unique(maintain_order=True):
+            _sub = _res.scores.filter(pl.col('method') == method)
+            _rows.append({'space': _name, 'method': method, 'n_flagged': int(_sub.get_column('is_flagged').sum())})
+    flag = pl.DataFrame(_rows)
+    pivot = flag.pivot(index='space', on='method', values='n_flagged')
     _fig, _ax = plt.subplots(figsize=(7.5, 4.4))
-    pivot.plot(kind='bar', ax=_ax)
+    methods = [c for c in pivot.columns if c != 'space']
+    x_pos = np.arange(pivot.height)
+    width = 0.35
+    for _i, met in enumerate(methods):
+        _ax.bar(x_pos + (_i - 0.5) * width, pivot.get_column(met).to_numpy(), width, label=met)
+    _ax.set_xticks(x_pos, pivot.get_column('space').to_list())
     _ax.set_ylabel('Flagged observations')
     _ax.set_title('Anomaly detection depends on representation geometry')
     _ax.tick_params(axis='x', rotation=15)
+    _ax.legend()
     finish(_fig)
     show()
     return
@@ -180,15 +207,18 @@ def _(mo):
 
 
 @app.cell
-def _(frame, pcs, pd):
+def _(frame, pcs, pl):
     import plotly.express as px
     long = []
     for _name, _res in pcs.items():
-        t = _res.scores[['observation_id', 'PC1', 'PC2']].merge(frame[['id', 'group', 'activity']], left_on='observation_id', right_on='id')
-        t['space'] = _name
+        t = (
+            _res.scores.select(['observation_id', 'PC1', 'PC2'])
+            .join(frame.select(['id', 'group', 'activity']), left_on='observation_id', right_on='id', how='left')
+            .with_columns(space=pl.lit(_name))
+        )
         long.append(t)
-    long = pd.concat(long, ignore_index=True)
-    _fig = px.scatter(long, x='PC1', y='PC2', color='group', facet_col='space', hover_data=['observation_id', 'activity'], title='Interactive aligned-representation explorer')
+    long_df = pl.concat(long).to_pandas()
+    _fig = px.scatter(long_df, x='PC1', y='PC2', color='group', facet_col='space', hover_data=['observation_id', 'activity'], title='Interactive aligned-representation explorer')
     _fig
     return
 

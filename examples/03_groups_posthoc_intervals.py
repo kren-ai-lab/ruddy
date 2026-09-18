@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import configure_plots, density_by_group, display, errorbar_table, finish, group_violin_box_scatter, load_tabular_demo, matrix_heatmap, show
@@ -46,7 +46,7 @@ def _():
         grp,
         matrix_heatmap,
         np,
-        pd,
+        pl,
         plt,
         post,
         show,
@@ -74,9 +74,19 @@ def _(mo):
 
 
 @app.cell
-def _(display, finish, grp, np, plt, show):
-    s=grp.numeric_summaries.query('response=="activity" and group_column=="group"').copy(); s['label']=s.group_level.astype(str)
-    fig,ax=plt.subplots(figsize=(7,4.5)); ax.errorbar(s['mean'],np.arange(len(s)),xerr=s['std'],fmt='o',capsize=4); ax.set_yticks(np.arange(len(s)),s['label']); ax.set_xlabel('Mean ± SD'); ax.set_title('Group summaries returned by Ruddy'); finish(fig); show(); display(s[['group_level','mean','std','median','iqr']])
+def _(display, finish, grp, np, pl, plt, show):
+    s = (
+        grp.numeric_summaries.filter((pl.col('response') == 'activity') & (pl.col('group_column') == 'group'))
+        .with_columns(label=pl.col('group_level').cast(pl.String))
+    )
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    ax.errorbar(s.get_column('mean').to_numpy(), np.arange(s.height), xerr=s.get_column('std').to_numpy(), fmt='o', capsize=4)
+    ax.set_yticks(np.arange(s.height), s.get_column('label').to_list())
+    ax.set_xlabel('Mean ± SD')
+    ax.set_title('Group summaries returned by Ruddy')
+    finish(fig)
+    show()
+    display(s.select(['group_level', 'mean', 'std', 'median', 'iqr']))
     return
 
 
@@ -89,10 +99,14 @@ def _(mo):
 
 
 @app.cell
-def _(errorbar_table, post, show):
-    p=post.comparisons.copy(); p['contrast']=p.group_a.astype(str)+' − '+p.group_b.astype(str)
-    for method in ['tukey_hsd','games_howell']:
-        q=p.query('method==@method').copy(); errorbar_table(q,label_col='contrast',estimate_col='mean_difference',low_col='ci_lower',high_col='ci_upper',title=f'{method}: pairwise activity differences',xlabel='Mean difference'); show()
+def _(errorbar_table, pl, post, show):
+    p = post.comparisons.with_columns(
+        contrast=pl.concat_str([pl.col('group_a').cast(pl.String), pl.lit(' − '), pl.col('group_b').cast(pl.String)])
+    )
+    for method in ['tukey_hsd', 'games_howell']:
+        q = p.filter(pl.col('method') == method)
+        errorbar_table(q, label_col='contrast', estimate_col='mean_difference', low_col='ci_lower', high_col='ci_upper', title=f'{method}: pairwise activity differences', xlabel='Mean difference')
+        show()
     return (p,)
 
 
@@ -105,9 +119,14 @@ def _(mo):
 
 
 @app.cell
-def _(ci, errorbar_table, show):
-    e=ci.effect_sizes.query('response=="activity" and group=="group" and status=="ok"').copy(); e['contrast']=e.level_a.astype(str)+' − '+e.level_b.astype(str)
-    if len(e): errorbar_table(e,label_col='contrast',estimate_col='estimate',low_col='confidence_low',high_col='confidence_high',title='Hedges g with bootstrap confidence intervals',xlabel='Standardized effect'); show()
+def _(ci, errorbar_table, pl, show):
+    e = (
+        ci.effect_sizes.filter((pl.col('response') == 'activity') & (pl.col('group') == 'group') & (pl.col('status') == 'ok'))
+        .with_columns(contrast=pl.concat_str([pl.col('level_a').cast(pl.String), pl.lit(' − '), pl.col('level_b').cast(pl.String)]))
+    )
+    if e.height > 0:
+        errorbar_table(e, label_col='contrast', estimate_col='estimate', low_col='confidence_low', high_col='confidence_high', title='Hedges g with bootstrap confidence intervals', xlabel='Standardized effect')
+        show()
     return
 
 
@@ -120,10 +139,17 @@ def _(mo):
 
 
 @app.cell
-def _(matrix_heatmap, np, p, pd, show):
-    gh=p.query('method=="games_howell"'); levels=sorted(set(gh.group_a).union(gh.group_b)); mat=pd.DataFrame(np.nan,index=levels,columns=levels)
-    for _,r in gh.iterrows(): mat.loc[r.group_a,r.group_b]=r.mean_difference; mat.loc[r.group_b,r.group_a]=-r.mean_difference
-    np.fill_diagonal(mat.values,0); matrix_heatmap(mat,title='Games–Howell pairwise mean differences'); show()
+def _(matrix_heatmap, np, p, pl, show):
+    gh = p.filter(pl.col('method') == 'games_howell')
+    levels = sorted(set(gh.get_column('group_a').to_list()).union(gh.get_column('group_b').to_list()))
+    idx = {name: i for i, name in enumerate(levels)}
+    mat = np.zeros((len(levels), len(levels)))
+    for r in gh.iter_rows(named=True):
+        i, j = idx[r['group_a']], idx[r['group_b']]
+        mat[i, j] = r['mean_difference']
+        mat[j, i] = -r['mean_difference']
+    matrix_heatmap(mat, title='Games–Howell pairwise mean differences', row_labels=levels, col_labels=levels)
+    show()
     return
 
 

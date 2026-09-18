@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import configure_plots, display, finish, group_violin_box_scatter, load_feature_demo, load_tabular_demo, score_plot, show
@@ -34,14 +34,14 @@ def _():
     frame,dataset=load_tabular_demo(); A=load_feature_demo('representation_a'); B=load_feature_demo('representation_b')
     config=AnalysisConfig(enabled_blocks=('profiling','univariate','bivariate','groups','outliers','pca','permanova','representation','anomaly'),responses=('activity',),groups=('group',),permanova_factor='group',permanova_permutations=19,representation_cca_components=3,representation_mantel_permutations=19,projection_n_components=3,random_state=42)
     res=analyze(dataset,config=config,features=A,comparison_features=B)
-    print('Executed blocks:',[str(x) for x in res.executed_blocks]); display(pd.DataFrame([res.profiling.overview]))
+    print('Executed blocks:',[str(x) for x in res.executed_blocks]); display(pl.DataFrame([res.profiling.overview]))
     return (
         display,
         finish,
         frame,
         group_violin_box_scatter,
         np,
-        pd,
+        pl,
         plt,
         res,
         score_plot,
@@ -64,11 +64,12 @@ def _(frame, group_violin_box_scatter, show):
 
 
 @app.cell
-def _(finish, np, plt, res, show):
-    s = res.groups.numeric_summaries.query('response=="activity" and group_column=="group"')
+def _(finish, np, pl, plt, res, show):
+    s = res.groups.numeric_summaries.filter((pl.col('response') == 'activity') & (pl.col('group_column') == 'group'))
+    n = s.height
     _fig, _ax = plt.subplots(figsize=(7, 4.4))
-    _ax.errorbar(s['mean'], np.arange(len(s)), xerr=s['std'], fmt='o')
-    _ax.set_yticks(np.arange(len(s)), s.group_level.astype(str))
+    _ax.errorbar(s.get_column('mean').to_numpy(), np.arange(n), xerr=s.get_column('std').to_numpy(), fmt='o')
+    _ax.set_yticks(np.arange(n), [str(x) for x in s.get_column('group_level').to_list()])
     _ax.set_xlabel('Mean ± SD')
     _ax.set_title('Structured group summaries')
     finish(_fig)
@@ -99,12 +100,23 @@ def _(mo):
 
 
 @app.cell
-def _(finish, plt, res, show):
+def _(finish, pl, plt, res, show):
     _fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
-    res.outliers.summaries.query('status=="ok"').groupby('method').n_flagged.sum().plot(kind='bar', ax=axes[0])
+    out_counts = (
+        res.outliers.summaries.filter(pl.col('status') == 'ok')
+        .group_by('method')
+        .agg(n_flagged=pl.col('n_flagged').sum())
+    )
+    axes[0].bar(out_counts.get_column('method').to_list(), out_counts.get_column('n_flagged').to_numpy())
     axes[0].set_title('Univariate flags')
     axes[0].set_ylabel('Count')
-    res.anomaly.scores.groupby('method').is_flagged.sum().plot(kind='bar', ax=axes[1])
+
+    anom_counts = (
+        res.anomaly.scores
+        .group_by('method')
+        .agg(n_flagged=pl.col('is_flagged').sum())
+    )
+    axes[1].bar(anom_counts.get_column('method').to_list(), anom_counts.get_column('n_flagged').to_numpy())
     axes[1].set_title('Multivariate anomaly flags')
     axes[1].set_ylabel('Count')
     finish(_fig)
@@ -121,10 +133,14 @@ def _(mo):
 
 
 @app.cell
-def _(display, finish, pd, plt, res, show):
-    metrics = pd.Series({'CKA': res.representation.cka.iloc[0].cka, 'Distance similarity': res.representation.distance_similarity.iloc[0].coefficient, 'Mantel': res.representation.mantel.iloc[0].correlation})
+def _(display, finish, pl, plt, res, show):
+    metrics = {
+        'CKA': res.representation.cka.item(0, 'cka'),
+        'Distance similarity': res.representation.distance_similarity.item(0, 'coefficient'),
+        'Mantel': res.representation.mantel.item(0, 'correlation'),
+    }
     _fig, _ax = plt.subplots(figsize=(6.5, 4))
-    metrics.plot(kind='bar', ax=_ax)
+    _ax.bar(list(metrics.keys()), list(metrics.values()))
     _ax.set_ylim(-0.1, 1.05)
     _ax.set_title('Comparison of aligned numerical spaces')
     finish(_fig)
@@ -142,10 +158,10 @@ def _(mo):
 
 
 @app.cell
-def _(finish, pd, plt, res, show):
-    present = pd.Series({name: value is not None for name, value in res.components.items()})
+def _(finish, plt, res, show):
+    present = {name: int(value is not None) for name, value in res.components.items()}
     _fig, _ax = plt.subplots(figsize=(8, 4))
-    present.astype(int).plot(kind='bar', ax=_ax)
+    _ax.bar(list(present.keys()), list(present.values()))
     _ax.set_ylim(0, 1.15)
     _ax.set_ylabel('Available')
     _ax.set_title('Analysis blocks materialized in UnifiedAnalysisResult')

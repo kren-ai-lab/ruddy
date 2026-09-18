@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import bar_metric, biplot, configure_plots, display, finish, load_feature_demo, load_tabular_demo, score_plot, show
@@ -41,6 +41,7 @@ def _():
         frame,
         np,
         pca,
+        pl,
         plt,
         score_plot,
         show,
@@ -60,8 +61,8 @@ def _(mo):
 def _(finish, pca, plt, show):
     v = pca.variance
     _fig, ax = plt.subplots(figsize=(7.5, 4.6))
-    ax.bar(v.component, v.explained_variance_ratio, label='Individual')
-    ax.plot(v.component, v.cumulative_explained_variance_ratio, marker='o', label='Cumulative')
+    ax.bar(v.get_column('component').to_list(), v.get_column('explained_variance_ratio').to_numpy(), label='Individual')
+    ax.plot(v.get_column('component').to_list(), v.get_column('cumulative_explained_variance_ratio').to_numpy(), marker='o', label='Cumulative')
     ax.set_ylim(0, 1.05)
     ax.set_ylabel('Explained variance ratio')
     ax.set_title('PCA variance spectrum')
@@ -100,8 +101,16 @@ def _(mo):
 
 
 @app.cell
-def _(bar_metric, np, pca, show):
-    load=pca.loadings.copy(); load['magnitude']=np.sqrt(load.PC1**2+load.PC2**2); top=load.nlargest(10,'magnitude'); bar_metric(top.sort_values('magnitude'),label='feature',value='magnitude',title='Strongest PC1/PC2 loading vectors',ylabel='Loading magnitude'); show()
+def _(bar_metric, np, pca, pl, show):
+    load = (
+        pca.loadings
+        .with_columns(magnitude=(pl.col('PC1') ** 2 + pl.col('PC2') ** 2).sqrt())
+        .sort('magnitude', descending=True)
+        .head(10)
+        .sort('magnitude')
+    )
+    bar_metric(load, label='feature', value='magnitude', title='Strongest PC1/PC2 loading vectors', ylabel='Loading magnitude')
+    show()
     return
 
 
@@ -122,7 +131,10 @@ def _(mo):
 
 @app.cell
 def _(frame, score_plot, show, tsne):
-    coords=tsne.coordinates.rename(columns={'component_1':'TSNE1','component_2':'TSNE2'}); score_plot(coords,frame,x='TSNE1',y='TSNE2',group='group',title='Exploratory t-SNE by group'); show(); print('inferential_allowed =',tsne.inferential_allowed)
+    coords = tsne.coordinates.rename({'component_1': 'TSNE1', 'component_2': 'TSNE2'})
+    score_plot(coords, frame, x='TSNE1', y='TSNE2', group='group', title='Exploratory t-SNE by group')
+    show()
+    print('inferential_allowed =', tsne.inferential_allowed)
     return
 
 
@@ -135,9 +147,12 @@ def _(mo):
 
 
 @app.cell
-def _(frame, pca):
+def _(frame, pca, pl):
     import plotly.express as px
-    interactive = pca.scores.merge(frame[['id', 'group', 'source', 'phenotype', 'activity']], left_on='observation_id', right_on='id')
+    interactive = (
+        pca.scores.join(frame.select(['id', 'group', 'source', 'phenotype', 'activity']), left_on='observation_id', right_on='id', how='left')
+        .to_pandas()
+    )
     _fig = px.scatter(interactive, x='PC1', y='PC2', color='group', symbol='source', hover_data=['observation_id', 'phenotype', 'activity'], title='Interactive PCA score explorer')
     _fig
     return

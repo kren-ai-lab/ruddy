@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import bar_metric, configure_plots, display, group_violin_box_scatter, load_feature_demo, load_tabular_demo, matrix_heatmap, score_plot, show
@@ -44,6 +44,7 @@ def _():
         mv,
         pca,
         perm,
+        pl,
         score_plot,
         show,
     )
@@ -72,16 +73,20 @@ def _(mo):
 
 
 @app.cell
-def _(display, mv):
-    vif=mv.collinearity.features.query('status=="ok"').copy() if hasattr(mv.collinearity,'features') else mv.collinearity.table.query('status=="ok"').copy(); display(vif.head())
+def _(display, mv, pl):
+    _tbl = mv.collinearity.features if hasattr(mv.collinearity,'features') else mv.collinearity.table
+    vif = _tbl.filter(pl.col('status') == 'ok')
+    display(vif.head())
     return
 
 
 @app.cell
-def _(bar_metric, mv, show):
-    tbl = mv.collinearity.features if hasattr(mv.collinearity,'features') else mv.collinearity.table
-    if 'vif' in tbl.columns:
-        vv=tbl.query('status=="ok"').sort_values('vif',ascending=False).head(12); bar_metric(vv,label='feature',value='vif',title='Variance inflation factors',ylabel='VIF'); show()
+def _(bar_metric, mv, pl, show):
+    _tbl = mv.collinearity.features if hasattr(mv.collinearity,'features') else mv.collinearity.table
+    if 'vif' in _tbl.columns:
+        vv = _tbl.filter(pl.col('status') == 'ok').sort('vif', descending=True).head(12)
+        bar_metric(vv, label='feature', value='vif', title='Variance inflation factors', ylabel='VIF')
+        show()
     return
 
 
@@ -94,9 +99,17 @@ def _(mo):
 
 
 @app.cell
-def _(bar_metric, mv, show):
-    dist=mv.mahalanobis.distances.query('method=="classical" and status=="ok"').sort_values('squared_distance',ascending=False).head(25).copy(); dist['label']=dist.observation_id
-    bar_metric(dist.sort_values('squared_distance'),label='label',value='squared_distance',title='Largest classical Mahalanobis distances',ylabel='Squared distance'); show()
+def _(bar_metric, mv, pl, show):
+    dist = (
+        mv.mahalanobis.distances
+        .filter((pl.col('method') == 'classical') & (pl.col('status') == 'ok'))
+        .sort('squared_distance', descending=True)
+        .head(25)
+        .with_columns(label=pl.col('observation_id'))
+        .sort('squared_distance')
+    )
+    bar_metric(dist, label='label', value='squared_distance', title='Largest classical Mahalanobis distances', ylabel='Squared distance')
+    show()
     return
 
 
@@ -124,13 +137,18 @@ def _(mo):
 
 @app.cell
 def _(display, frame, group_violin_box_scatter, perm, show):
-    display(perm.summary); d=perm.distances_to_centroid.merge(frame[['id','group']],left_on='observation_id',right_on='id'); group_violin_box_scatter(d,value='distance_to_centroid',group='level',title='PERMDISP: distance to group centroid'); show()
+    display(perm.summary)
+    d = perm.distances_to_centroid.join(frame.select(['id', 'group']), left_on='observation_id', right_on='id', how='left')
+    group_violin_box_scatter(d, value='distance_to_centroid', group='level', title='PERMDISP: distance to group centroid')
+    show()
     return
 
 
 @app.cell
 def _(bar_metric, perm, show):
-    g=perm.groups.copy(); bar_metric(g,label='level',value='mean_distance_to_centroid',title='Mean multivariate dispersion by group',ylabel='Mean distance to centroid'); show()
+    g = perm.groups
+    bar_metric(g, label='level', value='mean_distance_to_centroid', title='Mean multivariate dispersion by group', ylabel='Mean distance to centroid')
+    show()
     return
 
 

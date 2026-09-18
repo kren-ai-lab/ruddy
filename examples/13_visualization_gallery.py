@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import anomaly_agreement, bar_metric, configure_plots, display, ecdf_by_group, finish, group_violin_box_scatter, load_feature_demo, load_tabular_demo, matrix_heatmap, scatter_by_group, score_plot, show
@@ -47,7 +47,7 @@ def _():
         matrix_heatmap,
         np,
         pca,
-        pd,
+        pl,
         plt,
         rep,
         scatter_by_group,
@@ -91,11 +91,17 @@ def _(frame, scatter_by_group, show):
 
 
 @app.cell
-def _(biv, matrix_heatmap, np, pd, show):
-    num=['activity','stability','length','charge']; pear=biv.correlations.query('method=="pearson" and status=="ok"'); M=pd.DataFrame(np.eye(len(num)),index=num,columns=num);
-    for _,r in pear.iterrows():
-        if r.column_x in num and r.column_y in num: M.loc[r.column_x,r.column_y]=M.loc[r.column_y,r.column_x]=r.coefficient
-    matrix_heatmap(M,title='Correlation heatmap'); show()
+def _(biv, matrix_heatmap, np, pl, show):
+    num = ['activity', 'stability', 'length', 'charge']
+    pear = biv.correlations.filter((pl.col('method') == 'pearson') & (pl.col('status') == 'ok'))
+    idx = {name: i for i, name in enumerate(num)}
+    mat = np.eye(len(num))
+    for _r in pear.iter_rows(named=True):
+        if _r['column_x'] in idx and _r['column_y'] in idx:
+            i, j = idx[_r['column_x']], idx[_r['column_y']]
+            mat[i, j] = mat[j, i] = _r['coefficient']
+    matrix_heatmap(mat, title='Correlation heatmap', row_labels=num, col_labels=num)
+    show()
     return
 
 
@@ -108,11 +114,11 @@ def _(mo):
 
 
 @app.cell
-def _(finish, grp, np, plt, show):
-    s = grp.numeric_summaries.query('response=="activity"')
+def _(finish, grp, np, pl, plt, show):
+    s = grp.numeric_summaries.filter(pl.col('response') == 'activity')
     _fig, _ax = plt.subplots(figsize=(7, 4))
-    _ax.errorbar(s['mean'], np.arange(len(s)), xerr=s['std'], fmt='o')
-    _ax.set_yticks(np.arange(len(s)), s.group_level.astype(str))
+    _ax.errorbar(s.get_column('mean').to_numpy(), np.arange(s.height), xerr=s.get_column('std').to_numpy(), fmt='o')
+    _ax.set_yticks(np.arange(s.height), [str(x) for x in s.get_column('group_level').to_list()])
     _ax.set_title('Group estimate plot')
     finish(_fig)
     show()
@@ -120,8 +126,10 @@ def _(finish, grp, np, plt, show):
 
 
 @app.cell
-def _(bar_metric, fac, show):
-    e=fac.effects.query('status=="ok"'); bar_metric(e,label='term',value='partial_eta_squared',title='Factorial effect-size plot',ylabel='Partial η²'); show()
+def _(bar_metric, fac, pl, show):
+    e = fac.effects.filter(pl.col('status') == 'ok')
+    bar_metric(e, label='term', value='partial_eta_squared', title='Factorial effect-size plot', ylabel='Partial η²')
+    show()
     return
 
 
@@ -140,10 +148,15 @@ def _(frame, pca, score_plot, show):
 
 
 @app.cell
-def _(finish, pd, plt, rep, show):
-    vals = pd.Series({'CKA': rep.cka.iloc[0].cka, 'Distance similarity': rep.distance_similarity.iloc[0].coefficient, 'Mantel': rep.mantel.iloc[0].correlation})
+def _(finish, plt, rep, show):
+    labels = ['CKA', 'Distance similarity', 'Mantel']
+    vals = [
+        rep.cka.item(0, 'cka'),
+        rep.distance_similarity.item(0, 'coefficient'),
+        rep.mantel.item(0, 'correlation'),
+    ]
     _fig, _ax = plt.subplots(figsize=(6, 4))
-    vals.plot(kind='bar', ax=_ax)
+    _ax.bar(labels, vals)
     _ax.set_ylim(-0.1, 1.05)
     _ax.set_title('Representation similarity metrics')
     finish(_fig)
