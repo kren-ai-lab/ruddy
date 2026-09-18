@@ -41,11 +41,11 @@ Square and labeled matrices (such as covariance, Pearson/Spearman correlation ma
 - The first column is named `feature` (for feature-by-feature matrices) or `observation_id` (for observation-by-observation matrices or scores).
 - The first column preserves the original label or observation ID dtype.
 - Subsequent columns contain the matrix values and are named `str(label)`.
-- CSV export via `ruddy.core.io.write_table` or the CLI writes the table directly without an unlabelled index column (`index=False`).
+- CSV export via `ruddy.core.io.write_table` or the CLI writes the table directly without an unlabelled index column.
 
 ### 7. `ColumnSpec.dtype` Strings Are Polars Dtype Names
 `ColumnSpec.dtype` in `dataset.schema` now records Polars data type names (such as `"Int64"`, `"Float64"`, `"String"`, `"Boolean"`, `"Date"`, `"Datetime"`) rather than pandas or NumPy dtype strings (such as `"int64"`, `"float64"`, `"object"`).
 
 ### 8. Dependency Changes
 - `polars` (>=1.44) and `pyarrow` (>=25) are core dependencies.
-- `pandas` remains supported as an accepted input to `TabularDataset` and `FeatureMatrix`, and is retained transitively through `statsmodels`.
+- `pandas` remains a direct dependency for accepted inputs to `TabularDataset` and `FeatureMatrix` and the explicit statsmodels/Patsy model boundaries.

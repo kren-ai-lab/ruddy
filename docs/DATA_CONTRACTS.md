@@ -216,3 +216,16 @@ The scientific input is immutable by contract:
 - transformed compositional/PCA spaces are returned as new feature matrices.
 
 This makes it possible to trace every derived object back to an unchanged input state.
+
+## Statistical engine boundaries
+
+Ruddy prepares model data in Polars and converts it explicitly to pandas at one
+boundary per module in `factorial/models.py`, `factorial/marginal_means.py`,
+`factorial/mixed_effects.py`, and `multivariate/manova.py` before calling
+statsmodels/Patsy. Complete-case exclusions are determined and recorded before
+that conversion. Model outputs are converted back to Ruddy's Polars/NumPy
+contracts; pandas result objects are not exposed through the public API.
+
+NumPy/SciPy, scikit-learn, statsmodels/Patsy and optional umap-learn remain the
+numerical engines. The migration changes tabular storage and public result
+contracts without replacing these engines.

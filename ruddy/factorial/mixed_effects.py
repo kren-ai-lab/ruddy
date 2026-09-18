@@ -72,7 +72,7 @@ def _safe_fixed_frame(
     group: str,
     random_slopes: tuple[str, ...],
 ) -> tuple[pd.DataFrame, str, dict[str, str], dict[str, str]]:
-    # pandas boundary: statsmodels/Patsy consume pandas; see docs/POLARS_MIGRATION_PLAN.md
+    # pandas boundary: statsmodels/Patsy consume pandas; see docs/DATA_CONTRACTS.md
     frame = model_frame.to_pandas()
     safe = pd.DataFrame(index=frame.index)
     safe["Y"] = pd.to_numeric(frame[design.response], errors="raise").astype(float)

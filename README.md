@@ -61,7 +61,7 @@ Ruddy currently targets Python 3.11–3.14.
 python -m pip install -e .
 ```
 
-Core dependencies are NumPy, Polars, pyarrow, SciPy, scikit-learn, statsmodels, Typer and Rich. pandas is accepted as an input format and retained transitively through statsmodels.
+Core dependencies are NumPy, pandas, Polars, pyarrow, SciPy, scikit-learn, statsmodels, Typer and Rich. pandas supports accepted inputs and the explicit statsmodels/Patsy model boundaries; public result tables use Polars.
 
 UMAP is optional:
 

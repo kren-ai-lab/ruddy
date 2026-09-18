@@ -25,6 +25,7 @@ The documentation is code-oriented and describes the current public behavior, no
 | [`VISUALIZATION_EXAMPLES.md`](VISUALIZATION_EXAMPLES.md) | External visualization examples and what each one demonstrates |
 | [`TESTING_AND_REPRODUCIBILITY.md`](TESTING_AND_REPRODUCIBILITY.md) | Test layout, robustness suite, deterministic stochastic analyses and feature freeze |
 | [`PUBLIC_API.md`](PUBLIC_API.md) | Generated inventory of current public Python call signatures |
+| [`CHANGELOG_POLARS.md`](CHANGELOG_POLARS.md) | Breaking changes and adaptation guidance for the Polars API |
 
 ## Current scientific layers
 

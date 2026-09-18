@@ -10,7 +10,7 @@
 Core dependencies are managed via `uv`:
 - **Polars** (`polars>=1.44,<2`) and **pyarrow** (`pyarrow>=25,<26`) form the core tabular data engine and I/O backend.
 - **NumPy**, **SciPy**, **scikit-learn**, and **statsmodels** provide numeric and statistical modeling engines.
-- **pandas** is accepted as an input format for `TabularDataset` and `FeatureMatrix` and is retained transitively via statsmodels.
+- **pandas** remains a direct dependency for accepted inputs to `TabularDataset` and `FeatureMatrix` and the explicit statsmodels/Patsy model boundaries.
 - **Typer** and **Rich** power the CLI.
 - Optional dependencies include `umap-learn` (`.[manifold]`) and the `examples` group for marimo/plotting libraries.
 
