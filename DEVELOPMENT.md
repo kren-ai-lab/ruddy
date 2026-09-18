@@ -90,7 +90,7 @@ iterating:
 | --- | --- |
 | `tests/<package>/` | Public behavior of the corresponding package |
 | `tests/integration/` | Unified analysis and composition of blocks |
-| `tests/parity/` | Numerical reference agreement and supported input formats |
+| `tests/parity/` | Numerical agreement with frozen reference values |
 | `tests/robustness/` | Missing/constant data, rank and dimensionality guards, sparse inputs, alignment and reproducibility |
 | `tests/cli/` | Command behavior and exported artifacts |
 
