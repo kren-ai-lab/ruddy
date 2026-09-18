@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import bar_metric, configure_plots, display, finish, load_tabular_demo, matrix_heatmap, scatter_by_group, show
@@ -45,7 +45,7 @@ def _():
         frame,
         matrix_heatmap,
         np,
-        pd,
+        pl,
         plt,
         scatter_by_group,
         show,
@@ -81,21 +81,27 @@ def _(frame, scatter_by_group, show):
 
 
 @app.cell
-def _(biv, dep, display, finish, pd, plt, show):
+def _(biv, dep, display, finish, np, pl, plt, show):
     pairs = [('charge', 'nonlinear_response'), ('length', 'activity'), ('activity', 'stability')]
     rows = []
     for x, y in pairs:
-        p = biv.correlations.query('column_x==@x and column_y==@y and method=="pearson"')
-        d = dep.distance_correlations.query('column_x==@x and column_y==@y')
-        m = dep.mutual_information.query('column_x==@x and column_y==@y')
-        if len(p) and len(d) and len(m):
-            rows.append({'pair': f'{x} ↔ {y}', 'Pearson': p.iloc[0].coefficient, 'Distance correlation': d.iloc[0].statistic, 'Mutual information': m.iloc[0].statistic})
-    compare = pd.DataFrame(rows).set_index('pair')
+        p = biv.correlations.filter((pl.col('column_x') == x) & (pl.col('column_y') == y) & (pl.col('method') == 'pearson'))
+        d = dep.distance_correlations.filter((pl.col('column_x') == x) & (pl.col('column_y') == y))
+        m = dep.mutual_information.filter((pl.col('column_x') == x) & (pl.col('column_y') == y))
+        if p.height > 0 and d.height > 0 and m.height > 0:
+            rows.append({'pair': f'{x} ↔ {y}', 'Pearson': p.item(0, 'coefficient'), 'Distance correlation': d.item(0, 'statistic'), 'Mutual information': m.item(0, 'statistic')})
+    compare = pl.DataFrame(rows)
     _fig, ax = plt.subplots(figsize=(8, 4.5))
-    compare.plot(kind='bar', ax=ax)
+    metrics = ['Pearson', 'Distance correlation', 'Mutual information']
+    x_pos = np.arange(compare.height)
+    width = 0.25
+    for _i, met in enumerate(metrics):
+        ax.bar(x_pos + (_i - 1) * width, compare.get_column(met).to_numpy(), width, label=met)
+    ax.set_xticks(x_pos, compare.get_column('pair').to_list())
     ax.set_ylabel('Dependence statistic')
     ax.set_title('Different dependence measures reveal different structure')
     ax.tick_params(axis='x', rotation=20)
+    ax.legend()
     finish(_fig)
     show()
     display(compare)
@@ -111,26 +117,30 @@ def _(mo):
 
 
 @app.cell
-def _(biv, matrix_heatmap, np, pd, show):
+def _(biv, matrix_heatmap, np, pl, show):
     numeric = ['activity', 'stability', 'length', 'charge', 'hydrophobicity', 'nonlinear_response']
-    pear = biv.correlations.query('method=="pearson" and status=="ok"')
-    pm = pd.DataFrame(np.eye(len(numeric)), index=numeric, columns=numeric)
-    for _, _r in pear.iterrows():
-        if _r.column_x in numeric and _r.column_y in numeric:
-            pm.loc[_r.column_x, _r.column_y] = pm.loc[_r.column_y, _r.column_x] = _r.coefficient
-    matrix_heatmap(pm, title='Pearson correlation structure')
+    pear = biv.correlations.filter((pl.col('method') == 'pearson') & (pl.col('status') == 'ok'))
+    _idx = {name: _i for _i, name in enumerate(numeric)}
+    _mat = np.eye(len(numeric))
+    for _r in pear.iter_rows(named=True):
+        if _r['column_x'] in _idx and _r['column_y'] in _idx:
+            _i, _j = _idx[_r['column_x']], _idx[_r['column_y']]
+            _mat[_i, _j] = _mat[_j, _i] = _r['coefficient']
+    matrix_heatmap(_mat, title='Pearson correlation structure', row_labels=numeric, col_labels=numeric)
     show()
     return (numeric,)
 
 
 @app.cell
-def _(dep, matrix_heatmap, np, numeric, pd, show):
-    dc = dep.distance_correlations.query('status=="ok"')
-    dm = pd.DataFrame(np.eye(len(numeric)), index=numeric, columns=numeric)
-    for _, _r in dc.iterrows():
-        if _r.column_x in numeric and _r.column_y in numeric:
-            dm.loc[_r.column_x, _r.column_y] = dm.loc[_r.column_y, _r.column_x] = _r.statistic
-    matrix_heatmap(dm, title='Distance-correlation structure')
+def _(dep, matrix_heatmap, np, numeric, pl, show):
+    dc = dep.distance_correlations.filter(pl.col('status') == 'ok')
+    _idx = {name: _i for _i, name in enumerate(numeric)}
+    _mat = np.eye(len(numeric))
+    for _r in dc.iter_rows(named=True):
+        if _r['column_x'] in _idx and _r['column_y'] in _idx:
+            _i, _j = _idx[_r['column_x']], _idx[_r['column_y']]
+            _mat[_i, _j] = _mat[_j, _i] = _r['statistic']
+    matrix_heatmap(_mat, title='Distance-correlation structure', row_labels=numeric, col_labels=numeric)
     show()
     return
 
@@ -144,10 +154,19 @@ def _(mo):
 
 
 @app.cell
-def _(bar_metric, dep, show):
-    pc=dep.partial_correlations.query('status=="ok"').copy(); pc['pair']=pc.column_x+' ↔ '+pc.column_y
-    top=pc.reindex(pc.coefficient.abs().sort_values(ascending=False).index).head(12)
-    bar_metric(top,label='pair',value='coefficient',title='Strongest partial correlations | controlling for length',ylabel='Partial correlation'); show()
+def _(bar_metric, dep, pl, show):
+    pc = (
+        dep.partial_correlations.filter(pl.col('status') == 'ok')
+        .with_columns(pair=pl.concat_str([pl.col('column_x'), pl.lit(' ↔ '), pl.col('column_y')]))
+    )
+    top = (
+        pc.with_columns(_abs=pl.col('coefficient').abs())
+        .sort('_abs', descending=True)
+        .head(12)
+        .drop('_abs')
+    )
+    bar_metric(top, label='pair', value='coefficient', title='Strongest partial correlations | controlling for length', ylabel='Partial correlation')
+    show()
     return
 
 
@@ -160,10 +179,11 @@ def _(mo):
 
 
 @app.cell
-def _(cont, display, matrix_heatmap, show):
-    cells=cont.cells.query('column_x=="group" and column_y=="phenotype"')
-    res=cells.pivot(index='level_x',columns='level_y',values='standardized_residual')
-    matrix_heatmap(res,title='Standardized contingency residuals: group × phenotype'); show()
+def _(cont, display, matrix_heatmap, pl, show):
+    cells = cont.cells.filter((pl.col('column_x') == 'group') & (pl.col('column_y') == 'phenotype'))
+    res = cells.pivot(index='level_x', on='level_y', values='standardized_residual')
+    matrix_heatmap(res, title='Standardized contingency residuals: group × phenotype')
+    show()
     display(cont.summary)
     return
 
@@ -179,7 +199,7 @@ def _(mo):
 @app.cell
 def _(frame, np):
     import plotly.express as px
-    _fig = px.scatter(frame.replace([np.inf, -np.inf], np.nan), x='charge', y='nonlinear_response', color='group', hover_data=['id', 'source', 'activity'], title='Interactive nonlinear dependence explorer')
+    _fig = px.scatter(frame.to_pandas().replace([np.inf, -np.inf], np.nan), x='charge', y='nonlinear_response', color='group', hover_data=['id', 'source', 'activity'], title='Interactive nonlinear dependence explorer')
     _fig
     return
 

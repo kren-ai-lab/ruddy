@@ -1,9 +1,12 @@
 import numpy as np
-import pandas as pd
+import polars as pl
+import polars.testing as pl_testing
 import pytest
 
 from ruddy import FeatureMatrix, analyze_representation_similarity, linear_cka
+from ruddy.core.enums import ResultStatus
 from ruddy.core.exceptions import AlignmentError
+from ruddy.representation.analysis import CCA_CORRELATION_SCHEMA
 
 
 def _pair(n=60, seed=2):
@@ -33,23 +36,37 @@ def test_representation_related_spaces_have_high_cca_and_cka():
     x, y = _pair()
     r = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=19, random_state=7)
     assert r.cca.status.value == "ok"
-    assert r.cca.correlations["canonical_correlation"].min() > 0.95
-    assert 0 <= r.cka.loc[0, "cka"] <= 1  # pyrefly: ignore[unsupported-operation]
-    assert r.cka.loc[0, "cka"] > 0.6  # pyrefly: ignore[unsupported-operation]
+    assert r.cca.correlations["canonical_correlation"].to_numpy().min() > 0.95
+    assert 0 <= r.cka.item(0, "cka") <= 1
+    assert r.cka.item(0, "cka") > 0.6
+    assert r.cca.x_weights.columns == ["feature", "CC1", "CC2"]
+    assert r.cca.y_weights.columns == ["feature", "CC1", "CC2"]
+    assert r.cca.x_loadings.columns == ["feature", "CC1", "CC2"]
+    assert r.cca.y_loadings.columns == ["feature", "CC1", "CC2"]
+    assert r.cca.x_scores.columns == ["observation_id", "CC1", "CC2"]
+    assert r.cca.y_scores.columns == ["observation_id", "CC1", "CC2"]
+    assert r.cca.x_scores.schema["observation_id"] == pl.String
+    assert r.cca.y_scores.schema["observation_id"] == pl.String
+    for col, dtype in CCA_CORRELATION_SCHEMA.items():
+        assert r.cca.correlations.schema[col] == dtype
 
 
 def test_mantel_is_deterministic():
     x, y = _pair()
     a = analyze_representation_similarity(x, y, mantel_permutations=29, random_state=11)
     b = analyze_representation_similarity(x, y, mantel_permutations=29, random_state=11)
-    pd.testing.assert_frame_equal(a.mantel, b.mantel)
+    pl_testing.assert_frame_equal(a.mantel, b.mantel)
 
 
 def test_procrustes_skips_unequal_dimensions():
     x, y = _pair()
     r = analyze_representation_similarity(x, y, mantel_permutations=0)
-    assert r.procrustes.loc[0, "status"] == "skipped"
-    assert r.procrustes.loc[0, "reason"] == "procrustes_requires_equal_dimensions"
+    assert r.procrustes.item(0, "status") == "skipped"
+    assert r.procrustes.item(0, "reason") == "procrustes_requires_equal_dimensions"
+    assert r.procrustes.item(0, "disparity") is None
+    assert r.procrustes.item(0, "similarity") is None
+    assert r.procrustes.item(0, "n_dimensions") is None
+    assert r.mantel.item(0, "p_value") is None
 
 
 def test_procrustes_identical_equal_dimension_is_near_zero():
@@ -59,7 +76,7 @@ def test_procrustes_identical_equal_dimension_is_near_zero():
     x = FeatureMatrix(a, observation_ids=ids)
     y = FeatureMatrix(a.copy(), observation_ids=ids)
     r = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=0)
-    assert r.procrustes.loc[0, "disparity"] < 1e-12  # pyrefly: ignore[unsupported-operation]
+    assert r.procrustes.item(0, "disparity") < 1e-12
 
 
 def test_strict_alignment_rejects_mismatch():
@@ -84,7 +101,10 @@ def test_nonfinite_joint_rows_are_reported():
     arr[2, 0] = np.nan
     y = FeatureMatrix(arr, observation_ids=y.observation_ids)
     r = analyze_representation_similarity(x, y, cca_components=1, mantel_permutations=0)
-    assert len(r.exclusions) == 1 and r.exclusions.loc[0, "observation_id"] == "o2"
+    assert r.exclusions.height == 1 and r.exclusions.item(0, "observation_id") == "o2"
+    assert r.exclusions.schema["observation_id"] == pl.String
+    assert r.exclusions.schema["source_row_x"] == pl.Int64
+    assert r.exclusions.schema["source_row_y"] == pl.Int64
 
 
 def test_cca_effective_rank_guard():
@@ -94,5 +114,18 @@ def test_cca_effective_rank_guard():
     x = FeatureMatrix(np.c_[base, base], observation_ids=ids)
     y = FeatureMatrix(np.c_[base, base], observation_ids=ids)
     r = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=0)
-    assert r.cca.status.value == "skipped"
+    assert r.cca.status is ResultStatus.SKIPPED
     assert r.cca.reason == "cca_components_exceed_effective_rank"
+    assert r.cca.correlations.height == 0
+    assert r.cca.x_weights.columns == ["feature"]
+    assert r.cca.x_scores.columns == ["observation_id"]
+
+
+def test_cka_zero_variance_degenerate():
+    x = np.ones((20, 3))
+    f1 = FeatureMatrix(x, observation_ids=range(20))
+    f2 = FeatureMatrix(x, observation_ids=range(20))
+    r = analyze_representation_similarity(f1, f2, cca_components=1, mantel_permutations=0)
+    assert r.cka.item(0, "status") == "degenerate"
+    assert r.cka.item(0, "cka") is None
+    assert "zero-variance" in str(r.cka.item(0, "reason"))

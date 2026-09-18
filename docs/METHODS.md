@@ -1,6 +1,54 @@
-# Detailed method reference
+# Method reference
 
-This document describes the scientific methods currently implemented in Ruddy. It focuses on **what is computed, which data are eligible, how edge cases are handled, and what each method returns**. It is not a tutorial on the statistical theory itself and it does not replace domain-specific scientific interpretation.
+Choose an entry point below, then read its assumptions, outputs and failure
+states. Inputs are described in [data contracts](DATA_CONTRACTS.md); table
+access and provenance are covered in [results](RESULTS_AND_PROVENANCE.md).
+All named entry points are available from `ruddy`.
+
+| Task | Entry point | Details |
+| --- | --- | --- |
+| Inspect data quality and missingness | `profile_dataset()` | [Profiling](#1-dataset-profiling) |
+| Summarize distributions | `analyze_univariate()` | [Descriptive statistics](#2-univariate-descriptive-analysis) |
+| Check normality and dispersion | `analyze_distribution_diagnostics()` | [Diagnostics](#3-distribution-and-dispersion-diagnostics) |
+| Compare variables and groups | `analyze_bivariate()` | [Correlations](#4-numericnumeric-bivariate-association), [comparisons](#5-numericcategorical-comparisons), [categorical associations](#6-categoricalcategorical-associations) |
+| Measure conditional/nonlinear dependence | `analyze_dependence()` | [Dependence](#7-extended-dependence-analysis) |
+| Inspect contingency cells | `analyze_contingency_diagnostics()` | [Cell diagnostics](#8-contingency-table-cell-diagnostics) |
+| Estimate uncertainty | `analyze_confidence_intervals()`, `bootstrap_confidence_interval()` | [Intervals](#9-confidence-intervals), [bootstrap](#10-general-bootstrap-framework) |
+| Compare responses across groups | `analyze_groups()`, `analyze_posthoc()` | [Grouped EDA](#11-response-centric-grouped-eda), [post-hoc](#12-post-hoc-comparisons) |
+| Flag univariate outliers | `analyze_outliers()` | [Outliers](#13-univariate-outlier-and-numeric-quality-diagnostics) |
+| Prepare or project a feature space | `prepare_features()`, `analyze_pca()`, `analyze_tsne()`, `analyze_umap()` | [Preprocessing](#14-feature-preprocessing), [PCA](#15-principal-component-analysis), [t-SNE/UMAP](#16-t-sne-and-umap) |
+| Inspect multivariate structure | `analyze_multivariate()` | [Covariance](#17-covariance-and-correlation-structure), [VIF](#18-multicollinearity-vif-and-tolerance), [Mahalanobis](#19-mahalanobis-diagnostics) |
+| Test multivariate group structure | `analyze_manova()`, `analyze_permutation_group_structure()` | [MANOVA](#21-manova), [PERMANOVA/PERMDISP](#22-permanova-and-permdisp) |
+| Fit factorial or mixed models | `analyze_factorial()`, `analyze_marginal_means()`, `analyze_mixed_effects()` | [Factorial](#23-factorial-anovaancova), [marginal means](#25-estimated-marginal-means-and-contrasts), [mixed effects](#26-mixed-effects-models) |
+| Compare two representations | `analyze_representation_similarity()` | [Alignment](#27-representation-space-alignment), [CCA](#28-canonical-correlation-analysis-cca), [CKA](#29-linear-centered-kernel-alignment-cka), [Procrustes](#30-procrustes-representation-comparison), [distance similarity](#31-distance-space-similarity), [Mantel](#32-mantel-permutation-test) |
+| Analyze compositions | `analyze_composition()` | [Compositional analysis](#33-compositional-data-analysis) |
+| Estimate posterior means/differences | `analyze_bayesian_eda()` | [Bayesian EDA](#34-bayesian-exploratory-estimation) |
+| Flag multivariate anomalies | `analyze_anomalies()` | [Anomalies](#35-multivariate-anomaly-diagnostics) |
+
+For several analyses in one call, use [unified analysis](UNIFIED_ANALYSIS.md).
+For a function's full signature and defaults, use `help(ruddy.function_name)`.
+
+## Shared statistical policies
+
+- Methods use eligible observations locally and report sample counts or
+  exclusions. They do not impute, coerce numeric-looking strings or mutate the
+  input. Missing and non-finite values are counted separately.
+- Diagnostics do not select or replace tests. Parametric/rank alternatives,
+  post-hoc methods, factorial SS type and robust covariance are explicit choices.
+- Scaling and dimensionality reduction must be requested. No method silently
+  inserts PCA, densifies sparse data or repairs a rank-deficient problem with
+  an unrequested pseudo-inverse or regularization.
+- Multiple-testing options are `none` and `fdr_bh`. Correction is applied within
+  each declared hypothesis family using only `ok` rows with finite p-values.
+  Outputs record the family and correction; there is no implicit correction
+  across unrelated analyses.
+- Stochastic methods accept `random_state`. Preserve the seed, data and
+  dependency environment for reproducibility. Where supported, zero permutations
+  return the observed statistic with null p/q values. Finite permutation tests
+  use an add-one correction.
+- Outliers and anomalies are flags, never deletion or editing instructions.
+  Non-estimable results carry a status and reason; effect sizes or intervals
+  are not fabricated for degenerate data.
 
 ## 1. Dataset profiling
 
@@ -72,8 +120,8 @@ Implemented statistics include:
 - median;
 - interquartile range (IQR);
 - unscaled median absolute deviation (MAD);
-- skewness;
-- Fisher-style kurtosis;
+- bias-corrected adjusted Fisher–Pearson skewness ($G_1$; at least three finite observations);
+- unbiased excess kurtosis ($G_2$; at least four finite observations);
 - zero count and zero fraction.
 
 Important pathological states include:
@@ -123,11 +171,11 @@ Applied to eligible numeric variables with at least three finite values. By defa
 
 ### 3.2 D'Agostino K²
 
-Uses SciPy's normality test and requires at least eight finite observations.
+Requires at least eight finite observations.
 
 ### 3.3 Anderson–Darling normality diagnostic
 
-Ruddy uses the statsmodels normal Anderson–Darling implementation and reports a statistic and p-value.
+Reports a normality-test statistic and p-value.
 
 ### 3.4 Brown–Forsythe
 
@@ -153,7 +201,7 @@ Pearson product-moment correlation is calculated on pairwise finite observations
 
 ### 4.2 Spearman correlation
 
-Spearman rank correlation is calculated on the same pairwise finite basis.
+Spearman rank correlation is calculated on the same pairwise finite basis, using average ranks for ties.
 
 ### 4.3 Kendall correlation
 
@@ -191,7 +239,7 @@ The result is bounded to `[-1, 1]`.
 
 ### 5.3 Welch one-way ANOVA
 
-For more than two groups, Ruddy implements Welch's one-way ANOVA independently of version-specific SciPy APIs. The method uses group means, sample variances and inverse-variance weights, returning Welch F with numerator and denominator degrees of freedom.
+For more than two groups, Welch's one-way ANOVA uses group means, sample variances and inverse-variance weights, returning Welch F with numerator and denominator degrees of freedom.
 
 The accompanying descriptive effect size is eta squared based on between-group/total sums of squares.
 
@@ -261,13 +309,13 @@ Partial Spearman follows the same residualization framework after rank-transform
 
 Ruddy implements biased sample distance correlation for one-dimensional variables. Pairwise Euclidean distance matrices are double-centered and combined into distance covariance/variance quantities.
 
-The implementation is explicitly tested for:
+Properties:
 
 - values in `[0, 1]`;
 - `dCor(X, X) = 1` for non-degenerate X;
 - detection of nonlinear relationships for which Pearson can be close to zero.
 
-Permutation inference is available. When `n_permutations=0`, the statistic remains a valid descriptive result and p/q values remain missing rather than causing multiple-testing failure.
+Permutation inference is available. When `n_permutations=0`, the statistic remains a valid descriptive result and p/q values remain missing without making the statistic a failed result.
 
 ### 7.4 Mutual information
 
@@ -316,7 +364,7 @@ Pearson intervals use Fisher's z transformation and require `n > 3` and `|r| < 1
 
 ### 9.3 Spearman and Kendall intervals
 
-For rank correlations, Ruddy uses the generic bootstrap framework rather than pretending the Pearson Fisher-z interval applies.
+For rank correlations, Ruddy uses bootstrap intervals.
 
 ### 9.4 Welch mean-difference interval
 
@@ -334,7 +382,7 @@ For valid positive 2×2 counts, Ruddy uses a log-Wald interval. It intentionally
 
 ## 10. General bootstrap framework
 
-`bootstrap_confidence_interval()` wraps SciPy bootstrap behavior for scalar statistics and returns a compact `BootstrapResult` rather than storing every resampled statistic.
+`bootstrap_confidence_interval()` estimates an interval for a scalar statistic and returns a `BootstrapResult`. The full resampling distribution is not retained by default.
 
 Supported interval methods:
 
@@ -469,7 +517,7 @@ Sparse matrices are preserved where supported. Operations that would require hid
 
 ## 15. Principal component analysis
 
-`analyze_pca()` provides a full PCA result rather than just plotting PC1/PC2.
+`analyze_pca()` returns the requested principal components and their variance diagnostics.
 
 Outputs include:
 
@@ -528,7 +576,7 @@ Outputs include:
 
 - covariance matrix;
 - Pearson correlation matrix;
-- optional Spearman correlation matrix.
+- optional Spearman correlation matrix (average ranks for ties, on the common complete-case sample).
 
 ### 17.3 Condition diagnostics
 
@@ -594,8 +642,6 @@ If dimensionality relative to observations makes covariance inversion indefensib
 2. collinearity diagnostics;
 3. classical/robust Mahalanobis diagnostics.
 
-It does not add new mathematical logic beyond those standalone methods.
-
 ---
 
 ## 21. MANOVA
@@ -629,7 +675,7 @@ MANOVA checks:
 
 Rank-deficient response spaces or model designs are not silently regularized.
 
-Interactions are intentionally handled by the factorial engine rather than the current MANOVA layer.
+MANOVA supports main effects only. For a single response with interactions, use factorial ANOVA/ANCOVA.
 
 ---
 
@@ -847,7 +893,7 @@ Representation comparison currently requires dense inputs; Ruddy does not silent
 
 ## 28. Canonical correlation analysis (CCA)
 
-CCA is implemented through scikit-learn after explicit scaling (standard by default in representation comparison).
+CCA uses the requested scaling; the default in representation comparison is `standard`.
 
 Ruddy computes effective ranks of both spaces and limits the number of canonical components to:
 
@@ -873,7 +919,7 @@ CCA fit failures are represented explicitly with an advisory.
 
 `CKA = ||XcᵀYc||²_F / (||XcᵀXc||_F ||YcᵀYc||_F)`.
 
-Important properties tested in Ruddy include:
+Properties:
 
 - `0 <= CKA <= 1`;
 - identical non-degenerate representations yield 1;
@@ -1001,7 +1047,7 @@ Grouping variables with other than two levels are skipped for Bayesian mean-diff
 
 ### 34.4 Reproducibility
 
-Posterior sampling uses an explicit NumPy random generator seeded by `random_state`.
+Set `random_state` to reproduce posterior draws in the same runtime environment.
 
 ---
 
@@ -1011,55 +1057,18 @@ Posterior sampling uses an explicit NumPy random generator seeded by `random_sta
 
 ### 35.1 Isolation Forest
 
-Ruddy fits scikit-learn Isolation Forest with explicit estimator count, contamination and random state. It transforms `score_samples` so larger `anomaly_score` means more anomalous.
+Isolation Forest accepts estimator count, contamination and random state. Larger `anomaly_score` values mean more anomalous observations.
 
 ### 35.2 Local Outlier Factor
 
-Ruddy fits scikit-learn Local Outlier Factor with explicit neighbor count and contamination. The negative outlier factor is sign-flipped so larger Ruddy scores again mean more anomalous.
+Local Outlier Factor accepts neighbor count and contamination. Larger `anomaly_score` values mean more anomalous observations.
 
 LOF is skipped when `n_neighbors` is not less than the number of analyzed observations.
 
 ### 35.3 Preprocessing and exclusions
 
-Anomaly methods use the common feature-preparation layer, so non-finite rows are excluded explicitly and optional scaling is recorded.
+Anomaly methods exclude and record non-finite rows and apply the explicitly requested scaling.
 
 ### 35.4 Interpretation
 
 An anomaly flag means only that a specified method regards an observation as unusual under its own geometry. Ruddy does not label the observation erroneous or remove it.
-
----
-
-## 36. Unified analysis orchestration
-
-`analyze()` accepts a `TabularDataset`, optional primary `FeatureMatrix`, optional comparison `FeatureMatrix`, optional aligned annotations and an `AnalysisConfig`.
-
-The orchestrator contains **no new statistical logic**. Each enabled block delegates to the same standalone function documented above.
-
-Default enabled blocks are:
-
-- profiling;
-- univariate.
-
-Everything else is opt-in.
-
-This design supports two important guarantees:
-
-1. standalone API and unified API should produce scientifically equivalent component results;
-2. downstream applications can reason about which result components exist by inspecting `executed_blocks` and `UnifiedAnalysisResult` fields.
-
----
-
-## 37. Methods deliberately not implemented in the current MVP
-
-The following methods are outside the scope of the first release:
-
-- PLS;
-- clustering algorithms;
-- repeated-measures-specific procedures;
-- survival analysis;
-- time-series analysis;
-- quantile regression;
-- unrestricted generalized/mixed model specifications;
-- arbitrary Bayesian graphical/hierarchical model builders.
-
-Their absence is deliberate and should not be confused with undocumented functionality.

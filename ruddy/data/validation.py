@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+import polars as pl
+import pyarrow as pa
 
 from ruddy.core.enums import AlignmentMode
 from ruddy.core.exceptions import (
@@ -15,20 +18,30 @@ from ruddy.core.exceptions import (
     UnknownColumnError,
 )
 
+if TYPE_CHECKING:
+    from ruddy.core.types import ObservationID
 
-def validate_observation_ids(values: Any, *, source: str = "observations") -> pd.Index:
-    """Validate non-missing, unique observation identifiers."""
-    ids = pd.Index(values, copy=True)
-    if ids.hasnans:
-        msg = f"{source.capitalize()} contain missing observation identifiers."
-        raise MissingObservationIDError(msg)
-    duplicated = ids[ids.duplicated()].unique().tolist()
+
+def validate_observation_ids(values: Any, *, source: str = "observations") -> tuple[ObservationID, ...]:
+    """Validate non-missing, unique observation identifiers and return them as a tuple."""
+    if hasattr(values, "to_list"):
+        ids = values.to_list()
+    elif hasattr(values, "tolist"):
+        ids = values.tolist()
+    else:
+        ids = list(values)
+
+    if any(v is None or v is pd.NA or (isinstance(v, float) and math.isnan(v)) for v in ids):
+        raise MissingObservationIDError(f"{source.capitalize()} contain missing observation identifiers.")
+    seen: set[Any] = set()
+    duplicated = list(dict.fromkeys(v for v in ids if v in seen or seen.add(v)))
     if duplicated:
         preview = duplicated[:10]
         suffix = "" if len(duplicated) <= 10 else " ..."
-        msg = f"{source.capitalize()} contain duplicate observation identifiers: {preview}{suffix}."
-        raise DuplicateObservationIDError(msg)
-    return ids
+        raise DuplicateObservationIDError(
+            f"{source.capitalize()} contain duplicate observation identifiers: {preview}{suffix}."
+        )
+    return tuple(ids)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,16 +57,16 @@ class AlignmentReport:
 
     @property
     def coverage_fraction(self) -> float:
-        """Return the fraction of base observations present in the annotations."""
+        """Return the proportion of base observations covered by the annotation."""
         return self.covered_count / self.base_count if self.base_count else 1.0
 
     @property
     def complete(self) -> bool:
-        """Return whether alignment matched exactly one-to-one."""
+        """Return True if all base and annotation IDs match with no omissions."""
         return not self.missing_ids and not self.unmatched_ids
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a dictionary representation of the alignment report."""
+        """Serialize alignment diagnostics to a dictionary."""
         return {
             "mode": self.mode.value,
             "base_count": self.base_count,
@@ -68,46 +81,49 @@ class AlignmentReport:
 
 def align_annotations(
     base_ids: Any,
-    annotations: pd.DataFrame,
+    annotations: pl.DataFrame | pd.DataFrame,
     *,
     id_column: str | None = None,
     mode: AlignmentMode | str = AlignmentMode.STRICT,
-) -> tuple[pd.DataFrame, AlignmentReport]:
+) -> tuple[pl.DataFrame, AlignmentReport]:
     """Align external metadata to base IDs without silently dropping mismatches.
 
     Strict mode requires an exact one-to-one ID set. Partial mode returns a left-aligned
-    table with missing annotation fields represented as missing values and a report that
+    table with missing annotation fields represented as null values and a report that
     explicitly lists missing and unmatched IDs.
     """
-    if not isinstance(annotations, pd.DataFrame):
-        msg = "annotations must be a pandas DataFrame."
-        raise TypeError(msg)
-
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
-    base_index = validate_observation_ids(base_ids, source="base data")
 
-    source = annotations.copy(deep=True)
-    if id_column is None:
-        annotation_ids = validate_observation_ids(source.index, source="annotations")
-        indexed = source.copy(deep=True)
-        indexed.index = annotation_ids
+    if isinstance(annotations, pd.DataFrame):
+        if id_column is None:
+            raise ValueError(
+                "Annotations require id_column; a pandas index is not an identity. "
+                "Pass frame.reset_index() with the ID as a column."
+            )
+        annotation_id_values = annotations.get(id_column)
+        annotations = from_pandas_checked(annotations)
+    elif isinstance(annotations, pl.DataFrame):
+        if id_column is None:
+            raise ValueError("Polars annotations require id_column: Polars has no row index.")
+        annotation_id_values = annotations.get_column(id_column, default=None)
     else:
-        if id_column not in source.columns:
-            msg = f"Unknown annotation ID column: {id_column!r}."
-            raise UnknownColumnError(msg)
-        annotation_ids = validate_observation_ids(source[id_column], source="annotations")
-        indexed = source.set_index(id_column, drop=False)
-        indexed.index = annotation_ids
+        raise TypeError("annotations must be a Polars or pandas DataFrame.")
 
-    base_set = set(base_index.tolist())
-    annotation_set = set(annotation_ids.tolist())
-    missing = tuple(value for value in base_index if value not in annotation_set)
+    if annotation_id_values is None:
+        raise UnknownColumnError(f"Unknown annotation ID column: {id_column!r}.")
+
+    base = validate_observation_ids(base_ids, source="base data")
+    annotation_ids = validate_observation_ids(annotation_id_values, source="annotations")
+
+    annotation_set = set(annotation_ids)
+    base_set = set(base)
+    missing = tuple(value for value in base if value not in annotation_set)
     unmatched = tuple(value for value in annotation_ids if value not in base_set)
-    covered = len(base_index) - len(missing)
+    covered = len(base) - len(missing)
 
     report = AlignmentReport(
         mode=mode,
-        base_count=len(base_index),
+        base_count=len(base),
         annotation_count=len(annotation_ids),
         covered_count=covered,
         missing_ids=missing,
@@ -115,14 +131,57 @@ def align_annotations(
     )
 
     if mode is AlignmentMode.STRICT and not report.complete:
-        msg = (
+        raise AlignmentError(
             "Strict annotation alignment requires exact one-to-one ID coverage; "
             f"missing={list(missing)!r}, unmatched={list(unmatched)!r}."
         )
-        raise AlignmentError(msg)
 
-    aligned = indexed.reindex(base_index).copy(deep=True)
-    aligned.index = base_index
+    columns = annotations.drop(id_column) if id_column is not None else annotations
+    if covered == 0:
+        aligned = columns.clear(n=len(base))
+    else:
+        key = "__ruddy_id"
+        while key in columns.columns:
+            key += "_"
+        base_key = pl.Series(key, list(base))
+        annotation_key = pl.Series(key, list(annotation_ids), dtype=base_key.dtype)
+        aligned = (
+            base_key.to_frame()
+            .join(columns.with_columns(annotation_key), on=key, how="left", maintain_order="left")
+            .drop(key)
+        )
     if id_column is not None:
-        aligned[id_column] = base_index.to_numpy(copy=True)
+        aligned = aligned.with_columns(pl.Series(id_column, list(base))).select(annotations.columns)
     return aligned, report
+
+
+def from_pandas_checked(frame: pd.DataFrame) -> pl.DataFrame:
+    """Safely convert a pandas DataFrame to Polars, verifying schemas and representations."""
+    if not frame.columns.is_unique:
+        duplicates = frame.columns[frame.columns.duplicated()].tolist()
+        raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
+    non_string = [column for column in frame.columns if not isinstance(column, str)]
+    if non_string:
+        raise TypeError(
+            f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
+        )
+    non_string_categoricals = [
+        column
+        for column in frame.columns
+        if isinstance(frame[column].dtype, pd.CategoricalDtype)
+        and not pd.api.types.is_string_dtype(frame[column].cat.categories)
+    ]
+    if non_string_categoricals:
+        raise TypeError(
+            "pandas Categorical columns with non-string categories would be reinterpreted "
+            "as numeric by Polars; convert them to string categories or to Polars explicitly: "
+            f"{non_string_categoricals}."
+        )
+    try:
+        # Deep-copy first: from_pandas may share numeric buffers with the caller's frame.
+        return pl.from_pandas(frame.copy(deep=True), include_index=False)
+    except (pa.ArrowNotImplementedError, pa.ArrowInvalid, TypeError) as exc:
+        raise TypeError(
+            "pandas DataFrame contains a dtype Polars cannot represent (e.g. complex); "
+            f"drop or convert it explicitly before constructing TabularDataset: {exc}"
+        ) from exc

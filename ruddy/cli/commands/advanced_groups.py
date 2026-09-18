@@ -106,7 +106,7 @@ def run_permanova(args: CliArgs) -> int:
                 {
                     "status": result.status.value,
                     "reason": result.reason,
-                    "rows": len(result.summary),
+                    "rows": result.summary.height,
                 },
                 indent=2,
             )
@@ -130,9 +130,9 @@ def run_posthoc(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "rows": len(result.comparisons),
-                    "methods": sorted(result.comparisons.method.unique().tolist())
-                    if len(result.comparisons)
+                    "rows": result.comparisons.height,
+                    "methods": sorted(result.comparisons.get_column("method").unique().to_list())
+                    if result.comparisons.height
                     else [],
                 },
                 indent=2,

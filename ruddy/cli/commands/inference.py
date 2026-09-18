@@ -98,9 +98,9 @@ def run_dependence(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "partial_rows": len(result.partial_correlations),
-                    "distance_rows": len(result.distance_correlations),
-                    "mi_rows": len(result.mutual_information),
+                    "partial_rows": result.partial_correlations.height,
+                    "distance_rows": result.distance_correlations.height,
+                    "mi_rows": result.mutual_information.height,
                 },
                 indent=2,
             )
@@ -136,11 +136,11 @@ def run_intervals(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "mean_rows": len(result.means),
-                    "correlation_rows": len(result.correlations),
-                    "mean_difference_rows": len(result.mean_differences),
-                    "effect_size_rows": len(result.effect_sizes),
-                    "odds_ratio_rows": len(result.odds_ratios),
+                    "mean_rows": result.means.height,
+                    "correlation_rows": result.correlations.height,
+                    "mean_difference_rows": result.mean_differences.height,
+                    "effect_size_rows": result.effect_sizes.height,
+                    "odds_ratio_rows": result.odds_ratios.height,
                 },
                 indent=2,
             )

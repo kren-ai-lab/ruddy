@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pandas as pd
+import polars as pl
 
 from ruddy.anomaly import analyze_anomalies
 from ruddy.bayesian import analyze_bayesian_eda
@@ -39,7 +39,7 @@ def write_representation_result(result: RepresentationComparisonResult, output_d
     write_table(result.procrustes, target / "procrustes.csv")
     write_table(result.distance_similarity, target / "distance_similarity.csv")
     write_table(result.mantel, target / "mantel.csv")
-    if not result.exclusions.empty:
+    if result.exclusions.height:
         write_table(result.exclusions, target / "representation_exclusions.csv")
     write_json(result.alignment.to_dict(), target / "representation_alignment.json")
     write_json(result.provenance.to_dict(), target / "representation_provenance.json")
@@ -50,13 +50,15 @@ def write_compositional_result(result: CompositionalResult, output_dir: str | Pa
     """Persist structured compositional artifacts under ``output_dir``."""
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
-    transformed = pd.DataFrame(
-        result.transformed.to_array(), columns=pd.Index(result.transformed.feature_names)
+    feature_names = list(result.transformed.feature_names)
+    transformed = (
+        pl.DataFrame(result.transformed.to_array(), schema=feature_names)
+        .with_columns(pl.Series("observation_id", result.transformed.observation_ids))
+        .select("observation_id", *feature_names)
     )
-    transformed.insert(0, "observation_id", result.transformed.observation_ids.to_list())
     write_table(transformed, target / "compositional_transformed.csv")
-    write_table(result.variation_matrix, target / "variation_matrix.csv", index=True)
-    write_table(result.aitchison_distances, target / "aitchison_distances.csv", index=True)
+    write_table(result.variation_matrix, target / "variation_matrix.csv")
+    write_table(result.aitchison_distances, target / "aitchison_distances.csv")
     write_table(result.zero_replacement, target / "zero_replacement.csv")
     write_json(result.provenance.to_dict(), target / "compositional_provenance.json")
     return target
@@ -78,7 +80,7 @@ def write_anomaly_result(result: AnomalyResult, output_dir: str | Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.scores, target / "anomaly_scores.csv")
     write_table(result.methods, target / "anomaly_methods.csv")
-    if not result.exclusions.empty:
+    if not result.exclusions.is_empty():
         write_table(result.exclusions, target / "anomaly_exclusions.csv")
     write_json(result.provenance.to_dict(), target / "anomaly_provenance.json")
     return target
@@ -117,8 +119,8 @@ def run_representation(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "cka": result.cka.iloc[0].to_dict(),
-                    "mantel": result.mantel.iloc[0].to_dict(),
+                    "cka": result.cka.row(0, named=True),
+                    "mantel": result.mantel.row(0, named=True),
                     "cca_status": result.cca.status.value,
                 },
                 indent=2,
@@ -169,8 +171,8 @@ def run_bayesian(args: CliArgs) -> int:
         print(
             json.dumps(
                 {
-                    "mean_rows": len(result.means),
-                    "difference_rows": len(result.mean_differences),
+                    "mean_rows": result.means.height,
+                    "difference_rows": result.mean_differences.height,
                 },
                 indent=2,
             )

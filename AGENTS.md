@@ -48,10 +48,12 @@ They come from the "Design principles" section of `README.md`.
   requested.
 - **Explicit degenerate/skipped states, not silent NaNs.** Rank-deficient or
   otherwise ill-posed problems are surfaced as structured `degenerate` or
-  `skipped` results with a `reason`, not masked.
+  `skipped` results with a `reason`, not masked. Missing values are represented
+  as Polars null, never NaN.
 - **Outliers/anomalies are flagged, never removed or modified.**
 - **Identity before row position.** Data, annotations, and representation
-  matrices are aligned by observation IDs, not row order.
+  matrices are aligned by observation IDs, not row order. A row index (such as
+  a pandas index) is never treated as observation identity.
 - **Structured provenance.** Parameters, input summaries, seeds, and the
   Ruddy version are retained in result contracts.
 

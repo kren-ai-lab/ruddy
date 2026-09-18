@@ -3,94 +3,99 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-import pandas as pd
+import polars as pl
 
-from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.profiling import ProfilingResult, profile_dataset
 from ruddy.results import AnalysisProvenance
 from ruddy.univariate.categorical import summarize_categorical_statistics
 from ruddy.univariate.numeric import summarize_numeric_statistics, validate_quantiles
 
 if TYPE_CHECKING:
+    import datetime
+
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-DATETIME_STATISTICS_COLUMNS: tuple[str, ...] = (
-    "column",
-    "role",
-    "n_total",
-    "n_present",
-    "n_missing",
-    "min",
-    "max",
-    "range_seconds",
-    "status",
-    "reason",
-)
+DATETIME_STATISTICS_SCHEMA: dict[str, PolarsDataType] = {
+    "column": pl.String,
+    "role": pl.String,
+    "n_total": pl.Int64,
+    "n_present": pl.Int64,
+    "n_missing": pl.Int64,
+    "min": pl.Datetime("us"),
+    "max": pl.Datetime("us"),
+    "range_seconds": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+DATETIME_STATISTICS_COLUMNS: tuple[str, ...] = tuple(DATETIME_STATISTICS_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
 class UnivariateTables:
-    """Collection of univariate descriptive statistics tables."""
+    """Summary tables for univariate numeric, categorical, and datetime variables."""
 
-    numeric_statistics: pd.DataFrame
-    categorical_statistics: pd.DataFrame
-    categorical_frequencies: pd.DataFrame
-    datetime_statistics: pd.DataFrame
+    numeric_statistics: pl.DataFrame
+    categorical_statistics: pl.DataFrame
+    categorical_frequencies: pl.DataFrame
+    datetime_statistics: pl.DataFrame
 
 
 @dataclass(frozen=True, slots=True)
 class UnivariateResult:
-    """Result of a complete univariate descriptive analysis."""
+    """Results of univariate distribution analyses across all eligible dataset columns."""
 
     profiling: ProfilingResult
-    numeric_statistics: pd.DataFrame
-    categorical_statistics: pd.DataFrame
-    categorical_frequencies: pd.DataFrame
-    datetime_statistics: pd.DataFrame
+    numeric_statistics: pl.DataFrame
+    categorical_statistics: pl.DataFrame
+    categorical_frequencies: pl.DataFrame
+    datetime_statistics: pl.DataFrame
     provenance: AnalysisProvenance
-
-
-def _eligible_datetime(profile: pd.Series) -> bool:
-    if not bool(profile["analysis_eligible"]):
-        return False
-    role = ColumnRole(str(profile["role"]))
-    kind = ColumnKind(str(profile["data_kind"]))
-    return role is not ColumnRole.FACTOR and kind is ColumnKind.DATETIME
 
 
 def summarize_datetime_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
-) -> pd.DataFrame:
+    columns: pl.DataFrame,
+) -> pl.DataFrame:
     """Summarize eligible datetime variables without time-series interpretation."""
-    frame = dataset.to_frame()
+    selected = columns.filter(
+        pl.col("analysis_eligible") & (pl.col("role") != "factor") & (pl.col("data_kind") == "datetime")
+    )
     rows: list[dict[str, Any]] = []
-    selected = columns.loc[columns.apply(_eligible_datetime, axis=1)]
-    for _, profile in selected.iterrows():
+    for profile in selected.iter_rows(named=True):
         column = str(profile["column"])
-        series = frame[column]
-        present = series.dropna()
-        n_total = len(series)
-        n_present = len(present)
-        n_missing = int(n_total - n_present)
-        minimum = present.min() if n_present else None
-        maximum = present.max() if n_present else None
+        role = str(profile["role"])
+        series = dataset.frame.get_column(column)
+        n_total = series.len()
+        present = series.drop_nulls()
+        if present.dtype != pl.Datetime("us"):
+            present = present.cast(pl.Datetime("us"))
+        n_present = present.len()
+        n_missing = n_total - n_present
         if n_present == 0:
+            minimum = None
+            maximum = None
             status, reason = "skipped", "all_missing"
             range_seconds = None
-        elif minimum == maximum:
+        elif present.n_unique() == 1:
+            minimum = present.min()
+            maximum = present.max()
             status, reason = "degenerate", "constant"
             range_seconds = 0.0
         else:
+            minimum = cast("datetime.datetime", present.min())
+            maximum = cast("datetime.datetime", present.max())
             status, reason = "ok", None
-            # Recomputed from `present` so the non-empty branch needs no None check.
-            range_seconds = float((present.max() - present.min()).total_seconds())
+            range_seconds = float((maximum - minimum).total_seconds())
+
         rows.append(
             {
                 "column": column,
-                "role": str(profile["role"]),
+                "role": role,
                 "n_total": n_total,
                 "n_present": n_present,
                 "n_missing": n_missing,
@@ -101,12 +106,12 @@ def summarize_datetime_statistics(
                 "reason": reason,
             }
         )
-    return pd.DataFrame(rows, columns=pd.Index(DATETIME_STATISTICS_COLUMNS))
+    return pl.DataFrame(rows, schema=DATETIME_STATISTICS_SCHEMA)
 
 
 def summarize_univariate(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
+    columns: pl.DataFrame,
     *,
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99),
     min_numeric_n: int = 3,
@@ -169,8 +174,8 @@ def analyze_univariate(
             "datetime_policy": "descriptive_only",
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_columns": dataset.n_columns,
+            "n_observations": dataset.frame.height,
+            "n_columns": dataset.frame.width,
             "id_column": dataset.id_column,
         },
     )

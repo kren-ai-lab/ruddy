@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import configure_plots, display, finish, labeled_boxplot, load_compositional_demo, load_tabular_demo, matrix_heatmap, score_plot, show, stacked_composition
@@ -43,7 +43,7 @@ def _():
         labeled_boxplot,
         matrix_heatmap,
         np,
-        pd,
+        pl,
         plt,
         score_plot,
         show,
@@ -74,16 +74,17 @@ def _(mo):
 
 
 @app.cell
-def _(display, finish, ilr, np, plt, show):
+def _(display, finish, ilr, np, pl, plt, show):
     zr = ilr.zero_replacement
+    counts = zr.get_column('zero_count').to_numpy()
     _fig, _ax = plt.subplots(figsize=(7.2, 4.2))
-    _ax.hist(zr.zero_count, bins=np.arange(zr.zero_count.max() + 2) - 0.5)
+    _ax.hist(counts, bins=np.arange(counts.max() + 2) - 0.5)
     _ax.set_xlabel('Zeros per composition')
     _ax.set_ylabel('Observations')
     _ax.set_title('Explicit zero-replacement demand')
     finish(_fig)
     show()
-    display(zr.query('replaced').head())
+    display(zr.filter(pl.col('replaced')).head())
     return
 
 
@@ -110,8 +111,13 @@ def _(mo):
 
 
 @app.cell
-def _(clr, matrix_heatmap, np, pd, show):
-    arr=clr.transformed.to_array(); corr=pd.DataFrame(np.corrcoef(arr,rowvar=False),index=clr.transformed.feature_names,columns=clr.transformed.feature_names); matrix_heatmap(corr,title='Correlation structure in CLR coordinates'); show()
+def _(clr, matrix_heatmap, np, pl, show):
+    arr = clr.transformed.to_array()
+    names = list(clr.transformed.feature_names)
+    corr_mat = np.corrcoef(arr, rowvar=False)
+    corr = pl.DataFrame({'feature': names, **{name: corr_mat[:, j] for j, name in enumerate(names)}})
+    matrix_heatmap(corr, title='Correlation structure in CLR coordinates')
+    show()
     return
 
 
@@ -140,13 +146,15 @@ def _(mo):
 @app.cell
 def _(finish, frame, ilr, labeled_boxplot, plt, show):
     D = ilr.aitchison_distances
-    ids = list(D.index)
-    groups = frame.set_index('id').loc[ids, 'group']
+    ids = D.get_column(D.columns[0]).to_list()
+    mat = D.select(D.columns[1:]).to_numpy()
+    group_map = dict(zip(frame.get_column('id').to_list(), frame.get_column('group').to_list()))
+    groups = [group_map[_id] for _id in ids]
     within = []
     between = []
     for i in range(len(ids)):
         for j in range(i + 1, len(ids)):
-            (within if groups.iloc[i] == groups.iloc[j] else between).append(float(D.iloc[i, j]))
+            (within if groups[i] == groups[j] else between).append(float(mat[i, j]))
     _fig, _ax = plt.subplots(figsize=(7.4, 4.6))
     labeled_boxplot(_ax, [within, between], ['Within group', 'Between groups'])
     _ax.set_ylabel('Aitchison distance')

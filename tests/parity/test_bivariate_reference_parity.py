@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy import stats  # noqa: F401 - parity references
 
 from ruddy import TabularDataset
 from ruddy.bivariate import (
@@ -17,8 +18,9 @@ ROOT = Path(__file__).parent
 
 def _assert_value(observed, expected) -> None:
     if expected == "NaN":
-        assert pd.isna(observed)
+        assert observed is None or (isinstance(observed, float) and np.isnan(observed))
     else:
+        assert observed is not None
         np.testing.assert_allclose(observed, expected, rtol=1e-10, atol=1e-12)
 
 
@@ -33,8 +35,7 @@ def test_bivariate_metrics_match_frozen_reference() -> None:
         p_adjust="fdr_bh",
     )
     observed_correlations = {
-        (row["method"], row["column_x"], row["column_y"]): row
-        for row in correlations.to_dict(orient="records")
+        (row["method"], row["column_x"], row["column_y"]): row for row in correlations.iter_rows(named=True)
     }
     for reference in expected["correlations"]:
         key = (reference["method"], reference["column_x"], reference["column_y"])
@@ -57,10 +58,10 @@ def test_bivariate_metrics_match_frozen_reference() -> None:
             row["scope"],
             row["test"],
             row["feature"],
-            None if pd.isna(row["group_a"]) else row["group_a"],
-            None if pd.isna(row["group_b"]) else row["group_b"],
+            row["group_a"],
+            row["group_b"],
         ): row
-        for row in comparisons.to_dict(orient="records")
+        for row in comparisons.iter_rows(named=True)
     }
     for block in ("comparisons_binary", "comparisons_multigroup"):
         for reference in expected[block]:

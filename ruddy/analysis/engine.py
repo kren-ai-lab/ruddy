@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-import pandas as pd
+import polars as pl
 
 from ruddy.analysis.config import AnalysisConfig
 from ruddy.analysis.intervals import analyze_confidence_intervals
@@ -77,7 +77,8 @@ def analyze(
     if features is not None:
         _, feature_alignment = align_annotations(
             dataset.observation_ids,
-            pd.DataFrame(index=features.observation_ids),
+            pl.DataFrame({"__id": features.observation_ids}),
+            id_column="__id",
             mode=cfg.feature_alignment,
         )
 
@@ -327,8 +328,8 @@ def analyze(
             "random_state": cfg.random_state,
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_columns": dataset.n_columns,
+            "n_observations": dataset.frame.height,
+            "n_columns": dataset.frame.width,
             "id_column": dataset.id_column,
             "feature_shape": None if features is None else features.shape,
             "comparison_feature_shape": None if comparison_features is None else comparison_features.shape,

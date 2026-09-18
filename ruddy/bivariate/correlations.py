@@ -7,32 +7,36 @@ from itertools import combinations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod, PAdjustMethod
+from ruddy.core.frames import to_float_array
 from ruddy.statistics import apply_multiple_testing
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-CORRELATION_COLUMNS: tuple[str, ...] = (
-    "method",
-    "column_x",
-    "column_y",
-    "n_total",
-    "n_complete",
-    "n_missing_pair",
-    "coefficient",
-    "statistic",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "status",
-    "reason",
-)
+CORRELATION_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "n_total": pl.Int64,
+    "n_complete": pl.Int64,
+    "n_missing_pair": pl.Int64,
+    "coefficient": pl.Float64,
+    "statistic": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+CORRELATION_COLUMNS: tuple[str, ...] = tuple(CORRELATION_SCHEMA)
 
 
 def _eligible_numeric_columns(dataset: TabularDataset) -> tuple[str, ...]:
@@ -46,9 +50,9 @@ def _eligible_numeric_columns(dataset: TabularDataset) -> tuple[str, ...]:
     return tuple(columns)
 
 
-def _pairwise_finite(left: pd.Series, right: pd.Series) -> tuple[np.ndarray, np.ndarray]:
-    x = left.to_numpy(dtype=np.float64, na_value=np.nan)
-    y = right.to_numpy(dtype=np.float64, na_value=np.nan)
+def _pairwise_finite(left: pl.Series, right: pl.Series) -> tuple[np.ndarray, np.ndarray]:
+    x = to_float_array(left)
+    y = to_float_array(right)
     mask = np.isfinite(x) & np.isfinite(y)
     return x[mask], y[mask]
 
@@ -73,8 +77,7 @@ def _run(method: CorrelationMethod, x: np.ndarray, y: np.ndarray) -> tuple[float
     elif method is CorrelationMethod.KENDALL:
         result = stats.kendalltau(x, y)
     else:  # pragma: no cover
-        msg = f"Unsupported correlation method: {method!r}."
-        raise ValueError(msg)
+        raise ValueError(f"Unsupported correlation method: {method!r}.")
     return float(result.statistic), float(result.pvalue)
 
 
@@ -89,7 +92,7 @@ def summarize_correlations(
     min_complete_pairs: int = 3,
     max_columns: int = 100,
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Compute all unordered numeric-numeric correlations.
 
     Missing and non-finite observations are removed pairwise. Ruddy never
@@ -97,34 +100,29 @@ def summarize_correlations(
     explicitly and corrected in separate hypothesis families.
     """
     if min_complete_pairs < 2:
-        msg = "min_complete_pairs must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("min_complete_pairs must be at least 2.")
     if max_columns < 2:
-        msg = "max_columns must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_columns must be at least 2.")
     resolved_methods = tuple(
         method if isinstance(method, CorrelationMethod) else CorrelationMethod(method) for method in methods
     )
     if not resolved_methods:
-        msg = "At least one correlation method is required."
-        raise ValueError(msg)
+        raise ValueError("At least one correlation method is required.")
     if len(set(resolved_methods)) != len(resolved_methods):
-        msg = "Correlation methods cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError("Correlation methods cannot contain duplicates.")
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
 
     candidates = _eligible_numeric_columns(dataset)
     if len(candidates) > max_columns:
-        msg = f"Resolved {len(candidates)} numeric columns, exceeding max_columns={max_columns}."
-        raise ValueError(msg)
+        raise ValueError(f"Resolved {len(candidates)} numeric columns, exceeding max_columns={max_columns}.")
 
-    frame = dataset.to_frame()
+    frame = dataset.frame
     rows: list[dict[str, Any]] = []
-    n_total = dataset.n_observations
+    n_total = frame.height
     for method in resolved_methods:
         family_id = f"correlations:{method.value}"
         for column_x, column_y in combinations(candidates, 2):
-            x, y = _pairwise_finite(frame[column_x], frame[column_y])
+            x, y = _pairwise_finite(frame.get_column(column_x), frame.get_column(column_y))
             n_complete = int(x.size)
             row: dict[str, Any] = {
                 "method": method.value,
@@ -133,10 +131,10 @@ def summarize_correlations(
                 "n_total": n_total,
                 "n_complete": n_complete,
                 "n_missing_pair": int(n_total - n_complete),
-                "coefficient": np.nan,
-                "statistic": np.nan,
-                "p_value": np.nan,
-                "q_value": np.nan,
+                "coefficient": None,
+                "statistic": None,
+                "p_value": None,
+                "q_value": None,
                 "family_id": family_id,
                 "family_size": 0,
                 "correction": correction.value,
@@ -165,7 +163,5 @@ def summarize_correlations(
             row["p_value"] = p_value
             rows.append(row)
 
-    table = pd.DataFrame(rows, columns=pd.Index(CORRELATION_COLUMNS))
-    if table.empty:
-        return table
-    return apply_multiple_testing(table, correction)
+    table = pl.DataFrame(rows, schema=CORRELATION_SCHEMA)
+    return table if table.height == 0 else apply_multiple_testing(table, correction)

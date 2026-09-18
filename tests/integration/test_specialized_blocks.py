@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import polars.testing as pl_testing
 import pytest
 
 from ruddy import (
@@ -9,6 +10,7 @@ from ruddy import (
     analyze,
     analyze_bayesian_eda,
     analyze_composition,
+    analyze_representation_similarity,
 )
 
 
@@ -48,7 +50,7 @@ def test_unified_bayesian_matches_standalone():
     u = analyze(ds, config=cfg).bayesian
     s = analyze_bayesian_eda(ds, variables=("y",), groups=("g",), draws=500, random_state=3)
     assert u is not None
-    pd.testing.assert_frame_equal(u.mean_differences, s.mean_differences)
+    pl_testing.assert_frame_equal(u.mean_differences, s.mean_differences)
 
 
 def test_unified_compositional_matches_standalone():
@@ -61,3 +63,24 @@ def test_unified_compositional_matches_standalone():
     assert u is not None
     assert u.transformed is not None
     np.testing.assert_allclose(u.transformed.to_array(), s.transformed.to_array())
+    pl_testing.assert_frame_equal(u.variation_matrix, s.variation_matrix)
+    pl_testing.assert_frame_equal(u.aitchison_distances, s.aitchison_distances)
+    pl_testing.assert_frame_equal(u.zero_replacement, s.zero_replacement)
+
+
+def test_unified_representation_matches_standalone():
+    ds, x, y = _bundle()
+    cfg = AnalysisConfig(
+        enabled_blocks=("representation",),
+        representation_cca_components=2,
+        representation_mantel_permutations=19,
+        random_state=7,
+    )
+    u = analyze(ds, config=cfg, features=x, comparison_features=y).representation
+    s = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=19, random_state=7)
+    assert u is not None
+    pl_testing.assert_frame_equal(u.cca.correlations, s.cca.correlations)
+    pl_testing.assert_frame_equal(u.cka, s.cka)
+    pl_testing.assert_frame_equal(u.procrustes, s.procrustes)
+    pl_testing.assert_frame_equal(u.distance_similarity, s.distance_similarity)
+    pl_testing.assert_frame_equal(u.mantel, s.mantel)

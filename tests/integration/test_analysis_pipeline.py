@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import polars.testing as pl_testing
 import pytest
 from pandas.testing import assert_frame_equal
 
@@ -50,8 +51,8 @@ def test_profiling_matches_standalone(pipeline_dataset):
     standalone = profile_dataset(pipeline_dataset, **config.profiling_kwargs())
     assert result.profiling is not None
     assert result.profiling.overview == standalone.overview
-    assert_frame_equal(result.profiling.columns, standalone.columns)
-    assert_frame_equal(result.profiling.missingness, standalone.missingness)
+    pl_testing.assert_frame_equal(result.profiling.columns, standalone.columns)
+    pl_testing.assert_frame_equal(result.profiling.missingness, standalone.missingness)
 
 
 def test_univariate_matches_standalone(pipeline_dataset):
@@ -59,8 +60,8 @@ def test_univariate_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_univariate(pipeline_dataset, **config.univariate_kwargs())
     assert result.univariate is not None
-    assert_frame_equal(result.univariate.numeric_statistics, standalone.numeric_statistics)
-    assert_frame_equal(result.univariate.categorical_statistics, standalone.categorical_statistics)
+    pl_testing.assert_frame_equal(result.univariate.numeric_statistics, standalone.numeric_statistics)
+    pl_testing.assert_frame_equal(result.univariate.categorical_statistics, standalone.categorical_statistics)
 
 
 def test_bivariate_matches_standalone(pipeline_dataset):
@@ -68,9 +69,11 @@ def test_bivariate_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_bivariate(pipeline_dataset, **config.bivariate_kwargs())
     assert result.bivariate is not None
-    assert_frame_equal(result.bivariate.correlations, standalone.correlations)
-    assert_frame_equal(result.bivariate.comparisons, standalone.comparisons)
-    assert_frame_equal(result.bivariate.categorical_associations, standalone.categorical_associations)
+    pl_testing.assert_frame_equal(result.bivariate.correlations, standalone.correlations)
+    pl_testing.assert_frame_equal(result.bivariate.comparisons, standalone.comparisons)
+    pl_testing.assert_frame_equal(
+        result.bivariate.categorical_associations, standalone.categorical_associations
+    )
 
 
 def test_groups_matches_standalone(pipeline_dataset):
@@ -82,8 +85,8 @@ def test_groups_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_grouped_responses(pipeline_dataset, **config.grouped_kwargs())
     assert result.groups is not None
-    assert_frame_equal(result.groups.numeric_summaries, standalone.numeric_summaries)
-    assert_frame_equal(result.groups.numeric_comparisons, standalone.numeric_comparisons)
+    pl_testing.assert_frame_equal(result.groups.numeric_summaries, standalone.numeric_summaries)
+    pl_testing.assert_frame_equal(result.groups.numeric_comparisons, standalone.numeric_comparisons)
 
 
 def test_outliers_matches_standalone(pipeline_dataset):
@@ -91,9 +94,9 @@ def test_outliers_matches_standalone(pipeline_dataset):
     result = analyze(pipeline_dataset, config=config)
     standalone = analyze_outliers(pipeline_dataset, **config.outlier_kwargs())
     assert result.outliers is not None
-    assert_frame_equal(result.outliers.summaries, standalone.summaries)
-    assert_frame_equal(result.outliers.flags, standalone.flags)
-    assert_frame_equal(result.outliers.quality, standalone.quality)
+    pl_testing.assert_frame_equal(result.outliers.summaries, standalone.summaries)
+    pl_testing.assert_frame_equal(result.outliers.flags, standalone.flags)
+    pl_testing.assert_frame_equal(result.outliers.quality, standalone.quality)
 
 
 def test_feature_block_requires_feature_matrix(pipeline_dataset):
@@ -122,7 +125,7 @@ def test_partial_feature_alignment_is_observable(pipeline_dataset, pipeline_feat
     config = AnalysisConfig(enabled_blocks=("pca",), feature_alignment="partial")
     result = analyze(pipeline_dataset, config=config, features=partial)
     assert result.feature_alignment is not None
-    assert result.feature_alignment.covered_count == pipeline_dataset.n_observations - 3
+    assert result.feature_alignment.covered_count == pipeline_dataset.frame.height - 3
     assert len(result.feature_alignment.missing_ids) == 3
 
 
@@ -132,11 +135,11 @@ def test_multivariate_matches_standalone(pipeline_dataset, pipeline_features):
     standalone = analyze_multivariate(pipeline_features, **config.multivariate_kwargs())
     assert result.multivariate is not None
     assert result.multivariate.covariance is not None
-    assert_frame_equal(result.multivariate.covariance.covariance, standalone.covariance.covariance)
+    pl_testing.assert_frame_equal(result.multivariate.covariance.covariance, standalone.covariance.covariance)
     assert result.multivariate.collinearity is not None
-    assert_frame_equal(result.multivariate.collinearity.features, standalone.collinearity.features)
+    pl_testing.assert_frame_equal(result.multivariate.collinearity.features, standalone.collinearity.features)
     assert result.multivariate.mahalanobis is not None
-    assert_frame_equal(result.multivariate.mahalanobis.distances, standalone.mahalanobis.distances)
+    pl_testing.assert_frame_equal(result.multivariate.mahalanobis.distances, standalone.mahalanobis.distances)
 
 
 def test_manova_matches_standalone(pipeline_dataset):
@@ -154,8 +157,8 @@ def test_manova_matches_standalone(pipeline_dataset):
         **config.manova_kwargs(),
     )
     assert result.manova is not None
-    assert_frame_equal(result.manova.tests, standalone.tests)
-    assert_frame_equal(result.manova.factor_levels, standalone.factor_levels)
+    pl_testing.assert_frame_equal(result.manova.tests, standalone.tests)
+    pl_testing.assert_frame_equal(result.manova.factor_levels, standalone.factor_levels)
 
 
 def test_factorial_matches_standalone_with_formula(pipeline_dataset):
@@ -171,8 +174,8 @@ def test_factorial_matches_standalone_with_formula(pipeline_dataset):
         **config.factorial_kwargs(),
     )
     assert result.factorial is not None
-    assert_frame_equal(result.factorial.effects, standalone.effects)
-    assert_frame_equal(result.factorial.coefficients, standalone.coefficients)
+    pl_testing.assert_frame_equal(result.factorial.effects, standalone.effects)
+    pl_testing.assert_frame_equal(result.factorial.coefficients, standalone.coefficients)
     assert result.factorial.design is not None
     assert result.factorial.design.resolved_formula == standalone.design.resolved_formula
 
@@ -186,7 +189,7 @@ def test_factorial_explicit_model_uses_configured_interaction(pipeline_dataset):
     )
     result = analyze(pipeline_dataset, config=config)
     assert result.factorial is not None
-    terms = set(result.factorial.effects["term"].astype(str))
+    terms = set(result.factorial.effects.get_column("term").to_list())
     assert any("factor" in term and "batch" in term for term in terms)
 
 
@@ -246,8 +249,8 @@ def test_same_seed_produces_identical_pca_scientific_outputs(pipeline_dataset, p
     second = analyze(pipeline_dataset, config=config, features=pipeline_features)
     assert second.pca is not None
     assert first.pca is not None
-    assert_frame_equal(first.pca.scores, second.pca.scores)
-    assert_frame_equal(first.pca.variance, second.pca.variance)
+    pl_testing.assert_frame_equal(first.pca.scores, second.pca.scores)
+    pl_testing.assert_frame_equal(first.pca.variance, second.pca.variance)
 
 
 def test_multiple_blocks_preserve_requested_order(pipeline_dataset, pipeline_features):

@@ -3,17 +3,10 @@
 from __future__ import annotations
 
 import math
-from typing import Any
 
 import numpy as np
 
-
-def _finite_float(value: Any) -> float | None:
-    try:
-        converted = float(value)
-    except (TypeError, ValueError):
-        return None
-    return converted if math.isfinite(converted) else None
+from ruddy.core.frames import finite_or_none
 
 
 def hedges_g(group_a: np.ndarray, group_b: np.ndarray) -> float | None:
@@ -33,7 +26,7 @@ def hedges_g(group_a: np.ndarray, group_b: np.ndarray) -> float | None:
         return None
     d = (float(np.mean(a)) - float(np.mean(b))) / math.sqrt(pooled_variance)
     correction = 1.0 - 3.0 / (4.0 * df - 1.0)
-    return _finite_float(correction * d)
+    return finite_or_none(correction * d)
 
 
 def cliffs_delta_from_u(u_statistic: float, n_a: int, n_b: int) -> float | None:
@@ -59,7 +52,7 @@ def eta_squared(groups: tuple[np.ndarray, ...]) -> float | None:
     if not math.isfinite(ss_total) or ss_total <= 0.0:
         return None
     ss_between = float(sum(len(group) * (float(np.mean(group)) - grand) ** 2 for group in arrays))
-    return _finite_float(ss_between / ss_total)
+    return finite_or_none(ss_between / ss_total)
 
 
 def epsilon_squared(kruskal_h: float, groups: tuple[np.ndarray, ...]) -> float | None:

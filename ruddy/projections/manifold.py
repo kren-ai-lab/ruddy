@@ -8,15 +8,18 @@ from inspect import signature
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from sklearn.manifold import TSNE
 
 from ruddy.core.enums import ProjectionMethod, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import OptionalDependencyError
+from ruddy.core.frames import id_dtype
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from ruddy.data import FeatureMatrix
 
 
@@ -27,8 +30,8 @@ class ProjectionResult:
     status: ResultStatus
     reason: str | None
     method: ProjectionMethod
-    coordinates: pd.DataFrame
-    exclusions: pd.DataFrame
+    coordinates: pl.DataFrame
+    exclusions: pl.DataFrame
     preprocessing: dict[str, Any]
     parameters: dict[str, Any]
     warnings: tuple[str, ...]
@@ -40,14 +43,19 @@ class ProjectionResult:
 def _coordinate_table(
     coordinates: np.ndarray,
     *,
-    observation_ids: pd.Index,
+    observation_ids: Sequence[Any],
     source_row_indices: np.ndarray,
-) -> pd.DataFrame:
-    columns = [f"component_{index + 1}" for index in range(coordinates.shape[1])]
-    table = pd.DataFrame(np.asarray(coordinates, dtype=np.float64), columns=pd.Index(columns))
-    table.insert(0, "observation_id", observation_ids.to_list())
-    table.insert(0, "source_row_index", source_row_indices)
-    return table
+) -> pl.DataFrame:
+    id_dt = id_dtype(observation_ids)
+    component_names = [f"component_{index + 1}" for index in range(coordinates.shape[1])]
+    columns: dict[str, pl.Series] = {
+        "observation_id": pl.Series("observation_id", list(observation_ids), dtype=id_dt),
+        "source_row_index": pl.Series("source_row_index", source_row_indices, dtype=pl.Int64),
+    }
+    values = np.asarray(coordinates, dtype=np.float64)
+    for index, name in enumerate(component_names):
+        columns[name] = pl.Series(name, values[:, index], dtype=pl.Float64)
+    return pl.DataFrame(columns)
 
 
 def analyze_tsne(
@@ -111,7 +119,7 @@ def analyze_tsne(
             "n_observations": features.n_observations,
             "n_features": features.n_features,
             "n_input_observations": prepared.n_observations,
-            "n_excluded_observations": int(prepared.exclusions.shape[0]),
+            "n_excluded_observations": prepared.exclusions.height,
             "source_storage": "sparse" if features.is_sparse else "dense",
         },
         random_state=int(random_state),
@@ -201,7 +209,7 @@ def analyze_umap(
             "n_observations": features.n_observations,
             "n_features": features.n_features,
             "n_input_observations": prepared.n_observations,
-            "n_excluded_observations": int(prepared.exclusions.shape[0]),
+            "n_excluded_observations": prepared.exclusions.height,
             "source_storage": "sparse" if features.is_sparse else "dense",
         },
         random_state=int(random_state),

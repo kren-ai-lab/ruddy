@@ -20,7 +20,7 @@ def write_outlier_result(result: OutlierResult, output_dir: str | Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.summaries, target / "outlier_summaries.csv")
     write_table(result.quality, target / "numeric_quality.csv")
-    if not result.flags.empty:
+    if result.flags.height:
         write_table(result.flags, target / "outlier_flags.csv")
     write_json(result.provenance.to_dict(), target / "outlier_provenance.json")
     return target
@@ -35,9 +35,9 @@ def run_outliers(args: CliArgs) -> int:
         print(write_outlier_result(result, args.output_dir))
     else:
         payload = {
-            "numeric_variables": int(result.quality.shape[0]),
-            "summary_rows": int(result.summaries.shape[0]),
-            "flagged_records": int(result.flags.shape[0]),
+            "numeric_variables": int(result.quality.height),
+            "summary_rows": int(result.summaries.height),
+            "flagged_records": int(result.flags.height),
             "methods": list(result.provenance.parameters["methods"]),
         }
         print(json.dumps(payload, indent=2, sort_keys=True))

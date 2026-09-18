@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import configure_plots, display, errorbar_table, finish, load_tabular_demo, show
@@ -35,7 +35,7 @@ def _():
     # binary grouping for mean differences
     bay=analyze_bayesian_eda(dataset,variables=('activity','stability','length','charge'),groups=('flag',),draws=2500,rope=(-0.15,0.15),random_state=42)
     display(bay.means); display(bay.mean_differences)
-    return bay, errorbar_table, finish, plt, show
+    return bay, errorbar_table, finish, np, pl, plt, show
 
 
 @app.cell(hide_code=True)
@@ -47,8 +47,10 @@ def _(mo):
 
 
 @app.cell
-def _(bay, errorbar_table, show):
-    m=bay.means.query('status=="ok"').copy(); errorbar_table(m,label_col='variable',estimate_col='posterior_mean',low_col='credible_low',high_col='credible_high',title='Posterior means with 95% credible intervals',xlabel='Posterior mean',zero_line=False); show()
+def _(bay, errorbar_table, pl, show):
+    m = bay.means.filter(pl.col('status') == 'ok')
+    errorbar_table(m, label_col='variable', estimate_col='posterior_mean', low_col='credible_low', high_col='credible_high', title='Posterior means with 95% credible intervals', xlabel='Posterior mean', zero_line=False)
+    show()
     return
 
 
@@ -61,8 +63,21 @@ def _(mo):
 
 
 @app.cell
-def _(bay, errorbar_table, show):
-    d=bay.mean_differences.query('status=="ok"').copy(); d['contrast']=d.variable+' | '+d.level_a.astype(str)+' − '+d.level_b.astype(str); errorbar_table(d,label_col='contrast',estimate_col='posterior_mean',low_col='credible_low',high_col='credible_high',title='Posterior mean differences',xlabel='Difference'); show()
+def _(bay, errorbar_table, pl, show):
+    d = (
+        bay.mean_differences.filter(pl.col('status') == 'ok')
+        .with_columns(
+            contrast=pl.concat_str([
+                pl.col('variable'),
+                pl.lit(' | '),
+                pl.col('level_a').cast(pl.String),
+                pl.lit(' − '),
+                pl.col('level_b').cast(pl.String),
+            ])
+        )
+    )
+    errorbar_table(d, label_col='contrast', estimate_col='posterior_mean', low_col='credible_low', high_col='credible_high', title='Posterior mean differences', xlabel='Difference')
+    show()
     return (d,)
 
 
@@ -75,14 +90,19 @@ def _(mo):
 
 
 @app.cell
-def _(d, finish, plt, show):
-    summary = d.set_index('variable')[['probability_direction', 'rope_probability']]
+def _(d, finish, np, plt, show):
+    _variables = d.get_column('variable').to_list()
+    x = np.arange(len(_variables))
+    width = 0.35
     _fig, _ax = plt.subplots(figsize=(7.5, 4.5))
-    summary.plot(kind='bar', ax=_ax)
+    _ax.bar(x - width / 2, d.get_column('probability_direction').to_numpy(), width, label='probability_direction')
+    _ax.bar(x + width / 2, d.get_column('rope_probability').to_numpy(), width, label='rope_probability')
+    _ax.set_xticks(x, _variables)
     _ax.set_ylim(0, 1.05)
     _ax.set_ylabel('Posterior probability')
     _ax.set_title('Direction vs practical-equivalence evidence')
     _ax.tick_params(axis='x', rotation=20)
+    _ax.legend()
     finish(_fig)
     show()
     return
@@ -97,13 +117,18 @@ def _(mo):
 
 
 @app.cell
-def _(d, finish, plt, show):
-    sg = d.set_index('variable')[['probability_positive', 'probability_negative']]
+def _(d, finish, np, plt, show):
+    _variables = d.get_column('variable').to_list()
+    y = np.arange(len(_variables))
+    height = 0.35
     _fig, _ax = plt.subplots(figsize=(7.5, 4.5))
-    sg.plot(kind='barh', ax=_ax)
+    _ax.barh(y - height / 2, d.get_column('probability_positive').to_numpy(), height, label='probability_positive')
+    _ax.barh(y + height / 2, d.get_column('probability_negative').to_numpy(), height, label='probability_negative')
+    _ax.set_yticks(y, _variables)
     _ax.set_xlim(0, 1)
     _ax.set_xlabel('Posterior probability')
     _ax.set_title('Posterior sign probability by variable')
+    _ax.legend()
     finish(_fig)
     show()
     return

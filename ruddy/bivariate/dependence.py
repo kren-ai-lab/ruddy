@@ -7,7 +7,7 @@ from itertools import combinations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import stats
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.metrics import mutual_info_score
@@ -15,56 +15,62 @@ from sklearn.metrics import mutual_info_score
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod, PAdjustMethod
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
+from ruddy.univariate.categorical import _category_label
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-PARTIAL_COLUMNS = (
-    "method",
-    "column_x",
-    "column_y",
-    "covariates",
-    "n_total",
-    "n_complete",
-    "n_covariates",
-    "coefficient",
-    "statistic",
-    "df",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "status",
-    "reason",
-)
-DEPENDENCE_COLUMNS = (
-    "method",
-    "column_x",
-    "column_y",
-    "column_x_kind",
-    "column_y_kind",
-    "n_total",
-    "n_complete",
-    "statistic",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "n_permutations",
-    "status",
-    "reason",
-)
+PARTIAL_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "covariates": pl.String,
+    "n_total": pl.Int64,
+    "n_complete": pl.Int64,
+    "n_covariates": pl.Int64,
+    "coefficient": pl.Float64,
+    "statistic": pl.Float64,
+    "df": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+PARTIAL_COLUMNS: tuple[str, ...] = tuple(PARTIAL_SCHEMA)
+
+DEPENDENCE_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "column_x_kind": pl.String,
+    "column_y_kind": pl.String,
+    "n_total": pl.Int64,
+    "n_complete": pl.Int64,
+    "statistic": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "n_permutations": pl.Int64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+DEPENDENCE_COLUMNS: tuple[str, ...] = tuple(DEPENDENCE_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
 class DependenceResult:
-    """Result of an extended dependence analysis."""
+    """Results of bivariate dependence analyses including partial and distance correlations."""
 
-    partial_correlations: pd.DataFrame
-    distance_correlations: pd.DataFrame
-    mutual_information: pd.DataFrame
+    partial_correlations: pl.DataFrame
+    distance_correlations: pl.DataFrame
+    mutual_information: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -123,27 +129,24 @@ def summarize_partial_correlations(
     min_complete_pairs: int = 5,
     max_columns: int = 100,
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Compute Pearson/Spearman partial correlations controlling numeric covariates."""
     resolved_methods = tuple(m if isinstance(m, CorrelationMethod) else CorrelationMethod(m) for m in methods)
     if any(m is CorrelationMethod.KENDALL for m in resolved_methods):
-        msg = "Partial correlation currently supports Pearson and Spearman only."
-        raise ValueError(msg)
+        raise ValueError("Partial correlation currently supports Pearson and Spearman only.")
     if len(set(resolved_methods)) != len(resolved_methods):
-        msg = "Partial correlation methods cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError("Partial correlation methods cannot contain duplicates.")
     if not covariates:
-        msg = "covariates cannot be empty for partial correlation."
-        raise ValueError(msg)
+        raise ValueError("covariates cannot be empty for partial correlation.")
     numeric = _numeric_candidates(dataset)
     invalid_covariates = [c for c in covariates if c not in numeric]
     if invalid_covariates:
-        msg = f"Partial-correlation covariates must be eligible numeric columns: {invalid_covariates}."
-        raise ValueError(msg)
+        raise ValueError(
+            f"Partial-correlation covariates must be eligible numeric columns: {invalid_covariates}."
+        )
     candidates = tuple(c for c in numeric if c not in set(covariates))
     if len(candidates) > max_columns:
-        msg = "Eligible partial-correlation columns exceed max_columns."
-        raise ValueError(msg)
+        raise ValueError("Eligible partial-correlation columns exceed max_columns.")
     selected_pairs = (
         tuple(combinations(candidates, 2)) if pairs is None else tuple((str(x), str(y)) for x, y in pairs)
     )
@@ -151,18 +154,18 @@ def summarize_partial_correlations(
         (x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates
     ]
     if invalid_pairs:
-        msg = f"Invalid partial-correlation pairs: {invalid_pairs}."
-        raise ValueError(msg)
+        raise ValueError(f"Invalid partial-correlation pairs: {invalid_pairs}.")
 
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
-    frame = dataset.to_frame()
+    frame = dataset.frame
+    n_total = frame.height
     rows: list[dict[str, Any]] = []
     cov_label = ",".join(covariates)
     for method in resolved_methods:
         family_id = f"partial_correlation:{method.value}:{cov_label}"
         for x_name, y_name in selected_pairs:
             columns = (x_name, y_name, *covariates)
-            matrix = frame.loc[:, columns].to_numpy(dtype=float)
+            matrix = frame.select(list(columns)).cast(pl.Float64).fill_null(float("nan")).to_numpy()
             mask = np.all(np.isfinite(matrix), axis=1)
             complete = matrix[mask]
             n = int(complete.shape[0])
@@ -171,14 +174,14 @@ def summarize_partial_correlations(
                 "column_x": x_name,
                 "column_y": y_name,
                 "covariates": cov_label,
-                "n_total": dataset.n_observations,
+                "n_total": n_total,
                 "n_complete": n,
                 "n_covariates": len(covariates),
-                "coefficient": np.nan,
-                "statistic": np.nan,
-                "df": np.nan,
-                "p_value": np.nan,
-                "q_value": np.nan,
+                "coefficient": None,
+                "statistic": None,
+                "df": None,
+                "p_value": None,
+                "q_value": None,
                 "family_id": family_id,
                 "family_size": 0,
                 "correction": correction.value,
@@ -222,8 +225,8 @@ def summarize_partial_correlations(
                 p_value = float(2.0 * stats.t.sf(abs(t_stat), df))
             row.update(coefficient=r, statistic=t_stat, df=float(df), p_value=p_value)
             rows.append(row)
-    table = pd.DataFrame(rows, columns=pd.Index(PARTIAL_COLUMNS))
-    return table if table.empty else apply_multiple_testing(table, correction)
+    table = pl.DataFrame(rows, schema=PARTIAL_SCHEMA)
+    return table if table.height == 0 else apply_multiple_testing(table, correction)
 
 
 def distance_correlation(x: np.ndarray, y: np.ndarray) -> float:
@@ -252,38 +255,33 @@ def _distance_permutation_pvalue(
     return float((extreme + 1) / (n_permutations + 1))
 
 
-def _encode_categorical(values: pd.Series) -> np.ndarray:
-    return pd.Categorical(values.astype("string")).codes.astype(int)
+def _encode_categorical(values: list[str]) -> np.ndarray:
+    # Codes categorical labels by first-seen order (MI is invariant to the labeling scheme).
+    mapping = {label: i for i, label in enumerate(dict.fromkeys(values))}
+    return np.array([mapping[v] for v in values], dtype=int)
 
 
 def _mutual_information(
-    x: pd.Series, y: pd.Series, x_kind: ColumnKind, y_kind: ColumnKind, *, n_neighbors: int, random_state: int
+    x: np.ndarray | list[str],
+    y: np.ndarray | list[str],
+    x_kind: ColumnKind,
+    y_kind: ColumnKind,
+    *,
+    n_neighbors: int,
+    random_state: int,
 ) -> float:
-    if x_kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN} and y_kind in {
-        ColumnKind.CATEGORICAL,
-        ColumnKind.BOOLEAN,
-    }:
-        return float(mutual_info_score(_encode_categorical(x), _encode_categorical(y)))
-    if x_kind is ColumnKind.NUMERIC and y_kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}:
+    x_is_cat = x_kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
+    y_is_cat = y_kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
+    if x_is_cat and y_is_cat:
+        return float(mutual_info_score(_encode_categorical(list(x)), _encode_categorical(list(y))))
+    if x_is_cat != y_is_cat:
+        numeric = np.asarray(y if x_is_cat else x, dtype=float).reshape(-1, 1)
+        codes = _encode_categorical(list(x if x_is_cat else y))
         return float(
-            mutual_info_classif(
-                x.to_numpy(dtype=float).reshape(-1, 1),
-                _encode_categorical(y),
-                n_neighbors=n_neighbors,
-                random_state=random_state,
-            )[0]
+            mutual_info_classif(numeric, codes, n_neighbors=n_neighbors, random_state=random_state)[0]
         )
-    if y_kind is ColumnKind.NUMERIC and x_kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}:
-        return float(
-            mutual_info_classif(
-                y.to_numpy(dtype=float).reshape(-1, 1),
-                _encode_categorical(x),
-                n_neighbors=n_neighbors,
-                random_state=random_state,
-            )[0]
-        )
-    x_arr = x.to_numpy(dtype=float)
-    y_arr = y.to_numpy(dtype=float)
+    x_arr = np.asarray(x, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
     xy = float(
         mutual_info_regression(
             x_arr.reshape(-1, 1), y_arr, n_neighbors=n_neighbors, random_state=random_state
@@ -297,6 +295,21 @@ def _mutual_information(
     return max(0.0, 0.5 * (xy + yx))
 
 
+def _column_valid_mask(series: pl.Series, kind: ColumnKind) -> np.ndarray:
+    if kind is ColumnKind.NUMERIC:
+        values = series.cast(pl.Float64).fill_null(float("nan")).to_numpy()
+        return np.isfinite(values)
+    raw = series.to_list()
+    is_float = series.dtype.is_float()
+    return np.array(
+        [
+            v is not None and not (is_float and isinstance(v, (float, np.floating)) and np.isnan(v))
+            for v in raw
+        ],
+        dtype=bool,
+    )
+
+
 def summarize_general_dependence(
     dataset: TabularDataset,
     *,
@@ -308,43 +321,52 @@ def summarize_general_dependence(
     mutual_information_neighbors: int = 3,
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
     random_state: int = 0,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Compute nonlinear/general dependence with permutation inference."""
     methods = tuple(str(m).lower() for m in methods)
     allowed = {"distance_correlation", "mutual_information"}
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):
-        msg = "methods must be unique distance_correlation/mutual_information values."
-        raise ValueError(msg)
+        raise ValueError("methods must be unique distance_correlation/mutual_information values.")
     if n_permutations < 0:
-        msg = "n_permutations cannot be negative."
-        raise ValueError(msg)
+        raise ValueError("n_permutations cannot be negative.")
     if mutual_information_neighbors < 1:
-        msg = "mutual_information_neighbors must be at least 1."
-        raise ValueError(msg)
+        raise ValueError("mutual_information_neighbors must be at least 1.")
     candidates = _dependence_candidates(dataset)
     if len(candidates) > max_columns:
-        msg = "Eligible dependence columns exceed max_columns."
-        raise ValueError(msg)
+        raise ValueError("Eligible dependence columns exceed max_columns.")
     selected_pairs = (
         tuple(combinations(candidates, 2)) if pairs is None else tuple((str(x), str(y)) for x, y in pairs)
     )
     invalid = [(x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates]
     if invalid:
-        msg = f"Invalid dependence pairs: {invalid}."
-        raise ValueError(msg)
+        raise ValueError(f"Invalid dependence pairs: {invalid}.")
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
-    frame = dataset.to_frame()
+    frame = dataset.frame
+    n_total = frame.height
     rng = np.random.default_rng(random_state)
     outputs: dict[str, list[dict[str, Any]]] = {m: [] for m in methods}
     for x_name, y_name in selected_pairs:
         x_kind = _effective_kind(dataset, x_name)
         y_kind = _effective_kind(dataset, y_name)
-        pair = frame[[x_name, y_name]].dropna().copy()
+        col_x = frame.get_column(x_name)
+        col_y = frame.get_column(y_name)
+        mask = _column_valid_mask(col_x, x_kind) & _column_valid_mask(col_y, y_kind)
+        n = int(mask.sum())
+
+        x_data: np.ndarray | list[str]
         if x_kind is ColumnKind.NUMERIC:
-            pair = pair[np.isfinite(pair[x_name].to_numpy(dtype=float))]
+            x_data = col_x.cast(pl.Float64).fill_null(float("nan")).to_numpy()[mask]
+        else:
+            x_raw = col_x.to_list()
+            x_data = [_category_label(x_raw[i]) for i in np.flatnonzero(mask)]
+
+        y_data: np.ndarray | list[str]
         if y_kind is ColumnKind.NUMERIC:
-            pair = pair[np.isfinite(pair[y_name].to_numpy(dtype=float))]
-        n = len(pair)
+            y_data = col_y.cast(pl.Float64).fill_null(float("nan")).to_numpy()[mask]
+        else:
+            y_raw = col_y.to_list()
+            y_data = [_category_label(y_raw[i]) for i in np.flatnonzero(mask)]
+
         for method in methods:
             row: dict[str, Any] = {
                 "method": method,
@@ -352,11 +374,11 @@ def summarize_general_dependence(
                 "column_y": y_name,
                 "column_x_kind": x_kind.value,
                 "column_y_kind": y_kind.value,
-                "n_total": dataset.n_observations,
+                "n_total": n_total,
                 "n_complete": n,
-                "statistic": np.nan,
-                "p_value": np.nan,
-                "q_value": np.nan,
+                "statistic": None,
+                "p_value": None,
+                "q_value": None,
                 "family_id": f"dependence:{method}",
                 "family_size": 0,
                 "correction": correction.value,
@@ -374,54 +396,59 @@ def summarize_general_dependence(
                     row["status"] = "skipped"
                     row["reason"] = "distance_correlation_requires_numeric_pair"
                 else:
-                    x = pair[x_name].to_numpy(dtype=float)
-                    y = pair[y_name].to_numpy(dtype=float)
-                    value = distance_correlation(x, y)
+                    x_data = np.asarray(x_data, dtype=float)
+                    y_data = np.asarray(y_data, dtype=float)
+                    value = distance_correlation(x_data, y_data)
                     if not np.isfinite(value):
                         row["status"] = "degenerate"
                         row["reason"] = "constant_or_undefined_distance_variance"
                     else:
                         row["statistic"] = value
                         row["p_value"] = (
-                            _distance_permutation_pvalue(x, y, value, n_permutations, rng)
+                            _distance_permutation_pvalue(x_data, y_data, value, n_permutations, rng)
                             if n_permutations
-                            else np.nan
+                            else None
                         )
-            elif pair[x_name].nunique(dropna=True) < 2 or pair[y_name].nunique(dropna=True) < 2:
-                row["status"] = "degenerate"
-                row["reason"] = "constant_variable"
             else:
-                value = _mutual_information(
-                    pair[x_name],
-                    pair[y_name],
-                    x_kind,
-                    y_kind,
-                    n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
-                    random_state=random_state,
-                )
-                row["statistic"] = value
-                if n_permutations:
-                    extreme = 0
-                    y_values = pair[y_name].to_numpy(copy=True)
-                    for permutation_index in range(n_permutations):
-                        permuted = pair.copy()
-                        permuted[y_name] = y_values[rng.permutation(n)]
-                        permuted_value = _mutual_information(
-                            permuted[x_name],
-                            permuted[y_name],
-                            x_kind,
-                            y_kind,
-                            n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
-                            random_state=random_state + permutation_index + 1,
-                        )
-                        if permuted_value >= value - 1e-15:
-                            extreme += 1
-                    row["p_value"] = float((extreme + 1) / (n_permutations + 1))
+                x_unique = np.unique(x_data).size if isinstance(x_data, np.ndarray) else len(set(x_data))
+                y_unique = np.unique(y_data).size if isinstance(y_data, np.ndarray) else len(set(y_data))
+                if x_unique < 2 or y_unique < 2:
+                    row["status"] = "degenerate"
+                    row["reason"] = "constant_variable"
+                else:
+                    value = _mutual_information(
+                        x_data,
+                        y_data,
+                        x_kind,
+                        y_kind,
+                        n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
+                        random_state=random_state,
+                    )
+                    row["statistic"] = value
+                    if n_permutations:
+                        extreme = 0
+                        for permutation_index in range(n_permutations):
+                            perm = rng.permutation(n)
+                            if isinstance(y_data, np.ndarray):
+                                y_perm = y_data[perm]
+                            else:
+                                y_perm = [y_data[i] for i in perm]
+                            permuted_value = _mutual_information(
+                                x_data,
+                                y_perm,
+                                x_kind,
+                                y_kind,
+                                n_neighbors=min(mutual_information_neighbors, max(1, n - 1)),
+                                random_state=random_state + permutation_index + 1,
+                            )
+                            if permuted_value >= value - 1e-15:
+                                extreme += 1
+                        row["p_value"] = float((extreme + 1) / (n_permutations + 1))
             outputs[method].append(row)
     tables = []
     for method in ("distance_correlation", "mutual_information"):
-        table = pd.DataFrame(outputs.get(method, []), columns=pd.Index(DEPENDENCE_COLUMNS))
-        tables.append(table if table.empty else apply_multiple_testing(table, correction))
+        table = pl.DataFrame(outputs.get(method, []), schema=DEPENDENCE_SCHEMA)
+        tables.append(table if table.height == 0 else apply_multiple_testing(table, correction))
     return tables[0], tables[1]
 
 
@@ -451,7 +478,7 @@ def analyze_dependence(
             p_adjust=p_adjust,
         )
         if partial_covariates
-        else pd.DataFrame(columns=pd.Index(PARTIAL_COLUMNS))
+        else pl.DataFrame(schema=PARTIAL_SCHEMA)
     )
     distance, mi = summarize_general_dependence(
         dataset,
@@ -476,7 +503,7 @@ def analyze_dependence(
             "random_state": random_state,
             "causal_interpretation": False,
         },
-        input_summary={"n_observations": dataset.n_observations, "n_columns": dataset.n_columns},
+        input_summary={"n_observations": dataset.frame.height, "n_columns": dataset.frame.width},
         random_state=random_state,
     )
     return DependenceResult(

@@ -1,9 +1,7 @@
 # CLI reference
 
-Ruddy exposes its scientific core through the `ruddy` entry point, built on
-Typer with Rich terminal output. Commands are grouped by intent: inspecting a
-dataset, analyzing it, fitting an explicit model, or projecting a feature
-space.
+Use `ruddy` to inspect a dataset, run analyses, fit a model or project a
+feature space from the terminal.
 
 ## Global options
 
@@ -85,8 +83,8 @@ options supported by the installed version.
 
 Tabular inputs are read by extension: `.csv`, `.tsv`, `.txt` as tab-separated,
 and `.parquet`. Feature matrices additionally accept `.npy` for dense arrays
-and `.npz` for SciPy sparse matrices. Every read and write goes through
-`ruddy.core.io`, so the supported set is the same for every command.
+and `.npz` for SciPy sparse matrices. A `.txt` table is tab-separated; an
+IDs file supplied with `--feature-ids-file` contains one ID per line.
 
 ## Basic examples
 
@@ -192,173 +190,45 @@ ruddy pipeline metadata.csv \
 
 For CSV feature inputs, an ID column should be supplied when the matrix must align with a tabular dataset. For NPY matrices, a separate IDs file can be used. Representation comparison likewise accepts separate X/Y ID declarations.
 
-The CLI should not be treated as permission to rely on row order when identities are scientifically meaningful.
+Supply shared observation IDs when combining independently loaded files.
 
 ## Structured artifacts
 
-The CLI writes CSV and JSON files. Major artifact families currently include:
+The CLI writes result tables as CSV and summaries/provenance as JSON. Matrix
+exports include a `feature` or `observation_id` column for row labels; no
+implicit row index is written. CSV does not retain type metadata, so specify
+ID dtypes when reading exports back for alignment.
 
-### Profiling
+The following table lists the main artifacts. Commands also write applicable
+provenance, status, exclusion and advisory records. Files depend on the requested
+blocks and options.
 
-```text
-overview.json
-provenance.json
-columns.csv
-missingness.csv
-pairwise_completeness.csv
-missingness_patterns.csv
-```
+| Analysis | Main result files |
+| --- | --- |
+| Profiling | `overview.json`, `columns.csv`, `missingness.csv`, `pairwise_completeness.csv`, `missingness_patterns.csv` |
+| Univariate | Profiling files plus `numeric_statistics.csv`, `categorical_statistics.csv`, `categorical_frequencies.csv`, `datetime_statistics.csv` |
+| Outliers | `outlier_summaries.csv`, `numeric_quality.csv`, `outlier_flags.csv` (when requested) |
+| Bivariate | `correlations.csv`, `comparisons.csv`, `categorical_associations.csv` |
+| Dependence | `partial_correlations.csv`, `distance_correlations.csv`, `mutual_information.csv` |
+| Contingency | `contingency_summary.csv`, `contingency_cells.csv` |
+| Intervals | `mean_intervals.csv`, `correlation_intervals.csv`, `mean_difference_intervals.csv`, `effect_size_intervals.csv`, `odds_ratio_intervals.csv` |
+| Factorial | `factorial_effects.csv`, `factorial_coefficients.csv`, `factorial_cells.csv`, `factorial_diagnostics.csv`, `factorial_model_summary.json` |
+| Marginal means | `marginal_means.csv`, `marginal_contrasts.csv` |
+| Mixed effects | `mixed_fixed_effects.csv`, `mixed_variance_components.csv`, `mixed_random_effects.csv`, `mixed_model_summary.json` |
+| PCA | `pca_scores.csv`, `pca_loadings.csv`, `pca_variance.csv` |
+| t-SNE/UMAP | `projection_coordinates.csv`, `projection_exclusions.csv` |
+| Covariance | `covariance_matrix.csv`, `pearson_matrix.csv`, `spearman_matrix.csv`, `pairwise_counts.csv` |
+| Collinearity | `collinearity.csv`, `collinearity_condition_spectrum.csv` |
+| Mahalanobis | `mahalanobis_methods.csv`, `mahalanobis_distances.csv` |
+| MANOVA | `manova_tests.csv`, `manova_factor_levels.csv`, `manova_model_summary.json` |
+| PERMANOVA/PERMDISP | `permutation_group_summary.csv`, `permutation_group_levels.csv`, `permdisp_distances.csv` |
+| Representation comparison | `cca_correlations.csv`, CCA score/weight/loading tables, `cka.csv`, `procrustes.csv`, `distance_similarity.csv`, `mantel.csv` |
+| Composition | `compositional_transformed.csv`, `variation_matrix.csv`, `aitchison_distances.csv`, `zero_replacement.csv` |
+| Bayesian EDA | `bayesian_means.csv`, `bayesian_mean_differences.csv` |
+| Anomalies | `anomaly_scores.csv`, `anomaly_methods.csv` |
 
-### Univariate
+## Limitations
 
-Everything written by profiling, plus:
-
-```text
-univariate_provenance.json
-numeric_statistics.csv
-categorical_statistics.csv
-categorical_frequencies.csv
-datetime_statistics.csv
-```
-
-### Outliers
-
-```text
-outlier_summaries.csv
-numeric_quality.csv
-outlier_flags.csv          # only when flags are requested
-outlier_provenance.json
-```
-
-### Bivariate/dependence
-
-```text
-correlations.csv
-comparisons.csv
-categorical_associations.csv
-partial_correlations.csv
-distance_correlations.csv
-mutual_information.csv
-contingency_summary.csv
-contingency_cells.csv
-```
-
-### Intervals/groups
-
-```text
-mean_intervals.csv
-correlation_intervals.csv
-mean_difference_intervals.csv
-effect_size_intervals.csv
-odds_ratio_intervals.csv
-```
-
-Grouped analysis writes response/group summaries and comparison artifacts together with provenance.
-
-### Factorial/model-based
-
-```text
-factorial_design_terms.csv
-factorial_effects.csv
-factorial_coefficients.csv
-factorial_cells.csv
-factorial_diagnostics.csv
-factorial_observation_diagnostics.csv
-factorial_exclusions.csv
-factorial_model_summary.json
-factorial_provenance.json
-
-marginal_means.csv
-marginal_contrasts.csv
-marginal_exclusions.csv
-marginal_means_provenance.json
-
-mixed_fixed_effects.csv
-mixed_variance_components.csv
-mixed_random_effects.csv
-mixed_exclusions.csv
-mixed_model_summary.json
-mixed_advisories.json
-mixed_provenance.json
-```
-
-### Projection/multivariate
-
-```text
-pca_scores.csv
-pca_loadings.csv
-pca_variance.csv
-projection_coordinates.csv
-projection_exclusions.csv
-
-covariance_matrix.csv
-pearson_matrix.csv
-spearman_matrix.csv
-pairwise_counts.csv
-covariance_feature_diagnostics.csv
-covariance_condition_spectrum.csv
-collinearity.csv
-collinearity_condition_spectrum.csv
-mahalanobis_methods.csv
-mahalanobis_distances.csv
-```
-
-### MANOVA/PERMANOVA
-
-```text
-manova_tests.csv
-manova_factor_levels.csv
-manova_exclusions.csv
-manova_model_summary.json
-
-permutation_group_summary.csv
-permutation_group_levels.csv
-permdisp_distances.csv
-permutation_group_exclusions.csv
-permutation_group_alignment.json
-permutation_group_advisories.json
-```
-
-### Representation comparison
-
-```text
-cca_correlations.csv
-cca_x_weights.csv
-cca_y_weights.csv
-cca_x_loadings.csv
-cca_y_loadings.csv
-cca_x_scores.csv
-cca_y_scores.csv
-cka.csv
-procrustes.csv
-distance_similarity.csv
-mantel.csv
-representation_exclusions.csv
-representation_alignment.json
-representation_provenance.json
-```
-
-### Specialized
-
-```text
-compositional_transformed.csv
-variation_matrix.csv
-aitchison_distances.csv
-zero_replacement.csv
-
-bayesian_means.csv
-bayesian_mean_differences.csv
-
-anomaly_scores.csv
-anomaly_methods.csv
-anomaly_exclusions.csv
-```
-
-## Current limitations of the CLI layer
-
-The grouped hierarchy, the Rich run summary and the clean reporting of user
-errors are in place. Remaining productization gaps include:
-
-- reusable configuration files;
-- progress reporting for long runs;
-- richer artifact summaries beyond the output path.
+The CLI does not accept reusable configuration files or show progress during
+long analyses. Use Python `AnalysisConfig` for reusable multi-analysis settings;
+see [unified analysis](UNIFIED_ANALYSIS.md).

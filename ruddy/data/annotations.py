@@ -5,7 +5,7 @@ from __future__ import annotations
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
-import pandas as pd
+import polars as pl
 
 from ruddy.core.enums import AlignmentMode, AnnotationCoverage, ColumnKind, ColumnRole
 from ruddy.core.exceptions import RoleConflictError, UnknownColumnError
@@ -16,34 +16,35 @@ from ruddy.data.validation import AlignmentReport, align_annotations
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
-    from ruddy.core.types import KindOverrides, RoleOverrides
+    from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides, TableInput
 
 
 class AlignedAnnotations:
     """One external annotation source aligned to a base observation index.
 
-    The source data are copied on construction and every public accessor returns a
-    defensive copy. ``ABSENT`` represents an explicitly unavailable source, while
-    ``PARTIAL`` preserves incomplete coverage without silently dropping observations.
+    The source data are stored as a Polars DataFrame. ``ABSENT`` represents an
+    explicitly unavailable source, while ``PARTIAL`` preserves incomplete coverage
+    without silently dropping observations.
     """
 
     def __init__(
         self,
         *,
         source_name: str,
-        data: pd.DataFrame,
+        data: pl.DataFrame,
         coverage: AnnotationCoverage,
         report: AlignmentReport | None,
         roles: Mapping[str, ColumnRole],
         kinds: Mapping[str, ColumnKind],
+        base_ids: tuple[ObservationID, ...],
     ) -> None:
-        """Initialize an aligned annotation source."""
+        """Construct aligned annotations with metadata and coverage status."""
         name = str(source_name).strip()
         if not name:
-            msg = "source_name must be non-empty."
-            raise ValueError(msg)
+            raise ValueError("source_name must be non-empty.")
         self._source_name = name
-        self._data = data.copy(deep=True)
+        self._data = data
+        self._base_ids = tuple(base_ids)
         self._coverage = coverage
         self._report = report
         self._roles = MappingProxyType(dict(roles))
@@ -51,45 +52,51 @@ class AlignedAnnotations:
 
     @property
     def source_name(self) -> str:
-        """Return the logical name of this annotation source."""
+        """Return the name of the annotation source."""
         return self._source_name
 
     @property
+    def base_ids(self) -> tuple[ObservationID, ...]:
+        """Return the base observation identifiers."""
+        return self._base_ids
+
+    @property
     def coverage(self) -> AnnotationCoverage:
-        """Return the observation coverage state."""
+        """Return the annotation coverage classification."""
         return self._coverage
 
     @property
     def report(self) -> AlignmentReport | None:
-        """Return the metadata alignment report, if any."""
+        """Return the alignment diagnostic report if available."""
         return self._report
 
     @property
+    def frame(self) -> pl.DataFrame:
+        """Return the underlying Polars DataFrame."""
+        return self._data
+
+    @property
     def columns(self) -> tuple[str, ...]:
-        """Return the column names in this annotation source."""
+        """Return the annotation column names."""
         return tuple(str(column) for column in self._data.columns)
 
     @property
     def roles(self) -> Mapping[str, ColumnRole]:
-        """Return the assigned statistical roles for the annotation columns."""
+        """Return the mapping from column names to semantic roles."""
         return self._roles
 
     @property
     def kinds(self) -> Mapping[str, ColumnKind]:
-        """Return the inferred data kinds for the annotation columns."""
+        """Return the mapping from column names to data kinds."""
         return self._kinds
 
     @property
     def available(self) -> bool:
-        """Return whether this annotation source contains data."""
+        """Return whether the annotation source is present."""
         return self._coverage is not AnnotationCoverage.ABSENT
 
-    def to_frame(self) -> pd.DataFrame:
-        """Return a defensive copy of the aligned annotations."""
-        return self._data.copy(deep=True)
-
     def summary(self) -> dict[str, Any]:
-        """Return a summary of the alignment and coverage."""
+        """Summarize annotation coverage and metadata as a dictionary."""
         payload: dict[str, Any] = {
             "source_name": self.source_name,
             "coverage": self.coverage.value,
@@ -97,11 +104,11 @@ class AlignedAnnotations:
         }
         if self.report is None:
             payload.update(
-                base_count=len(self._data.index),
+                base_count=len(self._base_ids),
                 annotation_count=0,
                 covered_count=0,
                 coverage_fraction=0.0,
-                missing_ids=list(self._data.index),
+                missing_ids=list(self._base_ids),
                 unmatched_ids=[],
             )
         else:
@@ -117,54 +124,54 @@ def _resolve_annotation_roles(
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(columns))
     if unknown:
-        msg = f"Annotation role overrides reference unknown columns: {unknown}."
-        raise UnknownColumnError(msg)
+        raise UnknownColumnError(f"Annotation role overrides reference unknown columns: {unknown}.")
     resolved = dict.fromkeys(columns, ColumnRole.ANNOTATION)
     for column, value in overrides.items():
         role = value if isinstance(value, ColumnRole) else ColumnRole(value)
         if role is ColumnRole.IDENTIFIER:
-            msg = "External annotation columns cannot define the base observation identifier."
-            raise RoleConflictError(msg)
+            raise RoleConflictError(
+                "External annotation columns cannot define the base observation identifier."
+            )
         resolved[column] = role
     return resolved
 
 
 def _resolve_annotation_kinds(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     overrides: KindOverrides | None,
 ) -> dict[str, ColumnKind]:
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        msg = f"Annotation kind overrides reference unknown columns: {unknown}."
-        raise UnknownColumnError(msg)
+        raise UnknownColumnError(f"Annotation kind overrides reference unknown columns: {unknown}.")
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:
-        observed = infer_column_kind(frame[column])
+        observed = infer_column_kind(frame.schema[column])
         if column not in overrides:
             resolved[column] = observed
             continue
         declared = overrides[column]
         requested = declared if isinstance(declared, ColumnKind) else ColumnKind(declared)
         if requested is ColumnKind.NUMERIC and observed is not ColumnKind.NUMERIC:
-            msg = (
+            raise ValueError(
                 f"Annotation column {column!r} cannot be declared numeric without "
                 "numeric dtype; Ruddy does not silently coerce values."
             )
-            raise ValueError(msg)
         if requested is ColumnKind.BOOLEAN and observed is not ColumnKind.BOOLEAN:
-            msg = f"Annotation column {column!r} cannot be declared boolean without boolean dtype."
-            raise ValueError(msg)
+            raise ValueError(
+                f"Annotation column {column!r} cannot be declared boolean without boolean dtype."
+            )
         if requested is ColumnKind.DATETIME and observed is not ColumnKind.DATETIME:
-            msg = f"Annotation column {column!r} cannot be declared datetime without datetime dtype."
-            raise ValueError(msg)
+            raise ValueError(
+                f"Annotation column {column!r} cannot be declared datetime without datetime dtype."
+            )
         resolved[column] = requested
     return resolved
 
 
 def align_annotation_source(
     dataset: TabularDataset,
-    annotations: pd.DataFrame | None,
+    annotations: TableInput | None,
     *,
     source_name: str = "annotations",
     id_column: str | None = None,
@@ -179,14 +186,14 @@ def align_annotation_source(
     """
     resolved_mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     if annotations is None:
-        empty = pd.DataFrame(index=dataset.observation_ids)
         return AlignedAnnotations(
             source_name=source_name,
-            data=empty,
+            data=pl.DataFrame(),
             coverage=AnnotationCoverage.ABSENT,
             report=None,
             roles={},
             kinds={},
+            base_ids=dataset.observation_ids,
         )
 
     aligned, report = align_annotations(
@@ -196,14 +203,12 @@ def align_annotation_source(
         mode=resolved_mode,
     )
     if id_column is not None and id_column in aligned.columns:
-        aligned = aligned.drop(columns=[id_column])
-    if not aligned.columns.is_unique:
-        msg = "Annotation column names must be unique."
-        raise ValueError(msg)
+        aligned = aligned.drop(id_column)
+    if len(set(aligned.columns)) != len(aligned.columns):
+        raise ValueError("Annotation column names must be unique.")
     non_string = [column for column in aligned.columns if not isinstance(column, str)]
     if non_string:
-        msg = "Ruddy requires string annotation column names."
-        raise TypeError(msg)
+        raise TypeError("Ruddy requires string annotation column names.")
 
     roles = _resolve_annotation_roles(aligned.columns, role_overrides)
     kinds = _resolve_annotation_kinds(aligned, kind_overrides)
@@ -215,6 +220,7 @@ def align_annotation_source(
         report=report,
         roles=roles,
         kinds=kinds,
+        base_ids=dataset.observation_ids,
     )
 
 
@@ -228,34 +234,36 @@ def attach_annotations(
     collisions are rejected instead of overwritten.
     """
     sources = tuple(sources)
-    base = dataset.to_frame()
-    original_index = base.index.copy()
-    base.index = dataset.observation_ids
+    base = dataset.frame
 
     roles = {spec.name: spec.role for spec in dataset.schema}
     kinds = {spec.name: spec.kind for spec in dataset.schema}
 
     for source in sources:
         if not isinstance(source, AlignedAnnotations):
-            msg = "sources must contain AlignedAnnotations objects."
-            raise TypeError(msg)
+            raise TypeError("sources must contain AlignedAnnotations objects.")
         if not source.available:
             continue
-        frame = source.to_frame()
+        if source.base_ids != dataset.observation_ids:
+            raise ValueError(
+                f"Annotation source {source.source_name!r} was aligned to a different observation "
+                "ordering; realign it against this dataset before attaching."
+            )
+        frame = source.frame
         collisions = sorted(set(frame.columns) & set(base.columns))
         if collisions:
-            msg = f"Annotation source {source.source_name!r} collides with existing columns: {collisions}."
-            raise ValueError(msg)
-        base = base.join(frame, how="left")
+            raise ValueError(
+                f"Annotation source {source.source_name!r} collides with existing columns: {collisions}."
+            )
+        if frame.width > 0:
+            base = base.hstack(frame)
         roles.update(source.roles)
         kinds.update(source.kinds)
-
-    if dataset.id_column is not None:
-        base.index = original_index
 
     return TabularDataset(
         base,
         id_column=dataset.id_column,
+        observation_ids=None if dataset.id_column else dataset.observation_ids,
         role_overrides=roles,
         kind_overrides=kinds,
     )

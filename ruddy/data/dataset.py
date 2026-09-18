@@ -2,57 +2,62 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data.roles import ColumnSpec, build_schema, resolve_kinds, resolve_roles
-from ruddy.data.validation import validate_observation_ids
+from ruddy.data.validation import from_pandas_checked, validate_observation_ids
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Mapping, Sequence
 
-    from ruddy.core.types import KindOverrides, RoleOverrides
+    from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides
 
 
 class TabularDataset:
-    """Immutable-by-contract wrapper around a pandas DataFrame.
+    """Immutable-by-contract wrapper around a polars DataFrame.
 
     Ruddy never coerces values, imputes missing observations, or deletes rows while
-    constructing this object. Internal data are copied from the caller and public
+    constructing this object. Internal data are stored as polars frames and public
     accessors return copies, preventing accidental mutation of the scientific input.
     """
 
     def __init__(
         self,
-        data: pd.DataFrame,
+        data: pl.DataFrame | pd.DataFrame,
         *,
         id_column: str | None = None,
+        observation_ids: Sequence[ObservationID] | None = None,
         role_overrides: RoleOverrides | None = None,
         kind_overrides: KindOverrides | None = None,
     ) -> None:
-        """Initialize a tabular dataset from a pandas DataFrame."""
-        if not isinstance(data, pd.DataFrame):
-            msg = "data must be a pandas DataFrame."
-            raise TypeError(msg)
+        """Construct an immutable tabular dataset from a Polars or pandas DataFrame."""
+        if isinstance(data, pd.DataFrame):
+            default_index = (
+                isinstance(data.index, pd.RangeIndex) and data.index.start == 0 and data.index.step == 1
+            )
+            if id_column is None and observation_ids is None and not default_index:
+                raise ValueError(
+                    "pandas DataFrame has a non-default index; "
+                    "pass observation_ids=frame.index or reset_index()."
+                )
+            input_backend = "pandas"
+            self._frame = from_pandas_checked(data)
+        elif isinstance(data, pl.DataFrame):
+            input_backend = "polars"
+            self._frame = data
+        else:
+            raise TypeError("data must be a polars or pandas DataFrame.")
 
-        if not data.columns.is_unique:
-            duplicates = data.columns[data.columns.duplicated()].tolist()
-            msg = f"DataFrame column names must be unique; duplicates={duplicates}."
-            raise ValueError(msg)
-        non_string = [column for column in data.columns if not isinstance(column, str)]
-        if non_string:
-            msg = f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
-            raise TypeError(msg)
-
-        self._data = data.copy(deep=True)
         self._roles = resolve_roles(
-            self._data,
+            self._frame,
             id_column=id_column,
             overrides=role_overrides,
         )
-        self._kinds = resolve_kinds(self._data, overrides=kind_overrides)
+        self._kinds = resolve_kinds(self._frame, overrides=kind_overrides)
 
         inferred_id_columns = [
             column for column, role in self._roles.items() if role is ColumnRole.IDENTIFIER
@@ -61,77 +66,81 @@ class TabularDataset:
             id_column if id_column is not None else (inferred_id_columns[0] if inferred_id_columns else None)
         )
 
-        raw_ids = self._data[self._id_column] if self._id_column is not None else self._data.index
+        if self._id_column is not None and observation_ids is not None:
+            raise ValueError("Cannot pass both id_column and observation_ids.")
+
+        n = self._frame.height
+        if self._id_column is not None:
+            raw_ids = self._frame[self._id_column].to_list()
+            id_source = "column"
+        elif observation_ids is not None:
+            if len(observation_ids) != n:
+                raise ValueError("observation_ids length must equal frame.height.")
+            raw_ids = observation_ids
+            id_source = "argument"
+        else:
+            raw_ids = range(n)
+            id_source = "generated"
+
         self._observation_ids = validate_observation_ids(raw_ids)
+
         self._schema = build_schema(
-            self._data,
+            self._frame,
             roles=self._roles,
             kinds=self._kinds,
         )
 
-    @property
-    def n_observations(self) -> int:
-        """Return the number of observations in the dataset."""
-        return len(self._data)
+        self._provenance = {
+            "input_backend": input_backend,
+            "id_source": id_source,
+        }
 
     @property
-    def n_columns(self) -> int:
-        """Return the number of columns in the dataset."""
-        return self._data.shape[1]
+    def frame(self) -> pl.DataFrame:
+        """Return the underlying Polars DataFrame."""
+        return self._frame
 
     @property
-    def columns(self) -> tuple[str, ...]:
-        """Return the column names."""
-        return tuple(str(column) for column in self._data.columns)
+    def observation_ids(self) -> tuple[ObservationID, ...]:
+        """Return the sequence of observation identifiers."""
+        return self._observation_ids
 
     @property
     def id_column(self) -> str | None:
-        """Return the name of the identifier column, if any."""
+        """Return the name of the identifier column, if one was specified."""
         return self._id_column
 
     @property
-    def observation_ids(self) -> pd.Index:
-        """Return a copy of the observation identifiers."""
-        return self._observation_ids.copy()
-
-    @property
     def schema(self) -> tuple[ColumnSpec, ...]:
-        """Return the complete column schema specification."""
+        """Return column specifications defining data types and semantic roles."""
         return self._schema
 
+    @property
+    def provenance(self) -> Mapping[str, Any]:
+        """Return provenance metadata describing dataset origin and alignment."""
+        return self._provenance
+
     def role_of(self, column: str) -> ColumnRole:
-        """Return the statistical role assigned to the specified column."""
+        """Return the semantic role assigned to the specified column."""
         return self._roles[column]
 
     def kind_of(self, column: str) -> ColumnKind:
-        """Return the data kind inferred for the specified column."""
+        """Return the statistical data kind of the specified column."""
         return self._kinds[column]
 
     def columns_with_role(self, *roles: ColumnRole | str) -> tuple[str, ...]:
         """Return column names matching any of the specified roles."""
         wanted = {role if isinstance(role, ColumnRole) else ColumnRole(role) for role in roles}
-        return tuple(column for column in self._data.columns if self._roles[column] in wanted)
+        return tuple(column for column in self._frame.columns if self._roles[column] in wanted)
 
     def columns_with_kind(self, *kinds: ColumnKind | str) -> tuple[str, ...]:
-        """Return column names matching any of the specified kinds."""
+        """Return column names matching any of the specified data kinds."""
         wanted = {kind if isinstance(kind, ColumnKind) else ColumnKind(kind) for kind in kinds}
-        return tuple(column for column in self._data.columns if self._kinds[column] in wanted)
-
-    def select(self, columns: Iterable[str]) -> pd.DataFrame:
-        """Return a new DataFrame containing only the selected columns."""
-        return self._data.loc[:, list(columns)].copy(deep=True)
-
-    def to_frame(self) -> pd.DataFrame:
-        """Return a defensive copy of the stored table."""
-        return self._data.copy(deep=True)
-
-    def __len__(self) -> int:
-        """Return the number of observations."""
-        return self.n_observations
+        return tuple(column for column in self._frame.columns if self._kinds[column] in wanted)
 
     def __repr__(self) -> str:
-        """Return a string representation of the dataset."""
+        """Return a string representation of the tabular dataset."""
         return (
-            f"TabularDataset(n_observations={self.n_observations}, "
-            f"n_columns={self.n_columns}, id_column={self.id_column!r})"
+            f"TabularDataset(n_observations={self._frame.height}, "
+            f"n_columns={self._frame.width}, id_column={self.id_column!r})"
         )

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ruddy.core.exceptions import RuddyIOError
@@ -38,8 +38,15 @@ def _unsupported(suffix: str, supported: Iterable[str]) -> RuddyIOError:
     return RuddyIOError(f"Unsupported file extension {suffix!r}. Supported: {sorted(supported)}.")
 
 
-def read_table(path: str | Path) -> pd.DataFrame:
-    """Read a tabular file into a DataFrame, dispatching on its extension.
+def read_table(path: str | Path) -> pl.DataFrame:
+    """Read a tabular file into a Polars DataFrame, dispatching on its extension.
+
+    Supported extensions are defined by :data:`TABLE_EXTENSIONS` (``.csv``,
+    ``.parquet``, ``.tsv``, ``.txt``).
+
+    When reading a Parquet file written by pandas with an index column, that
+    index column is retained as a regular data column because Polars frames do
+    not use row indices.
 
     Raises:
         RuddyIOError: If the file is missing, has an unsupported extension, or
@@ -52,8 +59,9 @@ def read_table(path: str | Path) -> pd.DataFrame:
         raise _unsupported(suffix, TABLE_EXTENSIONS)
     try:
         if suffix == ".parquet":
-            return pd.read_parquet(source)
-        return pd.read_csv(source, sep="\t" if suffix in TAB_SEPARATED else ",")
+            return pl.read_parquet(source)
+        separator = "\t" if suffix in TAB_SEPARATED else ","
+        return pl.read_csv(source, separator=separator, infer_schema_length=None)
     except RuddyIOError:
         raise
     except Exception as exc:
@@ -62,13 +70,10 @@ def read_table(path: str | Path) -> pd.DataFrame:
 
 
 def write_table(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     path: str | Path,
-    *,
-    index: bool = False,
-    index_label: str | None = None,
 ) -> Path:
-    """Write a DataFrame, dispatching on extension and creating parent dirs.
+    """Write a Polars DataFrame, dispatching on extension and creating parent dirs.
 
     Raises:
         RuddyIOError: If the extension is unsupported or the write fails.
@@ -81,14 +86,9 @@ def write_table(
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         if suffix == ".parquet":
-            frame.to_parquet(target, index=index)
+            frame.write_parquet(target)
         else:
-            frame.to_csv(
-                target,
-                sep="\t" if suffix in TAB_SEPARATED else ",",
-                index=index,
-                index_label=index_label,
-            )
+            frame.write_csv(target, separator="\t" if suffix in TAB_SEPARATED else ",")
     except Exception as exc:
         msg = f"Could not write table to {target}: {exc}"
         raise RuddyIOError(msg) from exc

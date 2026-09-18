@@ -1,4 +1,5 @@
 import numpy as np
+import polars as pl
 
 from ruddy.factorial import analyze_mixed_effects
 
@@ -52,7 +53,7 @@ def test_random_slope_must_be_numeric_covariate(random_intercept_dataset):
 def test_mixed_model_tracks_exclusions(random_intercept_dataset):
     from ruddy import TabularDataset
 
-    frame = random_intercept_dataset.to_frame()
+    frame = random_intercept_dataset.frame.to_pandas()
     frame.loc[0, "x"] = np.nan
     ds = TabularDataset(
         frame,
@@ -101,11 +102,9 @@ def test_numeric_random_slope_model_runs_and_estimates_slope_variance():
         reml=False,
     )
     assert result.status.value == "ok"
-    slope_var = (
-        result.variance_components.query(
-            "component == 'random_effect_covariance' and row == 'X0' and column == 'X0'"
-        )
-        .iloc[0]
-        .estimate
-    )
+    slope_var = result.variance_components.filter(
+        (pl.col("component") == "random_effect_covariance")
+        & (pl.col("row") == "X0")
+        & (pl.col("column") == "X0")
+    )[0, "estimate"]
     assert slope_var > 0.05

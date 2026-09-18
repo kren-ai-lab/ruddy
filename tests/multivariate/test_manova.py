@@ -26,14 +26,14 @@ def _dataset(seed: int = 3) -> TabularDataset:
 def test_manova_matches_statsmodels_reference():
     dataset = _dataset()
     result = analyze_manova(dataset, responses=("y1", "y2"), factors=("group",), covariates=("cov",))
-    frame = dataset.to_frame().rename(columns={"y1": "Y0", "y2": "Y1", "group": "F0", "cov": "X0"})
+    frame = dataset.frame.to_pandas().rename(columns={"y1": "Y0", "y2": "Y1", "group": "F0", "cov": "X0"})
     reference = MANOVA.from_formula("Y0 + Y1 ~ C(F0) + X0", data=frame).mv_test().results["C(F0)"]["stat"]
-    observed = result.tests[result.tests["term"] == "group"].set_index("statistic")
+    observed = {row["statistic"]: row for row in result.tests.iter_rows(named=True) if row["term"] == "group"}
     for statistic in reference.index:
-        assert observed.loc[statistic, "value"] == pytest.approx(
+        assert observed[statistic]["value"] == pytest.approx(
             float(reference.loc[statistic, "Value"]), rel=1e-10
         )
-        assert observed.loc[statistic, "p_value"] == pytest.approx(
+        assert observed[statistic]["p_value"] == pytest.approx(
             float(reference.loc[statistic, "Pr > F"]), rel=1e-10
         )
     assert result.status is ResultStatus.OK
@@ -41,18 +41,18 @@ def test_manova_matches_statsmodels_reference():
 
 
 def test_numeric_factor_is_categorical_when_declared_factor():
-    dataset = _dataset().to_frame()
-    dataset["batch"] = np.tile([0, 1, 2], len(dataset) // 3)
+    df = _dataset().frame.to_pandas()
+    df["batch"] = np.tile([0, 1, 2], len(df) // 3)
     wrapped = TabularDataset(
-        dataset, id_column="id", role_overrides={"y1": "response", "y2": "response", "batch": "factor"}
+        df, id_column="id", role_overrides={"y1": "response", "y2": "response", "batch": "factor"}
     )
     result = analyze_manova(wrapped, responses=("y1", "y2"), factors=("batch",))
     assert result.status is ResultStatus.OK
-    assert "batch" in set(result.tests["term"])
+    assert "batch" in set(result.tests.get_column("term").to_list())
 
 
 def test_complete_case_exclusions_are_observable():
-    frame = _dataset().to_frame()
+    frame = _dataset().frame.to_pandas()
     frame.loc[0, "y1"] = np.nan
     frame.loc[1, "y2"] = np.inf
     frame.loc[2, "group"] = None
@@ -61,11 +61,11 @@ def test_complete_case_exclusions_are_observable():
     )
     result = analyze_manova(dataset, responses=("y1", "y2"), factors=("group",))
     assert len(result.exclusions) == 3
-    assert set(result.exclusions["observation_id"]) == {"o0", "o1", "o2"}
+    assert set(result.exclusions.get_column("observation_id").to_list()) == {"o0", "o1", "o2"}
 
 
 def test_rank_deficient_response_matrix_is_degenerate():
-    frame = _dataset().to_frame()
+    frame = _dataset().frame.to_pandas()
     frame["y2"] = 2.0 * frame["y1"]
     dataset = TabularDataset(
         frame, id_column="id", role_overrides={"y1": "response", "y2": "response", "group": "factor"}
@@ -76,7 +76,7 @@ def test_rank_deficient_response_matrix_is_degenerate():
 
 
 def test_rank_deficient_design_is_degenerate():
-    frame = _dataset().to_frame()
+    frame = _dataset().frame.to_pandas()
     frame["cov2"] = frame["cov"]
     dataset = TabularDataset(
         frame,
@@ -95,7 +95,7 @@ def test_rank_deficient_design_is_degenerate():
 
 
 def test_small_factor_level_blocks_manova():
-    frame = _dataset().to_frame()
+    frame = _dataset().frame.to_pandas()
     frame.loc[:1, "group"] = "tiny"
     dataset = TabularDataset(
         frame, id_column="id", role_overrides={"y1": "response", "y2": "response", "group": "factor"}
@@ -106,7 +106,7 @@ def test_small_factor_level_blocks_manova():
 
 
 def test_high_dimensional_manova_requires_explicit_reduction():
-    frame = _dataset().to_frame()
+    frame = _dataset().frame.to_pandas()
     for index in range(3, 8):
         frame[f"y{index}"] = np.random.default_rng(index).normal(size=len(frame))
     dataset = TabularDataset(frame, id_column="id", role_overrides={"group": "factor"})
@@ -117,7 +117,7 @@ def test_high_dimensional_manova_requires_explicit_reduction():
 
 
 def test_manova_requires_numeric_responses():
-    frame = _dataset().to_frame()
+    frame = _dataset().frame.to_pandas()
     frame["label"] = np.where(frame["y1"] > 0, "high", "low")
     dataset = TabularDataset(
         frame, id_column="id", role_overrides={"label": "response", "y2": "response", "group": "factor"}

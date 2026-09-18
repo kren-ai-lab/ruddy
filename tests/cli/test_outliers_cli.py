@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import polars as pl
 
 from ruddy.cli.main import main
 
@@ -44,8 +45,8 @@ def test_outliers_cli_writes_structured_outputs(tmp_path: Path) -> None:
     assert (output / "outlier_flags.csv").is_file()
     provenance = json.loads((output / "outlier_provenance.json").read_text())
     assert provenance["analysis"] == "outliers"
-    summaries = pd.read_csv(output / "outlier_summaries.csv")
-    assert set(summaries["column"]) == {"x"}
+    summaries = pl.read_csv(output / "outlier_summaries.csv")
+    assert set(summaries["column"].to_list()) == {"x"}
 
 
 def test_outliers_cli_help_is_registered(capsys) -> None:

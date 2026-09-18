@@ -12,7 +12,7 @@ from ruddy.core.enums import ComparisonTest, CorrelationMethod, PAdjustMethod
 from ruddy.results import AnalysisProvenance
 
 if TYPE_CHECKING:
-    import pandas as pd
+    import polars as pl
 
     from ruddy.data import TabularDataset
 
@@ -21,9 +21,9 @@ if TYPE_CHECKING:
 class BivariateResult:
     """Complete mixed-type bivariate output."""
 
-    correlations: pd.DataFrame
-    comparisons: pd.DataFrame
-    categorical_associations: pd.DataFrame
+    correlations: pl.DataFrame
+    comparisons: pl.DataFrame
+    categorical_associations: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -108,8 +108,8 @@ def analyze_bivariate(
             "categorical_low_expected_count_policy": "advisory_no_automatic_test_switch",
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_columns": dataset.n_columns,
+            "n_observations": dataset.frame.height,
+            "n_columns": dataset.frame.width,
             "id_column": dataset.id_column,
         },
     )

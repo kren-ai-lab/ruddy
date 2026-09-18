@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import stats
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial.distance import pdist, squareform
@@ -15,53 +15,117 @@ from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import AlignmentMode, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import AlignmentError
+from ruddy.core.frames import id_dtype
 from ruddy.data.validation import AlignmentReport
 from ruddy.results import Advisory, AnalysisProvenance
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from polars._typing import PolarsDataType
+
+    from ruddy.core.types import ObservationID
     from ruddy.data import FeatureMatrix
+
+REPRESENTATION_EXCLUSIONS_SCHEMA_BASE: dict[str, PolarsDataType] = {
+    "source_row_x": pl.Int64,
+    "source_row_y": pl.Int64,
+    "stage": pl.String,
+    "reason": pl.String,
+}
+
+REPRESENTATION_EXCLUSION_COLUMNS: tuple[str, ...] = (
+    "observation_id",
+    "source_row_x",
+    "source_row_y",
+    "stage",
+    "reason",
+)
+
+CCA_CORRELATION_SCHEMA: dict[str, PolarsDataType] = {
+    "component": pl.Int64,
+    "canonical_correlation": pl.Float64,
+    "shared_variance": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+CKA_SCHEMA: dict[str, PolarsDataType] = {
+    "kernel": pl.String,
+    "cka": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+PROCRUSTES_SCHEMA: dict[str, PolarsDataType] = {
+    "disparity": pl.Float64,
+    "similarity": pl.Float64,
+    "n_dimensions": pl.Int64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+DISTANCE_SIMILARITY_SCHEMA: dict[str, PolarsDataType] = {
+    "metric": pl.String,
+    "method": pl.String,
+    "coefficient": pl.Float64,
+    "p_value": pl.Float64,
+    "n_pairs": pl.Int64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+MANTEL_SCHEMA: dict[str, PolarsDataType] = {
+    "metric": pl.String,
+    "correlation": pl.Float64,
+    "p_value": pl.Float64,
+    "permutations": pl.Int64,
+    "alternative": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
 
 
 @dataclass(frozen=True, slots=True)
 class AlignedRepresentationPair:
-    """Two numerical feature matrices aligned by observation identity and finite rows."""
+    """Pair of dense feature representations aligned by observation identity."""
 
     x: np.ndarray
     y: np.ndarray
-    observation_ids: pd.Index
+    observation_ids: tuple[ObservationID, ...]
     source_rows_x: np.ndarray
     source_rows_y: np.ndarray
-    exclusions: pd.DataFrame
+    exclusions: pl.DataFrame
     alignment: AlignmentReport
 
 
 @dataclass(frozen=True, slots=True)
 class CCAResult:
-    """Result of a canonical correlation analysis."""
+    """Results of canonical correlation analysis between two representations."""
 
     status: ResultStatus
     reason: str | None
-    correlations: pd.DataFrame
-    x_weights: pd.DataFrame
-    y_weights: pd.DataFrame
-    x_loadings: pd.DataFrame
-    y_loadings: pd.DataFrame
-    x_scores: pd.DataFrame
-    y_scores: pd.DataFrame
+    correlations: pl.DataFrame
+    x_weights: pl.DataFrame
+    y_weights: pl.DataFrame
+    x_loadings: pl.DataFrame
+    y_loadings: pl.DataFrame
+    x_scores: pl.DataFrame
+    y_scores: pl.DataFrame
     advisories: tuple[Advisory, ...]
     provenance: AnalysisProvenance
 
 
 @dataclass(frozen=True, slots=True)
 class RepresentationComparisonResult:
-    """Result of a comprehensive representation similarity comparison."""
+    """Multivariate comparison results between two aligned representations."""
 
     cca: CCAResult
-    cka: pd.DataFrame
-    procrustes: pd.DataFrame
-    distance_similarity: pd.DataFrame
-    mantel: pd.DataFrame
-    exclusions: pd.DataFrame
+    cka: pl.DataFrame
+    procrustes: pl.DataFrame
+    distance_similarity: pl.DataFrame
+    mantel: pl.DataFrame
+    exclusions: pl.DataFrame
     alignment: AlignmentReport
     provenance: AnalysisProvenance
 
@@ -77,6 +141,42 @@ def _scale(array: np.ndarray, method: ScalingMethod | str) -> np.ndarray:
     return np.asarray(MinMaxScaler().fit_transform(array), dtype=float)
 
 
+def _exclusions_table(
+    ids: Sequence[Any],
+    excluded_indices: Sequence[int] | np.ndarray,
+    source_rows_x: Sequence[int] | np.ndarray,
+    source_rows_y: Sequence[int] | np.ndarray,
+    *,
+    stage: str = "representation_complete_case",
+    reason: str = "non_finite_feature_row",
+) -> pl.DataFrame:
+    id_dt = id_dtype(ids)
+    if len(excluded_indices) == 0:
+        schema = {"observation_id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE}
+        return pl.DataFrame(schema={col: schema[col] for col in REPRESENTATION_EXCLUSION_COLUMNS})
+
+    indices = [int(i) for i in excluded_indices]
+    obs_ids = [ids[i] for i in indices]
+    sx = [int(source_rows_x[i]) for i in indices]
+    sy = [int(source_rows_y[i]) for i in indices]
+    n = len(indices)
+    rows = [
+        {
+            "observation_id": obs_ids[j],
+            "source_row_x": sx[j],
+            "source_row_y": sy[j],
+            "stage": stage,
+            "reason": reason,
+        }
+        for j in range(n)
+    ]
+    frame = pl.DataFrame(
+        rows,
+        schema_overrides={"observation_id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE},
+    )
+    return frame.select(list(REPRESENTATION_EXCLUSION_COLUMNS))
+
+
 def align_feature_matrices(
     x: FeatureMatrix,
     y: FeatureMatrix,
@@ -85,14 +185,13 @@ def align_feature_matrices(
 ) -> AlignedRepresentationPair:
     """Align two dense feature matrices by observation identity and finite rows."""
     if x.is_sparse or y.is_sparse:
-        msg = (
+        raise ValueError(
             "Representation comparison currently requires dense inputs; "
             "Ruddy will not silently densify sparse matrices."
         )
-        raise ValueError(msg)
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
     x_ids, y_ids = x.observation_ids, y.observation_ids
-    x_set, y_set = set(x_ids.tolist()), set(y_ids.tolist())
+    x_set, y_set = set(x_ids), set(y_ids)
     missing = tuple(value for value in x_ids if value not in y_set)
     unmatched = tuple(value for value in y_ids if value not in x_set)
     common = [value for value in x_ids if value in y_set]
@@ -105,14 +204,12 @@ def align_feature_matrices(
         unmatched_ids=unmatched,
     )
     if mode is AlignmentMode.STRICT and not report.complete:
-        msg = (
+        raise AlignmentError(
             "Strict representation alignment requires exact one-to-one ID coverage; "
             f"missing={list(missing)!r}, unmatched={list(unmatched)!r}."
         )
-        raise AlignmentError(msg)
     if len(common) < 3:
-        msg = "Representation comparison requires at least 3 aligned observations."
-        raise ValueError(msg)
+        raise ValueError("Representation comparison requires at least 3 aligned observations.")
 
     x_pos = {value: i for i, value in enumerate(x_ids)}
     y_pos = {value: i for i, value in enumerate(y_ids)}
@@ -120,23 +217,16 @@ def align_feature_matrices(
     y_rows = np.asarray([y_pos[v] for v in common], dtype=int)
     xa, ya = x.to_array()[x_rows], y.to_array()[y_rows]
     finite = np.isfinite(xa).all(axis=1) & np.isfinite(ya).all(axis=1)
-    excluded_ids = np.asarray(common, dtype=object)[~finite]
-    exclusions = pd.DataFrame(
-        {
-            "observation_id": excluded_ids.tolist(),
-            "source_row_x": x_rows[~finite],
-            "source_row_y": y_rows[~finite],
-            "stage": "representation_complete_case",
-            "reason": "non_finite_feature_row",
-        }
-    )
+    excluded_indices = np.flatnonzero(~finite)
+    exclusions = _exclusions_table(common, excluded_indices, x_rows, y_rows)
     if int(finite.sum()) < 3:
-        msg = "Representation comparison requires at least 3 jointly finite aligned observations."
-        raise ValueError(msg)
+        raise ValueError("Representation comparison requires at least 3 jointly finite aligned observations.")
+    finite_indices = np.flatnonzero(finite)
+    final_ids = tuple(common[i] for i in finite_indices)
     return AlignedRepresentationPair(
         x=np.asarray(xa[finite], dtype=float),
         y=np.asarray(ya[finite], dtype=float),
-        observation_ids=pd.Index(np.asarray(common, dtype=object)[finite]),
+        observation_ids=final_ids,
         source_rows_x=x_rows[finite],
         source_rows_y=y_rows[finite],
         exclusions=exclusions,
@@ -149,8 +239,7 @@ def linear_cka(x: np.ndarray, y: np.ndarray) -> float:
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     if x.ndim != 2 or y.ndim != 2 or x.shape[0] != y.shape[0]:
-        msg = "CKA requires two 2D matrices with the same number of observations."
-        raise ValueError(msg)
+        raise ValueError("CKA requires two 2D matrices with the same number of observations.")
     xc = x - x.mean(axis=0, keepdims=True)
     yc = y - y.mean(axis=0, keepdims=True)
     cross = np.linalg.norm(xc.T @ yc, ord="fro") ** 2
@@ -158,9 +247,32 @@ def linear_cka(x: np.ndarray, y: np.ndarray) -> float:
     yy = np.linalg.norm(yc.T @ yc, ord="fro")
     denom = xx * yy
     if denom <= np.finfo(float).eps:
-        msg = "CKA is undefined for a zero-variance representation."
-        raise ValueError(msg)
+        raise ValueError("CKA is undefined for a zero-variance representation.")
     return float(np.clip(cross / denom, 0.0, 1.0))
+
+
+def _empty_cca_result(
+    status: ResultStatus,
+    reason: str,
+    provenance: AnalysisProvenance,
+    id_dt: PolarsDataType = pl.String,
+    advisories: tuple[Advisory, ...] = (),
+) -> CCAResult:
+    empty_feature_df = pl.DataFrame(schema={"feature": pl.String})
+    empty_score_df = pl.DataFrame(schema={"observation_id": id_dt})
+    return CCAResult(
+        status=status,
+        reason=reason,
+        correlations=pl.DataFrame(schema=CCA_CORRELATION_SCHEMA),
+        x_weights=empty_feature_df,
+        y_weights=empty_feature_df,
+        x_loadings=empty_feature_df,
+        y_loadings=empty_feature_df,
+        x_scores=empty_score_df,
+        y_scores=empty_score_df,
+        advisories=advisories,
+        provenance=provenance,
+    )
 
 
 def _cca_result(
@@ -182,56 +294,36 @@ def _cca_result(
             "y_features": pair.y.shape[1],
         },
     )
+    id_dt = pl.Series(pair.observation_ids).dtype if len(pair.observation_ids) > 0 else pl.String
     x = _scale(pair.x, scaling)
     y = _scale(pair.y, scaling)
     rank_x, rank_y = np.linalg.matrix_rank(x), np.linalg.matrix_rank(y)
     max_components = min(rank_x, rank_y, x.shape[0] - 1, x.shape[1], y.shape[1])
     if max_components < 1:
-        return CCAResult(
+        return _empty_cca_result(
             ResultStatus.DEGENERATE,
             "zero_rank_representation",
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            (),
             provenance,
+            id_dt=id_dt,
         )
     if n_components < 1 or n_components > max_components:
-        return CCAResult(
+        return _empty_cca_result(
             ResultStatus.SKIPPED,
             "cca_components_exceed_effective_rank",
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            (),
             provenance,
+            id_dt=id_dt,
         )
     model = CCA(n_components=n_components, scale=False, max_iter=max_iter, tol=tol)
     try:
         xs, ys = model.fit_transform(x, y)
-    except Exception as exc:  # noqa: BLE001  # a third-party estimator may raise anything;
-        # Ruddy surfaces that as a structured degenerate result instead of propagating it
+    except Exception as exc:  # noqa: BLE001  # CCA fit failure becomes a degenerate result
         advisory = Advisory(code="cca_fit_failed", message=str(exc))
-        return CCAResult(
+        return _empty_cca_result(
             ResultStatus.DEGENERATE,
             "cca_fit_failed",
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            pd.DataFrame(),
-            (advisory,),
             provenance,
+            id_dt=id_dt,
+            advisories=(advisory,),
         )
     rows = []
     for i in range(n_components):
@@ -245,27 +337,31 @@ def _cca_result(
                 "reason": None,
             }
         )
+    correlations = pl.DataFrame(rows, schema=CCA_CORRELATION_SCHEMA)
     cols = [f"CC{i + 1}" for i in range(n_components)]
-    x_weights = pd.DataFrame(model.x_weights_, index=pd.Index(x_names), columns=pd.Index(cols)).reset_index(
-        names="feature"
-    )
-    y_weights = pd.DataFrame(model.y_weights_, index=pd.Index(y_names), columns=pd.Index(cols)).reset_index(
-        names="feature"
-    )
-    x_loadings = pd.DataFrame(model.x_loadings_, index=pd.Index(x_names), columns=pd.Index(cols)).reset_index(
-        names="feature"
-    )
-    y_loadings = pd.DataFrame(model.y_loadings_, index=pd.Index(y_names), columns=pd.Index(cols)).reset_index(
-        names="feature"
-    )
-    x_scores = pd.DataFrame(xs, columns=pd.Index(cols))
-    x_scores.insert(0, "observation_id", pair.observation_ids.to_list())
-    y_scores = pd.DataFrame(ys, columns=pd.Index(cols))
-    y_scores.insert(0, "observation_id", pair.observation_ids.to_list())
+
+    def _labelled(key_name: str, keys: list[Any], key_dt: PolarsDataType, matrix: np.ndarray) -> pl.DataFrame:
+        return pl.DataFrame(
+            {
+                key_name: pl.Series(key_name, keys, dtype=key_dt),
+                **{cols[i]: pl.Series(cols[i], matrix[:, i], dtype=pl.Float64) for i in range(n_components)},
+            }
+        )
+
+    x_list = list(x_names)
+    y_list = list(y_names)
+    id_list = list(pair.observation_ids)
+
+    x_weights = _labelled("feature", x_list, pl.String, model.x_weights_)
+    y_weights = _labelled("feature", y_list, pl.String, model.y_weights_)
+    x_loadings = _labelled("feature", x_list, pl.String, model.x_loadings_)
+    y_loadings = _labelled("feature", y_list, pl.String, model.y_loadings_)
+    x_scores = _labelled("observation_id", id_list, id_dt, xs)
+    y_scores = _labelled("observation_id", id_list, id_dt, ys)
     return CCAResult(
         ResultStatus.OK,
         None,
-        pd.DataFrame(rows),
+        correlations,
         x_weights,
         y_weights,
         x_loadings,
@@ -277,48 +373,51 @@ def _cca_result(
     )
 
 
-def _procrustes(pair: AlignedRepresentationPair) -> pd.DataFrame:
+def _procrustes(pair: AlignedRepresentationPair) -> pl.DataFrame:
     if pair.x.shape[1] != pair.y.shape[1]:
-        return pd.DataFrame(
+        return pl.DataFrame(
             [
                 {
-                    "disparity": np.nan,
-                    "similarity": np.nan,
-                    "n_dimensions": np.nan,
+                    "disparity": None,
+                    "similarity": None,
+                    "n_dimensions": None,
                     "status": "skipped",
                     "reason": "procrustes_requires_equal_dimensions",
                 }
-            ]
+            ],
+            schema=PROCRUSTES_SCHEMA,
         )
     x = pair.x - pair.x.mean(axis=0, keepdims=True)
     y = pair.y - pair.y.mean(axis=0, keepdims=True)
     nx, ny = np.linalg.norm(x), np.linalg.norm(y)
     if nx <= np.finfo(float).eps or ny <= np.finfo(float).eps:
-        return pd.DataFrame(
+        return pl.DataFrame(
             [
                 {
-                    "disparity": np.nan,
-                    "similarity": np.nan,
-                    "n_dimensions": pair.x.shape[1],
+                    "disparity": None,
+                    "similarity": None,
+                    "n_dimensions": int(pair.x.shape[1]),
                     "status": "degenerate",
                     "reason": "zero_variance_representation",
                 }
-            ]
+            ],
+            schema=PROCRUSTES_SCHEMA,
         )
     x, y = x / nx, y / ny
     rotation, scale = orthogonal_procrustes(y, x)
     aligned = y @ rotation * scale
     disparity = float(np.sum((x - aligned) ** 2))
-    return pd.DataFrame(
+    return pl.DataFrame(
         [
             {
                 "disparity": disparity,
                 "similarity": float(max(0.0, 1.0 - disparity)),
-                "n_dimensions": pair.x.shape[1],
+                "n_dimensions": int(pair.x.shape[1]),
                 "status": "ok",
                 "reason": None,
             }
-        ]
+        ],
+        schema=PROCRUSTES_SCHEMA,
     )
 
 
@@ -326,42 +425,41 @@ def _distance_vectors(pair: AlignedRepresentationPair, metric: str) -> tuple[np.
     return pdist(pair.x, metric=metric), pdist(pair.y, metric=metric)  # pyrefly: ignore[no-matching-overload]
 
 
-def _distance_similarity(pair: AlignedRepresentationPair, metric: str, method: str) -> pd.DataFrame:
+def _distance_similarity(pair: AlignedRepresentationPair, metric: str, method: str) -> pl.DataFrame:
     dx, dy = _distance_vectors(pair, metric)
     if method == "pearson":
         stat, p = stats.pearsonr(dx, dy)
     elif method == "spearman":
         stat, p = stats.spearmanr(dx, dy)
     else:
-        msg = "distance_similarity_method must be 'pearson' or 'spearman'."
-        raise ValueError(msg)
-    return pd.DataFrame(
+        raise ValueError("distance_similarity_method must be 'pearson' or 'spearman'.")
+    return pl.DataFrame(
         [
             {
                 "metric": metric,
                 "method": method,
-                "coefficient": float(stat),
-                "p_value": float(p),
+                "coefficient": float(stat) if np.isfinite(stat) else None,
+                "p_value": float(p) if np.isfinite(p) else None,
                 "n_pairs": len(dx),
                 "status": "ok",
                 "reason": None,
             }
-        ]
+        ],
+        schema=DISTANCE_SIMILARITY_SCHEMA,
     )
 
 
 def _mantel(
     pair: AlignedRepresentationPair, metric: str, permutations: int, random_state: int
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     if permutations < 0:
-        msg = "mantel_permutations must be non-negative."
-        raise ValueError(msg)
+        raise ValueError("mantel_permutations must be non-negative.")
     dx = squareform(pdist(pair.x, metric=metric))  # pyrefly: ignore[no-matching-overload]
     dy = squareform(pdist(pair.y, metric=metric))  # pyrefly: ignore[no-matching-overload]
     tri = np.triu_indices(dx.shape[0], k=1)
     observed = float(stats.pearsonr(dx[tri], dy[tri]).statistic)
     if permutations == 0:
-        p = np.nan
+        p: float | None = None
     else:
         rng = np.random.default_rng(random_state)
         exceed = 0
@@ -369,8 +467,8 @@ def _mantel(
             perm = rng.permutation(dx.shape[0])
             value = float(stats.pearsonr(dx[tri], dy[np.ix_(perm, perm)][tri]).statistic)
             exceed += abs(value) >= abs(observed)
-        p = (exceed + 1.0) / (permutations + 1.0)
-    return pd.DataFrame(
+        p = float((exceed + 1.0) / (permutations + 1.0))
+    return pl.DataFrame(
         [
             {
                 "metric": metric,
@@ -381,7 +479,8 @@ def _mantel(
                 "status": "ok",
                 "reason": None,
             }
-        ]
+        ],
+        schema=MANTEL_SCHEMA,
     )
 
 
@@ -412,9 +511,15 @@ def analyze_representation_similarity(
     )
     try:
         cka_value = linear_cka(pair.x, pair.y)
-        cka = pd.DataFrame([{"kernel": "linear", "cka": cka_value, "status": "ok", "reason": None}])
+        cka = pl.DataFrame(
+            [{"kernel": "linear", "cka": cka_value, "status": "ok", "reason": None}],
+            schema=CKA_SCHEMA,
+        )
     except ValueError as exc:
-        cka = pd.DataFrame([{"kernel": "linear", "cka": np.nan, "status": "degenerate", "reason": str(exc)}])
+        cka = pl.DataFrame(
+            [{"kernel": "linear", "cka": None, "status": "degenerate", "reason": str(exc)}],
+            schema=CKA_SCHEMA,
+        )
     procrustes = _procrustes(pair)
     distance_similarity = _distance_similarity(pair, distance_metric, distance_similarity_method)
     mantel = _mantel(pair, distance_metric, mantel_permutations, random_state)
@@ -432,7 +537,7 @@ def analyze_representation_similarity(
             "aligned_observations": len(pair.observation_ids),
             "x_features": pair.x.shape[1],
             "y_features": pair.y.shape[1],
-            "excluded_observations": len(pair.exclusions),
+            "excluded_observations": pair.exclusions.height,
         },
         random_state=random_state,
     )

@@ -10,69 +10,76 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design
-from ruddy.factorial.diagnostics import _finite_or_none, build_factorial_cells, model_diagnostics
+from ruddy.core.frames import finite_or_none
+from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design, complete_case
+from ruddy.factorial.diagnostics import (
+    CELL_SCHEMA_BASE,
+    DIAGNOSTIC_SCHEMA,
+    OBSERVATION_DIAGNOSTIC_SCHEMA_BASE,
+    build_factorial_cells,
+    model_diagnostics,
+)
 from ruddy.factorial.effects import factorial_effect_sizes
+from ruddy.projections.preprocessing import EXCLUSION_COLUMNS, _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-EFFECT_COLUMNS = (
-    "term",
-    "term_type",
-    "order",
-    "components_json",
-    "df",
-    "sum_sq",
-    "mean_sq",
-    "f_value",
-    "p_value",
-    "q_value",
-    "correction",
-    "family_id",
-    "family_size",
-    "eta_squared",
-    "partial_eta_squared",
-    "omega_squared",
-    "partial_omega_squared",
-    "status",
-    "reason",
-)
+EFFECT_SCHEMA: dict[str, PolarsDataType] = {
+    "term": pl.String,
+    "term_type": pl.String,
+    "order": pl.Int64,
+    "components_json": pl.String,
+    "df": pl.Float64,
+    "sum_sq": pl.Float64,
+    "mean_sq": pl.Float64,
+    "f_value": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "correction": pl.String,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "eta_squared": pl.Float64,
+    "partial_eta_squared": pl.Float64,
+    "omega_squared": pl.Float64,
+    "partial_omega_squared": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+EFFECT_COLUMNS = tuple(EFFECT_SCHEMA)
 
-COEFFICIENT_COLUMNS = (
-    "parameter",
-    "estimate",
-    "std_error",
-    "t_value",
-    "p_value",
-    "ci_lower",
-    "ci_upper",
-    "status",
-    "reason",
-)
+COEFFICIENT_SCHEMA: dict[str, PolarsDataType] = {
+    "parameter": pl.String,
+    "estimate": pl.Float64,
+    "std_error": pl.Float64,
+    "t_value": pl.Float64,
+    "p_value": pl.Float64,
+    "ci_lower": pl.Float64,
+    "ci_upper": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+COEFFICIENT_COLUMNS = tuple(COEFFICIENT_SCHEMA)
 
-EXCLUSION_COLUMNS = (
-    "source_row_index",
-    "observation_id",
-    "stage",
-    "reason",
-)
-
-DESIGN_TERM_COLUMNS = (
-    "term",
-    "term_type",
-    "order",
-    "components_json",
-    "component_kinds_json",
-)
+DESIGN_TERM_SCHEMA: dict[str, PolarsDataType] = {
+    "term": pl.String,
+    "term_type": pl.String,
+    "order": pl.Int64,
+    "components_json": pl.String,
+    "component_kinds_json": pl.String,
+}
+DESIGN_TERM_COLUMNS = tuple(DESIGN_TERM_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,13 +89,13 @@ class FactorialResult:
     status: ResultStatus
     reason: str | None
     design: FactorialDesign
-    design_terms: pd.DataFrame
-    effects: pd.DataFrame
-    coefficients: pd.DataFrame
-    diagnostics: pd.DataFrame
-    observation_diagnostics: pd.DataFrame
-    cells: pd.DataFrame
-    exclusions: pd.DataFrame
+    design_terms: pl.DataFrame
+    effects: pl.DataFrame
+    coefficients: pl.DataFrame
+    diagnostics: pl.DataFrame
+    observation_diagnostics: pl.DataFrame
+    cells: pl.DataFrame
+    exclusions: pl.DataFrame
     model_summary: dict[str, Any]
     advisories: tuple[Advisory, ...]
     provenance: AnalysisProvenance
@@ -105,25 +112,22 @@ def _normalize_robust_covariance(value: str | None) -> str | None:
     if normalized in {"", "none", "nonrobust"}:
         return None
     if normalized not in {"hc0", "hc1", "hc2", "hc3"}:
-        msg = "robust_covariance must be one of none, hc0, hc1, hc2, hc3."
-        raise ValueError(msg)
+        raise ValueError("robust_covariance must be one of none, hc0, hc1, hc2, hc3.")
     return normalized
 
 
-def _design_term_table(design: FactorialDesign) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "term": term.label,
-                "term_type": term.term_type,
-                "order": term.order,
-                "components_json": json.dumps(term.columns, separators=(",", ":")),
-                "component_kinds_json": json.dumps(term.kinds, separators=(",", ":")),
-            }
-            for term in design.terms
-        ],
-        columns=pd.Index(DESIGN_TERM_COLUMNS),
-    )
+def _design_term_table(design: FactorialDesign) -> pl.DataFrame:
+    rows = [
+        {
+            "term": term.label,
+            "term_type": term.term_type,
+            "order": term.order,
+            "components_json": json.dumps(term.columns, separators=(",", ":")),
+            "component_kinds_json": json.dumps(term.kinds, separators=(",", ":")),
+        }
+        for term in design.terms
+    ]
+    return pl.DataFrame(rows, schema=DESIGN_TERM_SCHEMA)
 
 
 def _empty_result(
@@ -131,29 +135,24 @@ def _empty_result(
     status: ResultStatus,
     reason: str,
     design: FactorialDesign,
-    design_terms: pd.DataFrame,
-    cells: pd.DataFrame,
-    exclusions: pd.DataFrame,
+    design_terms: pl.DataFrame,
+    cells: pl.DataFrame,
+    exclusions: pl.DataFrame,
     model_summary: dict[str, Any],
     advisories: tuple[Advisory, ...],
     provenance: AnalysisProvenance,
 ) -> FactorialResult:
-    # Local import: ruddy.factorial.diagnostics imports from this module, so a
-    # top-level import here would close the cycle.
-    from ruddy.factorial.diagnostics import (  # noqa: PLC0415
-        DIAGNOSTIC_COLUMNS,
-        OBSERVATION_DIAGNOSTIC_COLUMNS,
-    )
-
+    id_dtype = exclusions.schema.get("observation_id", pl.String)
+    obs_diag_schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dtype}
     return FactorialResult(
         status=status,
         reason=reason,
         design=design,
         design_terms=design_terms,
-        effects=pd.DataFrame(columns=pd.Index(EFFECT_COLUMNS)),
-        coefficients=pd.DataFrame(columns=pd.Index(COEFFICIENT_COLUMNS)),
-        diagnostics=pd.DataFrame(columns=pd.Index(DIAGNOSTIC_COLUMNS)),
-        observation_diagnostics=pd.DataFrame(columns=pd.Index(OBSERVATION_DIAGNOSTIC_COLUMNS)),
+        effects=pl.DataFrame(schema=EFFECT_SCHEMA),
+        coefficients=pl.DataFrame(schema=COEFFICIENT_SCHEMA),
+        diagnostics=pl.DataFrame(schema=DIAGNOSTIC_SCHEMA),
+        observation_diagnostics=pl.DataFrame(schema=obs_diag_schema),
         cells=cells,
         exclusions=exclusions,
         model_summary=model_summary,
@@ -163,23 +162,25 @@ def _empty_result(
 
 
 def _safe_model_frame(
-    model_frame: pd.DataFrame,
+    model_frame: pl.DataFrame,
     design: FactorialDesign,
 ) -> tuple[pd.DataFrame, dict[str, str], dict[str, str], dict[str, str]]:
-    safe = pd.DataFrame(index=model_frame.index)
-    safe["Y"] = pd.to_numeric(model_frame[design.response], errors="raise").astype(float)
+    # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
+    pandas_frame = model_frame.to_pandas()
+    safe = pd.DataFrame(index=pandas_frame.index)
+    safe["Y"] = pd.to_numeric(pandas_frame[design.response], errors="raise").astype(float)
     factor_map: dict[str, str] = {}
     covariate_map: dict[str, str] = {}
     safe_expression: dict[str, str] = {}
     for index, name in enumerate(design.factors):
         safe_name = f"F{index}"
-        safe[safe_name] = model_frame[name].astype("category")
+        safe[safe_name] = pd.Categorical(pandas_frame[name])
         expression = f"C({safe_name}, Sum)"
         factor_map[safe_name] = name
         safe_expression[name] = expression
     for index, name in enumerate(design.covariates):
         safe_name = f"X{index}"
-        safe[safe_name] = pd.to_numeric(model_frame[name], errors="raise").astype(float)
+        safe[safe_name] = pd.to_numeric(pandas_frame[name], errors="raise").astype(float)
         covariate_map[safe_name] = name
         safe_expression[name] = safe_name
     return safe, factor_map, covariate_map, safe_expression
@@ -239,7 +240,7 @@ def _make_provenance(
             "diagnostic_alpha": float(diagnostic_alpha),
         },
         input_summary={
-            "n_observations": dataset.n_observations,
+            "n_observations": dataset.frame.height,
             "n_complete_case": int(n_complete),
             "n_excluded": int(n_excluded),
         },
@@ -273,23 +274,17 @@ def analyze_factorial(
     for Type II so changing SS type does not silently change the design coding.
     """
     if min_cell_n < 1:
-        msg = "min_cell_n must be at least 1."
-        raise ValueError(msg)
+        raise ValueError("min_cell_n must be at least 1.")
     if max_factor_levels < 2:
-        msg = "max_factor_levels must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_factor_levels must be at least 2.")
     if max_design_cells < 1:
-        msg = "max_design_cells must be at least 1."
-        raise ValueError(msg)
+        raise ValueError("max_design_cells must be at least 1.")
     if max_design_columns < 2:
-        msg = "max_design_columns must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_design_columns must be at least 2.")
     if not 0.0 < diagnostic_alpha < 1.0:
-        msg = "diagnostic_alpha must lie in (0, 1)."
-        raise ValueError(msg)
+        raise ValueError("diagnostic_alpha must lie in (0, 1).")
     if condition_number_threshold <= 0.0:
-        msg = "condition_number_threshold must be greater than zero."
-        raise ValueError(msg)
+        raise ValueError("condition_number_threshold must be greater than zero.")
 
     correction = _normalize_p_adjust(p_adjust)
     robust = _normalize_robust_covariance(robust_covariance)
@@ -306,29 +301,21 @@ def analyze_factorial(
     design_terms = _design_term_table(design)
 
     selected = (design.response, *design.factors, *design.covariates)
-    frame = dataset.select(selected)
-    complete = np.ones(len(frame), dtype=bool)
-    numeric_columns = (design.response, *design.covariates)
-    for name in numeric_columns:
-        numeric = pd.to_numeric(frame[name], errors="coerce").to_numpy(dtype=float)
-        complete &= np.isfinite(numeric)
-    for factor in design.factors:
-        complete &= frame[factor].notna().to_numpy()
-
-    source_rows = np.flatnonzero(complete)
-    excluded_rows = np.flatnonzero(~complete)
-    ids = dataset.observation_ids
-    exclusions = pd.DataFrame(
-        {
-            "source_row_index": excluded_rows.astype(np.int64),
-            "observation_id": ids.take(excluded_rows).to_list(),
-            "stage": "factorial_complete_case",
-            "reason": "missing_or_non_finite_model_value",
-        },
-        columns=pd.Index(EXCLUSION_COLUMNS),
+    frame = dataset.frame.select(selected)
+    model_frame, excluded_rows = complete_case(
+        frame,
+        numeric=(design.response, *design.covariates),
+        categorical=design.factors,
     )
-    model_frame = frame.loc[complete].reset_index(drop=True)
-    n = len(model_frame)
+    source_rows = np.setdiff1d(np.arange(frame.height), excluded_rows).astype(np.int64)
+    ids = dataset.observation_ids
+    exclusions = _exclusions_table(
+        ids,
+        excluded_rows,
+        stage="factorial_complete_case",
+        reason="missing_or_non_finite_model_value",
+    )
+    n = model_frame.height
 
     provenance = _make_provenance(
         dataset,
@@ -347,22 +334,26 @@ def analyze_factorial(
     advisories: list[Advisory] = []
 
     for factor in design.factors:
-        counts = model_frame[factor].value_counts(dropna=False, sort=False)
-        if len(counts) < 2:
+        counts = len(dict.fromkeys(model_frame.get_column(factor).to_list()))
+        if counts < 2:
+            empty_cell_schema: dict[str, PolarsDataType] = {
+                name: model_frame.schema[name] for name in design.factors
+            }
+            empty_cell_schema.update(CELL_SCHEMA_BASE)
+            empty_cells = pl.DataFrame(schema=empty_cell_schema)
             return _empty_result(
                 status=ResultStatus.DEGENERATE,
                 reason="factor_has_fewer_than_two_levels",
                 design=design,
                 design_terms=design_terms,
-                cells=pd.DataFrame(),
+                cells=empty_cells,
                 exclusions=exclusions,
-                model_summary={"n_complete_case": n, "factor": factor, "n_levels": len(counts)},
+                model_summary={"n_complete_case": n, "factor": factor, "n_levels": counts},
                 advisories=tuple(advisories),
                 provenance=provenance,
             )
-        if len(counts) > max_factor_levels:
-            msg = f"Factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}."
-            raise ValueError(msg)
+        if counts > max_factor_levels:
+            raise ValueError(f"Factor {factor!r} has {counts} levels; maximum is {max_factor_levels}.")
 
     cells, cell_summary = build_factorial_cells(
         model_frame,
@@ -421,7 +412,7 @@ def analyze_factorial(
             advisories=tuple(advisories),
             provenance=provenance,
         )
-    response_values = model_frame[design.response].to_numpy(dtype=float)
+    response_values = model_frame.get_column(design.response).cast(pl.Float64).to_numpy()
     corrected_total_ss = float(np.sum((response_values - response_values.mean()) ** 2))
     if not math.isfinite(corrected_total_ss) or corrected_total_ss <= 0.0:
         return _empty_result(
@@ -448,8 +439,7 @@ def analyze_factorial(
     n_design_columns = int(exog.shape[1])
     residual_df = float(model.df_resid)
     if n_design_columns > max_design_columns:
-        msg = f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}."
-        raise ValueError(msg)
+        raise ValueError(f"Factorial design has {n_design_columns} columns; maximum is {max_design_columns}.")
     if design_rank < n_design_columns:
         return _empty_result(
             status=ResultStatus.DEGENERATE,
@@ -542,10 +532,10 @@ def analyze_factorial(
             )
             continue
         row = anova.loc[safe_term]
-        df = _finite_or_none(row.get("df"))
-        sum_sq = _finite_or_none(row.get("sum_sq"))
-        f_value = _finite_or_none(row.get("F"))
-        p_value = _finite_or_none(row.get("PR(>F)"))
+        df = finite_or_none(row.get("df"))
+        sum_sq = finite_or_none(row.get("sum_sq"))
+        f_value = finite_or_none(row.get("F"))
+        p_value = finite_or_none(row.get("PR(>F)"))
         status = ResultStatus.OK
         reason = None
         if df is None or sum_sq is None or f_value is None or p_value is None or df <= 0.0:
@@ -585,23 +575,26 @@ def analyze_factorial(
                 "reason": reason,
             }
         )
-    effects = pd.DataFrame(effect_rows, columns=pd.Index(EFFECT_COLUMNS))
-    inferential = effects["status"].eq(ResultStatus.OK.value)
-    family_size = int(inferential.sum())
-    effects.loc[:, "family_size"] = family_size
+    ok_indices = [i for i, r in enumerate(effect_rows) if r["status"] == ResultStatus.OK.value]
+    family_size = len(ok_indices)
     if family_size:
-        p_values = effects.loc[inferential, "p_value"].to_numpy(dtype=float)
-        effects.loc[inferential, "q_value"] = adjust_pvalues(p_values, correction)
+        p_values = np.array([effect_rows[i]["p_value"] for i in ok_indices], dtype=float)
+        q_values = adjust_pvalues(p_values, correction)
+        for idx, q in zip(ok_indices, q_values, strict=True):
+            effect_rows[idx]["q_value"] = float(q) if q is not None and math.isfinite(q) else None
+    for r in effect_rows:
+        r["family_size"] = family_size
+    effects = pl.DataFrame(effect_rows, schema=EFFECT_SCHEMA)
 
     ci = model.conf_int(alpha=diagnostic_alpha)
     coefficient_rows: list[dict[str, Any]] = []
     for parameter in model.params.index:
-        estimate = _finite_or_none(model.params[parameter])
-        std_error = _finite_or_none(model.bse[parameter])
-        t_value = _finite_or_none(model.tvalues[parameter])
-        p_value = _finite_or_none(model.pvalues[parameter])
-        ci_lower = _finite_or_none(ci.loc[parameter, 0])
-        ci_upper = _finite_or_none(ci.loc[parameter, 1])
+        estimate = finite_or_none(model.params[parameter])
+        std_error = finite_or_none(model.bse[parameter])
+        t_value = finite_or_none(model.tvalues[parameter])
+        p_value = finite_or_none(model.pvalues[parameter])
+        ci_lower = finite_or_none(ci.loc[parameter, 0])
+        ci_upper = finite_or_none(ci.loc[parameter, 1])
         ok = all(value is not None for value in (estimate, std_error, t_value, p_value, ci_lower, ci_upper))
         coefficient_rows.append(
             {
@@ -618,7 +611,7 @@ def analyze_factorial(
                 "reason": None if ok else "non_finite_coefficient_inference",
             }
         )
-    coefficients = pd.DataFrame(coefficient_rows, columns=pd.Index(COEFFICIENT_COLUMNS))
+    coefficients = pl.DataFrame(coefficient_rows, schema=COEFFICIENT_SCHEMA)
 
     diagnostics, observation_diagnostics = model_diagnostics(
         model,
@@ -629,10 +622,13 @@ def analyze_factorial(
         alpha=diagnostic_alpha,
         condition_number_threshold=condition_number_threshold,
     )
-    flagged = diagnostics.loc[
-        diagnostics["status"].eq(ResultStatus.OK.value) & diagnostics["flagged"].eq(other=True),
-        "diagnostic",
-    ].tolist()
+    flagged = (
+        diagnostics.filter(
+            (pl.col("status") == ResultStatus.OK.value) & (pl.col("flagged") == True)  # noqa: E712
+        )
+        .get_column("diagnostic")
+        .to_list()
+    )
     if flagged:
         advisories.append(
             Advisory(
@@ -641,17 +637,21 @@ def analyze_factorial(
                 context={"diagnostics": tuple(flagged), "alpha": diagnostic_alpha},
             )
         )
-    if not observation_diagnostics.empty:
-        n_influential = int(observation_diagnostics["is_influential"].fillna(value=False).sum())
-        n_high_leverage = int(observation_diagnostics["is_high_leverage"].fillna(value=False).sum())
-        n_large_residual = int(observation_diagnostics["is_large_residual"].fillna(value=False).sum())
+    if not observation_diagnostics.is_empty():
+        n_influential = int(observation_diagnostics.get_column("is_influential").fill_null(value=False).sum())
+        n_high_leverage = int(
+            observation_diagnostics.get_column("is_high_leverage").fill_null(value=False).sum()
+        )
+        n_large_residual = int(
+            observation_diagnostics.get_column("is_large_residual").fill_null(value=False).sum()
+        )
         if n_influential or n_high_leverage or n_large_residual:
             advisories.append(
                 Advisory(
                     code="influence_diagnostics_flagged",
                     message=(
-                        "Observation-level influence diagnostics flagged one "
-                        "or more complete-case observations."
+                        "Observation-level influence diagnostics flagged "
+                        "one or more complete-case observations."
                     ),
                     context={
                         "n_influential": n_influential,
@@ -672,7 +672,7 @@ def analyze_factorial(
         "ss_type": design.ss_type,
         "factor_contrasts": "sum_to_zero",
         "robust_covariance": robust,
-        "n_observations": dataset.n_observations,
+        "n_observations": dataset.frame.height,
         "n_complete_case": n,
         "n_excluded": len(excluded_rows),
         "n_design_columns": n_design_columns,
@@ -681,10 +681,10 @@ def analyze_factorial(
         "residual_ss": residual_ss,
         "residual_mse": mse,
         "corrected_total_ss": corrected_total_ss,
-        "r_squared": _finite_or_none(model.rsquared),
-        "adjusted_r_squared": _finite_or_none(model.rsquared_adj),
-        "aic": _finite_or_none(model.aic),
-        "bic": _finite_or_none(model.bic),
+        "r_squared": finite_or_none(model.rsquared),
+        "adjusted_r_squared": finite_or_none(model.rsquared_adj),
+        "aic": finite_or_none(model.aic),
+        "bic": finite_or_none(model.bic),
         **cell_summary,
     }
     return FactorialResult(
@@ -706,8 +706,11 @@ def analyze_factorial(
 
 __all__ = [
     "COEFFICIENT_COLUMNS",
+    "COEFFICIENT_SCHEMA",
     "DESIGN_TERM_COLUMNS",
+    "DESIGN_TERM_SCHEMA",
     "EFFECT_COLUMNS",
+    "EFFECT_SCHEMA",
     "EXCLUSION_COLUMNS",
     "FactorialResult",
     "analyze_factorial",

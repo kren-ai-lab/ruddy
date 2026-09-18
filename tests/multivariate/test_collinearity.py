@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import polars as pl
 import pytest
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
@@ -26,7 +27,7 @@ def test_condition_number_matches_standardized_svd(well_conditioned_features):
     singular = np.linalg.svd(z, compute_uv=False)
     result = analyze_collinearity(well_conditioned_features)
     assert result.summary["condition_number"] == pytest.approx(singular[0] / singular[-1])
-    np.testing.assert_allclose(result.condition_spectrum["singular_value"], singular)
+    np.testing.assert_allclose(result.condition_spectrum["singular_value"].to_numpy(), singular)
 
 
 def test_rank_deficient_design_is_explicit_and_vif_not_fabricated():
@@ -35,8 +36,9 @@ def test_rank_deficient_design_is_explicit_and_vif_not_fabricated():
     result = analyze_collinearity(matrix)
     assert result.status is ResultStatus.DEGENERATE
     assert result.reason == "rank_deficient_design"
-    assert result.features["vif"].isna().all()
-    assert set(result.features.loc[~result.features["is_constant"], "reason"]) == {"rank_deficient_design"}
+    assert result.features["vif"].is_null().all()
+    non_constant = result.features.filter(~pl.col("is_constant"))
+    assert set(non_constant["reason"].to_list()) == {"rank_deficient_design"}
 
 
 def test_constant_feature_has_own_degeneracy_reason():
@@ -46,7 +48,7 @@ def test_constant_feature_has_own_degeneracy_reason():
         feature_names=("a", "constant", "b"),
     )
     result = analyze_collinearity(matrix)
-    row = result.features.set_index("feature").loc["constant"]
+    row = result.features.filter(pl.col("feature") == "constant").row(0, named=True)
     assert row["status"] == "degenerate"
     assert row["reason"] == "constant_feature"
 

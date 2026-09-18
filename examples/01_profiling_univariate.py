@@ -24,7 +24,7 @@ def _(mo):
 @app.cell
 def _():
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import configure_plots, density_by_group, display, ecdf_by_group, finish, group_violin_box_scatter, grouped_histograms, load_tabular_demo, show
@@ -34,8 +34,8 @@ def _():
     frame, dataset = load_tabular_demo()
     univ = analyze_univariate(dataset)
     diag = analyze_distribution_diagnostics(dataset, responses=('activity','stability'), groups=('group','source'))
-    display(pd.DataFrame([univ.profiling.overview]))
-    display(univ.numeric_statistics[['column','mean','std','median','iqr','n_missing','n_non_finite','status']])
+    display(pl.DataFrame([univ.profiling.overview]))
+    display(univ.numeric_statistics.select(['column','mean','std','median','iqr','n_missing','n_non_finite','status']))
     return (
         density_by_group,
         diag,
@@ -45,6 +45,8 @@ def _():
         frame,
         group_violin_box_scatter,
         grouped_histograms,
+        np,
+        pl,
         plt,
         show,
         univ,
@@ -61,12 +63,21 @@ def _(mo):
 
 
 @app.cell
-def _(finish, plt, show, univ):
-    q = univ.numeric_statistics.set_index('column')[['n_missing','n_non_finite']]
-    fig, ax = plt.subplots(figsize=(8,4.5))
-    q.plot(kind='bar', ax=ax)
-    ax.set_ylabel('Count'); ax.set_title('Missing vs non-finite values by numeric variable'); ax.tick_params(axis='x', rotation=35)
-    finish(fig); show()
+def _(finish, np, pl, plt, show, univ):
+    q = univ.numeric_statistics.select(['column', 'n_missing', 'n_non_finite'])
+    cols = q.get_column('column').to_list()
+    x = np.arange(len(cols))
+    width = 0.35
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.bar(x - width / 2, q.get_column('n_missing').to_numpy(), width, label='n_missing')
+    ax.bar(x + width / 2, q.get_column('n_non_finite').to_numpy(), width, label='n_non_finite')
+    ax.set_xticks(x, cols)
+    ax.set_ylabel('Count')
+    ax.set_title('Missing vs non-finite values by numeric variable')
+    ax.tick_params(axis='x', rotation=35)
+    ax.legend()
+    finish(fig)
+    show()
     return
 
 
@@ -120,7 +131,7 @@ def _(frame, group_violin_box_scatter, show):
 
 @app.cell
 def _(diag, display):
-    disp = diag.dispersion[['response','group','method','statistic','p_value','q_value','status']]
+    disp = diag.dispersion.select(['response', 'group', 'method', 'statistic', 'p_value', 'q_value', 'status'])
     display(disp)
     return
 

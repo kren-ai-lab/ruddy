@@ -1,4 +1,4 @@
-import pandas as pd
+import polars.testing as pl_testing
 import pytest
 
 from ruddy import AnalysisConfig, analyze
@@ -19,7 +19,7 @@ def test_unified_permanova_matches_standalone(group_dataset, separated_features)
         separated_features, group_dataset, factor="group", n_permutations=19, random_state=4
     )
     assert unified.permanova is not None
-    pd.testing.assert_frame_equal(unified.permanova.summary, standalone.summary)
+    pl_testing.assert_frame_equal(unified.permanova.summary, standalone.summary)
 
 
 def test_unified_permanova_requires_features(group_dataset):
@@ -41,7 +41,7 @@ def test_unified_posthoc_matches_standalone(group_dataset):
         group_dataset, response="y", factor="group", methods=("tukey_hsd",), min_group_n=2
     )
     assert unified.posthoc is not None
-    pd.testing.assert_frame_equal(unified.posthoc.comparisons, standalone.comparisons)
+    pl_testing.assert_frame_equal(unified.posthoc.comparisons, standalone.comparisons)
 
 
 def test_unified_marginal_means_matches_standalone(group_dataset):
@@ -54,8 +54,8 @@ def test_unified_marginal_means_matches_standalone(group_dataset):
     unified = analyze(group_dataset, config=config)
     standalone = analyze_marginal_means(group_dataset, response="y", factors=("group",), covariates=("x",))
     assert unified.marginal_means is not None
-    pd.testing.assert_frame_equal(unified.marginal_means.means, standalone.means)
-    pd.testing.assert_frame_equal(unified.marginal_means.contrasts, standalone.contrasts)
+    pl_testing.assert_frame_equal(unified.marginal_means.means, standalone.means)
+    pl_testing.assert_frame_equal(unified.marginal_means.contrasts, standalone.contrasts)
 
 
 def test_unified_mixed_effects_matches_standalone(random_intercept_dataset):
@@ -78,7 +78,7 @@ def test_unified_mixed_effects_matches_standalone(random_intercept_dataset):
     )
     assert unified.mixed_effects is not None
     assert unified.mixed_effects.status == standalone.status
-    pd.testing.assert_frame_equal(unified.mixed_effects.fixed_effects, standalone.fixed_effects)
+    pl_testing.assert_frame_equal(unified.mixed_effects.fixed_effects, standalone.fixed_effects)
 
 
 def test_unified_mixed_effects_requires_random_group(random_intercept_dataset):

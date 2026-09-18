@@ -25,7 +25,7 @@ def _(mo):
 def _():
     import json
     import numpy as np
-    import pandas as pd
+    import polars as pl
     import matplotlib.pyplot as plt
 
     from _helpers import bar_metric, configure_plots, display, errorbar_table, finish, load_mixed_demo, load_tabular_demo, show
@@ -47,7 +47,7 @@ def _():
         json,
         mix,
         np,
-        pd,
+        pl,
         plt,
         show,
     )
@@ -62,8 +62,11 @@ def _(mo):
 
 
 @app.cell
-def _(bar_metric, display, fac, show):
-    effects=fac.effects.query('status=="ok"').copy(); bar_metric(effects,label='term',value='partial_eta_squared',title='Factorial effects ranked by partial η²',ylabel='Partial η²'); show(); display(effects[['term','f_value','p_value','partial_eta_squared','omega_squared']])
+def _(bar_metric, display, fac, pl, show):
+    effects = fac.effects.filter(pl.col('status') == 'ok')
+    bar_metric(effects, label='term', value='partial_eta_squared', title='Factorial effects ranked by partial η²', ylabel='Partial η²')
+    show()
+    display(effects.select(['term', 'f_value', 'p_value', 'partial_eta_squared', 'omega_squared']))
     return
 
 
@@ -76,11 +79,17 @@ def _(mo):
 
 
 @app.cell
-def _(finish, frame, np, plt, show):
-    means = frame.replace([np.inf, -np.inf], np.nan).groupby(['group', 'source'], as_index=False).activity.mean()
+def _(finish, frame, np, pl, plt, show):
+    means = (
+        frame.filter(pl.col('activity').is_finite() & pl.col('activity').is_not_null())
+        .group_by(['group', 'source'])
+        .agg(pl.col('activity').mean())
+        .sort(['source', 'group'])
+    )
     _fig, _ax = plt.subplots(figsize=(7.5, 4.8))
-    for _src, _sub in means.groupby('source'):
-        _ax.plot(_sub.group, _sub.activity, marker='o', label=_src, linewidth=2)
+    for _src in means.get_column('source').unique(maintain_order=True):
+        _sub = means.filter(pl.col('source') == _src)
+        _ax.plot(_sub.get_column('group').to_list(), _sub.get_column('activity').to_numpy(), marker='o', label=_src, linewidth=2)
     _ax.set_ylabel('Observed mean activity')
     _ax.set_title('Observed interaction: group × source')
     _ax.legend(title='source')
@@ -98,14 +107,26 @@ def _(mo):
 
 
 @app.cell
-def _(emm, finish, json, plt, show):
-    joint = emm.means.query('term=="group:source" and status=="ok"').copy()
-    joint['levels'] = joint.levels_json.map(json.loads)
-    joint['group'] = joint.levels.map(lambda x: x['group'])
-    joint['source'] = joint.levels.map(lambda x: x['source'])
+def _(emm, finish, json, pl, plt, show):
+    joint_raw = emm.means.filter((pl.col('term') == 'group:source') & (pl.col('status') == 'ok'))
+    rows = []
+    for r in joint_raw.iter_rows(named=True):
+        lvl = json.loads(r['levels_json'])
+        rows.append({
+            'group': lvl['group'],
+            'source': lvl['source'],
+            'estimate': r['estimate'],
+            'ci_lower': r['ci_lower'],
+            'ci_upper': r['ci_upper'],
+        })
+    joint = pl.DataFrame(rows).sort(['source', 'group'])
     _fig, _ax = plt.subplots(figsize=(7.5, 4.8))
-    for _src, _sub in joint.groupby('source'):
-        _ax.errorbar(_sub.group, _sub.estimate, yerr=[_sub.estimate - _sub.ci_lower, _sub.ci_upper - _sub.estimate], marker='o', capsize=3, label=_src)
+    for _src in joint.get_column('source').unique(maintain_order=True):
+        _sub = joint.filter(pl.col('source') == _src)
+        est = _sub.get_column('estimate').to_numpy()
+        low = _sub.get_column('ci_lower').to_numpy()
+        high = _sub.get_column('ci_upper').to_numpy()
+        _ax.errorbar(_sub.get_column('group').to_list(), est, yerr=[est - low, high - est], marker='o', capsize=3, label=_src)
     _ax.set_ylabel('Estimated marginal mean')
     _ax.set_title('Adjusted interaction from Ruddy EMMs')
     _ax.legend(title='source')
@@ -123,9 +144,13 @@ def _(mo):
 
 
 @app.cell
-def _(emm, errorbar_table, show):
-    c=emm.contrasts.query('term=="group" and status=="ok"').copy(); c['contrast']=c.levels_a_json+' vs '+c.levels_b_json
-    errorbar_table(c,label_col='contrast',estimate_col='estimate_difference',low_col='ci_lower',high_col='ci_upper',title='Adjusted group contrasts',xlabel='EMM difference'); show()
+def _(emm, errorbar_table, pl, show):
+    c = (
+        emm.contrasts.filter((pl.col('term') == 'group') & (pl.col('status') == 'ok'))
+        .with_columns(contrast=pl.concat_str([pl.col('levels_a_json'), pl.lit(' vs '), pl.col('levels_b_json')]))
+    )
+    errorbar_table(c, label_col='contrast', estimate_col='estimate_difference', low_col='ci_lower', high_col='ci_upper', title='Adjusted group contrasts', xlabel='EMM difference')
+    show()
     return
 
 
@@ -138,10 +163,10 @@ def _(mo):
 
 
 @app.cell
-def _(fac, finish, plt, show):
-    od = fac.observation_diagnostics.query('status=="ok"')
+def _(fac, finish, pl, plt, show):
+    od = fac.observation_diagnostics.filter(pl.col('status') == 'ok')
     _fig, _ax = plt.subplots(figsize=(7, 5))
-    _ax.scatter(od.fitted_value, od.studentized_residual, s=20, alpha=0.65)
+    _ax.scatter(od.get_column('fitted_value').to_numpy(), od.get_column('studentized_residual').to_numpy(), s=20, alpha=0.65)
     _ax.axhline(0, linewidth=1)
     _ax.axhline(3, linestyle='--', linewidth=1)
     _ax.axhline(-3, linestyle='--', linewidth=1)
@@ -156,8 +181,8 @@ def _(fac, finish, plt, show):
 @app.cell
 def _(finish, np, od, plt, show):
     _fig, _ax = plt.subplots(figsize=(7, 4.5))
-    _ax.stem(np.arange(len(od)), od.cooks_distance, markerfmt='.', basefmt=' ')
-    _ax.axhline(float(od.cooks_distance_threshold.iloc[0]), linestyle='--')
+    _ax.stem(np.arange(od.height), od.get_column('cooks_distance').to_numpy(), markerfmt='.', basefmt=' ')
+    _ax.axhline(float(od.item(0, 'cooks_distance_threshold')), linestyle='--')
     _ax.set_xlabel('Observation')
     _ax.set_ylabel('Cook distance')
     _ax.set_title('Influence diagnostics')
@@ -175,8 +200,11 @@ def _(mo):
 
 
 @app.cell
-def _(bar_metric, display, mix, pd, show):
-    re=mix.random_effects.query('status=="ok"').sort_values('estimate'); bar_metric(re,label='group',value='estimate',title='Random-intercept estimates by batch',ylabel='Conditional random effect'); show(); display(pd.DataFrame([mix.model_summary]))
+def _(bar_metric, display, mix, pl, show):
+    re = mix.random_effects.filter(pl.col('status') == 'ok').sort('estimate')
+    bar_metric(re, label='group', value='estimate', title='Random-intercept estimates by batch', ylabel='Conditional random effect')
+    show()
+    display(pl.DataFrame([mix.model_summary]))
     return
 
 

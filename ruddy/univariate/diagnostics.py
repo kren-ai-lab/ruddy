@@ -7,58 +7,64 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import stats
 from statsmodels.stats.diagnostic import normal_ad
 
 from ruddy.core.enums import ColumnKind, ColumnRole, PAdjustMethod
+from ruddy.core.frames import present_mask, to_float_array
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-NORMALITY_COLUMNS = (
-    "method",
-    "column",
-    "role",
-    "n_total",
-    "n_finite",
-    "statistic",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "status",
-    "reason",
-)
-DISPERSION_COLUMNS = (
-    "method",
-    "response",
-    "group",
-    "n_total",
-    "n_used",
-    "n_groups",
-    "group_sizes_json",
-    "statistic",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "status",
-    "reason",
-)
+NORMALITY_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "column": pl.String,
+    "role": pl.String,
+    "n_total": pl.Int64,
+    "n_finite": pl.Int64,
+    "statistic": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+NORMALITY_COLUMNS: tuple[str, ...] = tuple(NORMALITY_SCHEMA)
+
+DISPERSION_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "response": pl.String,
+    "group": pl.String,
+    "n_total": pl.Int64,
+    "n_used": pl.Int64,
+    "n_groups": pl.Int64,
+    "group_sizes_json": pl.String,
+    "statistic": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+DISPERSION_COLUMNS: tuple[str, ...] = tuple(DISPERSION_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
 class DistributionDiagnosticsResult:
-    """Result of a standalone distribution and grouped dispersion diagnostics analysis."""
+    """Results of univariate distribution diagnostics including normality and dispersion."""
 
-    normality: pd.DataFrame
-    dispersion: pd.DataFrame
+    normality: pl.DataFrame
+    dispersion: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -80,8 +86,8 @@ def _eligible_groups(dataset: TabularDataset) -> tuple[str, ...]:
     )
 
 
-def _finite(series: pd.Series) -> np.ndarray:
-    values = series.to_numpy(dtype=float, copy=True)
+def _finite(series: pl.Series) -> np.ndarray:
+    values = to_float_array(series)
     return values[np.isfinite(values)]
 
 
@@ -92,39 +98,36 @@ def summarize_normality_diagnostics(
     columns: tuple[str, ...] | None = None,
     max_shapiro_n: int = 5000,
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Compute explicit normality diagnostics without altering downstream test choice."""
     allowed = {"shapiro", "dagostino", "anderson_darling"}
     methods = tuple(str(method).lower() for method in methods)
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):
-        msg = "methods must be unique values from shapiro, dagostino, anderson_darling."
-        raise ValueError(msg)
+        raise ValueError("methods must be unique values from shapiro, dagostino, anderson_darling.")
     if max_shapiro_n < 3:
-        msg = "max_shapiro_n must be at least 3."
-        raise ValueError(msg)
+        raise ValueError("max_shapiro_n must be at least 3.")
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     candidates = _eligible_numeric(dataset)
     selected = candidates if columns is None else tuple(str(c) for c in columns)
     invalid = [c for c in selected if c not in candidates]
     if invalid:
-        msg = f"Normality diagnostics require eligible numeric columns: {invalid}."
-        raise ValueError(msg)
+        raise ValueError(f"Normality diagnostics require eligible numeric columns: {invalid}.")
 
-    frame = dataset.to_frame()
+    frame = dataset.frame
     rows: list[dict[str, Any]] = []
     for method in methods:
         family_id = f"normality:{method}"
         for column in selected:
-            x = _finite(frame[column])
+            x = _finite(frame.get_column(column))
             row: dict[str, Any] = {
                 "method": method,
                 "column": column,
                 "role": dataset.role_of(column).value,
-                "n_total": dataset.n_observations,
+                "n_total": dataset.frame.height,
                 "n_finite": int(x.size),
-                "statistic": np.nan,
-                "p_value": np.nan,
-                "q_value": np.nan,
+                "statistic": None,
+                "p_value": None,
+                "q_value": None,
                 "family_id": family_id,
                 "family_size": 0,
                 "correction": correction.value,
@@ -157,8 +160,8 @@ def summarize_normality_diagnostics(
                     row["statistic"] = statistic
                     row["p_value"] = p_value
             rows.append(row)
-    table = pd.DataFrame(rows, columns=pd.Index(NORMALITY_COLUMNS))
-    return table if table.empty else apply_multiple_testing(table, correction)
+    table = pl.DataFrame(rows, schema=NORMALITY_SCHEMA)
+    return table if table.height == 0 else apply_multiple_testing(table, correction)
 
 
 def summarize_dispersion_diagnostics(
@@ -170,53 +173,53 @@ def summarize_dispersion_diagnostics(
     min_group_n: int = 2,
     max_group_levels: int = 20,
     p_adjust: PAdjustMethod | str = PAdjustMethod.FDR_BH,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Assess grouped dispersion using explicit robust tests."""
     allowed = {"brown_forsythe", "fligner_killeen"}
     methods = tuple(str(method).lower() for method in methods)
     if not methods or len(set(methods)) != len(methods) or any(m not in allowed for m in methods):
-        msg = "methods must be unique brown_forsythe/fligner_killeen values."
-        raise ValueError(msg)
+        raise ValueError("methods must be unique brown_forsythe/fligner_killeen values.")
     if min_group_n < 2:
-        msg = "min_group_n must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("min_group_n must be at least 2.")
     numeric = set(_eligible_numeric(dataset))
     groupable = set(_eligible_groups(dataset))
     bad_responses = [r for r in responses if r not in numeric]
     bad_groups = [g for g in groups if g not in groupable]
     if bad_responses:
-        msg = f"Dispersion responses must be eligible numeric columns: {bad_responses}."
-        raise ValueError(msg)
+        raise ValueError(f"Dispersion responses must be eligible numeric columns: {bad_responses}.")
     if bad_groups:
-        msg = f"Dispersion groups must be eligible categorical/factor columns: {bad_groups}."
-        raise ValueError(msg)
+        raise ValueError(f"Dispersion groups must be eligible categorical/factor columns: {bad_groups}.")
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
-    frame = dataset.to_frame()
+    frame = dataset.frame
     rows: list[dict[str, Any]] = []
     for method in methods:
         for response in responses:
             family_id = f"dispersion:{method}:{response}"
             for group in groups:
-                pair = frame[[response, group]].dropna(subset=[group]).copy()
-                pair["__value"] = pd.to_numeric(pair[response], errors="coerce")
-                pair = pair[np.isfinite(pair["__value"].to_numpy(dtype=float))]
-                labels = pair[group].map(_category_label).astype(str)
-                levels = sorted(labels.unique().tolist())
-                samples = tuple(
-                    pair.loc[labels.eq(level), "__value"].to_numpy(dtype=float) for level in levels
+                mask = present_mask(frame.get_column(group))
+                pair = frame.select(response, group).filter(mask)
+                raw_values = pair.get_column(response).cast(pl.Float64).fill_null(float("nan")).to_numpy()
+                finite_mask = np.isfinite(raw_values)
+                values = raw_values[finite_mask]
+                all_labels = np.array(
+                    [_category_label(v) for v in pair.get_column(group).to_list()],
+                    dtype=object,
                 )
+                labels = all_labels[finite_mask]
+                levels = sorted(set(labels.tolist()))
+                samples = tuple(values[labels == level] for level in levels)
                 sizes = {level: int(sample.size) for level, sample in zip(levels, samples, strict=True)}
                 row: dict[str, Any] = {
                     "method": method,
                     "response": response,
                     "group": group,
-                    "n_total": dataset.n_observations,
-                    "n_used": len(pair),
+                    "n_total": dataset.frame.height,
+                    "n_used": int(values.size),
                     "n_groups": len(levels),
                     "group_sizes_json": json.dumps(sizes, sort_keys=True),
-                    "statistic": np.nan,
-                    "p_value": np.nan,
-                    "q_value": np.nan,
+                    "statistic": None,
+                    "p_value": None,
+                    "q_value": None,
                     "family_id": family_id,
                     "family_size": 0,
                     "correction": correction.value,
@@ -244,8 +247,8 @@ def summarize_dispersion_diagnostics(
                     row["statistic"] = float(result.statistic)
                     row["p_value"] = float(result.pvalue)
                 rows.append(row)
-    table = pd.DataFrame(rows, columns=pd.Index(DISPERSION_COLUMNS))
-    return table if table.empty else apply_multiple_testing(table, correction)
+    table = pl.DataFrame(rows, schema=DISPERSION_SCHEMA)
+    return table if table.height == 0 else apply_multiple_testing(table, correction)
 
 
 def analyze_distribution_diagnostics(
@@ -270,7 +273,7 @@ def analyze_distribution_diagnostics(
             p_adjust=p_adjust,
         )
         if responses and groups
-        else pd.DataFrame(columns=pd.Index(DISPERSION_COLUMNS))
+        else pl.DataFrame(schema=DISPERSION_SCHEMA)
     )
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     provenance = AnalysisProvenance(
@@ -286,6 +289,6 @@ def analyze_distribution_diagnostics(
             "max_shapiro_n": max_shapiro_n,
             "automatic_test_selection": False,
         },
-        input_summary={"n_observations": dataset.n_observations, "n_columns": dataset.n_columns},
+        input_summary={"n_observations": dataset.frame.height, "n_columns": dataset.frame.width},
     )
     return DistributionDiagnosticsResult(normality=normality, dispersion=dispersion, provenance=provenance)

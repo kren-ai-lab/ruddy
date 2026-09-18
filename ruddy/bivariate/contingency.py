@@ -7,7 +7,7 @@ from itertools import combinations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
@@ -16,53 +16,58 @@ from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing, bias_corrected_cramers_v, expected_count_diagnostics
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-SUMMARY_COLUMNS = (
-    "column_x",
-    "column_y",
-    "n_total",
-    "n_used",
-    "n_x_levels",
-    "n_y_levels",
-    "chi_square",
-    "df",
-    "p_value",
-    "q_value",
-    "family_id",
-    "family_size",
-    "correction",
-    "cramers_v",
-    "min_expected_count",
-    "n_expected_lt5",
-    "fraction_expected_lt5",
-    "status",
-    "reason",
-)
-CELL_COLUMNS = (
-    "column_x",
-    "column_y",
-    "level_x",
-    "level_y",
-    "observed",
-    "expected",
-    "pearson_residual",
-    "standardized_residual",
-    "chi_square_contribution",
-    "chi_square_contribution_fraction",
-    "row_fraction",
-    "column_fraction",
-    "status",
-    "reason",
-)
+SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "n_total": pl.Int64,
+    "n_used": pl.Int64,
+    "n_x_levels": pl.Int64,
+    "n_y_levels": pl.Int64,
+    "chi_square": pl.Float64,
+    "df": pl.Int64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "family_id": pl.String,
+    "family_size": pl.Int64,
+    "correction": pl.String,
+    "cramers_v": pl.Float64,
+    "min_expected_count": pl.Float64,
+    "n_expected_lt5": pl.Int64,
+    "fraction_expected_lt5": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+SUMMARY_COLUMNS: tuple[str, ...] = tuple(SUMMARY_SCHEMA)
+
+CELL_SCHEMA: dict[str, PolarsDataType] = {
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "level_x": pl.String,
+    "level_y": pl.String,
+    "observed": pl.Float64,
+    "expected": pl.Float64,
+    "pearson_residual": pl.Float64,
+    "standardized_residual": pl.Float64,
+    "chi_square_contribution": pl.Float64,
+    "chi_square_contribution_fraction": pl.Float64,
+    "row_fraction": pl.Float64,
+    "column_fraction": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+CELL_COLUMNS: tuple[str, ...] = tuple(CELL_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
 class ContingencyDiagnosticsResult:
-    """Result of a categorical contingency table diagnostics analysis."""
+    """Results of contingency table diagnostics and cell statistics."""
 
-    summary: pd.DataFrame
-    cells: pd.DataFrame
+    summary: pl.DataFrame
+    cells: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -75,18 +80,16 @@ def analyze_contingency_diagnostics(
 ) -> ContingencyDiagnosticsResult:
     """Return expected counts and cell residuals for categorical associations."""
     if max_category_levels < 2:
-        msg = "max_category_levels must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_category_levels must be at least 2.")
     candidates = _eligible_categorical(dataset)
     selected_pairs = (
         tuple(combinations(candidates, 2)) if pairs is None else tuple((str(x), str(y)) for x, y in pairs)
     )
     invalid = [(x, y) for x, y in selected_pairs if x == y or x not in candidates or y not in candidates]
     if invalid:
-        msg = f"Invalid contingency pairs: {invalid}."
-        raise ValueError(msg)
+        raise ValueError(f"Invalid contingency pairs: {invalid}.")
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
-    frame = dataset.to_frame()
+    frame = dataset.frame
     summaries: list[dict[str, Any]] = []
     cells: list[dict[str, Any]] = []
     for x, y in selected_pairs:
@@ -94,21 +97,21 @@ def analyze_contingency_diagnostics(
         base: dict[str, Any] = {
             "column_x": x,
             "column_y": y,
-            "n_total": dataset.n_observations,
+            "n_total": dataset.frame.height,
             "n_used": n_used,
             "n_x_levels": len(x_levels),
             "n_y_levels": len(y_levels),
-            "chi_square": np.nan,
-            "df": np.nan,
-            "p_value": np.nan,
-            "q_value": np.nan,
+            "chi_square": None,
+            "df": None,
+            "p_value": None,
+            "q_value": None,
             "family_id": "contingency:chi_square",
             "family_size": 0,
             "correction": correction.value,
-            "cramers_v": np.nan,
-            "min_expected_count": np.nan,
-            "n_expected_lt5": np.nan,
-            "fraction_expected_lt5": np.nan,
+            "cramers_v": None,
+            "min_expected_count": None,
+            "n_expected_lt5": None,
+            "fraction_expected_lt5": None,
             "status": "ok",
             "reason": None,
         }
@@ -127,9 +130,9 @@ def analyze_contingency_diagnostics(
         effect = bias_corrected_cramers_v(float(chi2), n_used, counts.shape[0], counts.shape[1])
         base.update(
             chi_square=float(chi2),
-            df=float(df),
+            df=int(df),
             p_value=float(p_value),
-            cramers_v=np.nan if effect is None else effect,
+            cramers_v=effect,
             min_expected_count=diagnostics["min_expected_count"],
             n_expected_lt5=diagnostics["n_expected_lt5"],
             fraction_expected_lt5=diagnostics["fraction_expected_lt5"],
@@ -144,14 +147,14 @@ def analyze_contingency_diagnostics(
                 observed = float(counts[i, j])
                 exp = float(expected[i, j])
                 if exp <= 0.0:
-                    pearson = standardized = contribution = fraction = np.nan
+                    pearson = standardized = contribution = fraction = None
                     status, reason = "degenerate", "zero_expected_count"
                 else:
-                    pearson = (observed - exp) / np.sqrt(exp)
+                    pearson = float((observed - exp) / np.sqrt(exp))
                     adjustment = (1.0 - row_props[i]) * (1.0 - column_props[j])
-                    standardized = pearson / np.sqrt(adjustment) if adjustment > 0.0 else np.nan
-                    contribution = (observed - exp) ** 2 / exp
-                    fraction = contribution / chi2 if chi2 > 0.0 else 0.0
+                    standardized = float(pearson / np.sqrt(adjustment)) if adjustment > 0.0 else None
+                    contribution = float((observed - exp) ** 2 / exp)
+                    fraction = float(contribution / chi2) if chi2 > 0.0 else 0.0
                     status, reason = "ok", None
                 cells.append(
                     {
@@ -165,16 +168,17 @@ def analyze_contingency_diagnostics(
                         "standardized_residual": standardized,
                         "chi_square_contribution": contribution,
                         "chi_square_contribution_fraction": fraction,
-                        "row_fraction": observed / row_totals[i] if row_totals[i] else np.nan,
-                        "column_fraction": observed / column_totals[j] if column_totals[j] else np.nan,
+                        "row_fraction": float(observed / row_totals[i]) if row_totals[i] else None,
+                        "column_fraction": float(observed / column_totals[j]) if column_totals[j] else None,
                         "status": status,
                         "reason": reason,
                     }
                 )
-    summary = pd.DataFrame(summaries, columns=pd.Index(SUMMARY_COLUMNS))
-    if not summary.empty:
-        summary = apply_multiple_testing(summary, correction)
-    cell_table = pd.DataFrame(cells, columns=pd.Index(CELL_COLUMNS))
+    summary_table = pl.DataFrame(summaries, schema=SUMMARY_SCHEMA)
+    summary = (
+        summary_table if summary_table.height == 0 else apply_multiple_testing(summary_table, correction)
+    )
+    cell_table = pl.DataFrame(cells, schema=CELL_SCHEMA)
     provenance = AnalysisProvenance(
         analysis="contingency_diagnostics",
         parameters={
@@ -184,6 +188,6 @@ def analyze_contingency_diagnostics(
             "standardized_residual": "haberman_adjusted",
             "chi_square_contribution": "(observed-expected)^2/expected",
         },
-        input_summary={"n_observations": dataset.n_observations, "n_columns": dataset.n_columns},
+        input_summary={"n_observations": dataset.frame.height, "n_columns": dataset.frame.width},
     )
     return ContingencyDiagnosticsResult(summary=summary, cells=cell_table, provenance=provenance)

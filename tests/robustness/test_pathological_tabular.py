@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import polars as pl
+from polars.testing import assert_frame_equal
 
 from ruddy import (
     TabularDataset,
@@ -17,16 +19,16 @@ from ruddy import (
 def test_numeric_strings_are_never_silently_coerced():
     ds = TabularDataset(pd.DataFrame({"id": ["a", "b", "c"], "x": ["1", "2", "3"]}), id_column="id")
     result = analyze_univariate(ds)
-    assert result.numeric_statistics.empty
-    assert "x" in set(result.categorical_statistics["column"])
+    assert result.numeric_statistics.is_empty()
+    assert "x" in set(result.categorical_statistics["column"].to_list())
 
 
 def test_single_observation_numeric_analysis_is_observable_not_crash():
     ds = TabularDataset(pd.DataFrame({"id": ["a"], "x": [1.0]}), id_column="id")
     uni = analyze_univariate(ds)
     out = analyze_outliers(ds)
-    assert uni.numeric_statistics.loc[uni.numeric_statistics.column == "x", "status"].iloc[0] != "ok"
-    assert set(out.summaries.loc[out.summaries.column == "x", "status"]) <= {"skipped", "degenerate"}
+    assert uni.numeric_statistics.filter(pl.col("column") == "x")["status"][0] != "ok"
+    assert set(out.summaries.filter(pl.col("column") == "x")["status"].to_list()) <= {"skipped", "degenerate"}
 
 
 def test_all_missing_and_nonfinite_are_distinguished():
@@ -42,11 +44,12 @@ def test_all_missing_and_nonfinite_are_distinguished():
         kind_overrides={"missing": "numeric"},
     )
     out = analyze_outliers(ds)
-    quality = out.quality.set_index("column")
-    assert quality.loc["missing", "n_missing"] == 4
-    assert quality.loc["missing", "n_non_finite"] == 0
-    assert quality.loc["nonfinite", "n_missing"] == 0
-    assert quality.loc["nonfinite", "n_non_finite"] == 4
+    missing_row = out.quality.filter(pl.col("column") == "missing").row(0, named=True)
+    nonfinite_row = out.quality.filter(pl.col("column") == "nonfinite").row(0, named=True)
+    assert missing_row["n_missing"] == 4
+    assert missing_row["n_non_finite"] == 0
+    assert nonfinite_row["n_missing"] == 0
+    assert nonfinite_row["n_non_finite"] == 4
 
 
 def test_one_level_factor_group_analysis_is_degenerate():
@@ -56,10 +59,10 @@ def test_one_level_factor_group_analysis_is_degenerate():
         role_overrides={"y": "response", "g": "factor"},
     )
     result = analyze_groups(ds, responses=("y",), groups=("g",))
-    row = result.group_coverage.set_index("group_column").loc["g"]
+    row = result.group_coverage.filter(pl.col("group_column") == "g").row(0, named=True)
     assert row["status"] == "degenerate"
     assert row["reason"] == "insufficient_group_levels"
-    assert result.numeric_comparisons.empty
+    assert result.numeric_comparisons.is_empty()
 
 
 def test_high_cardinality_factor_hits_explicit_guard():
@@ -76,10 +79,10 @@ def test_high_cardinality_factor_hits_explicit_guard():
         role_overrides={"y": "response", "g": "factor"},
     )
     result = analyze_groups(ds, responses=("y",), groups=("g",), max_group_levels=20)
-    coverage = result.group_coverage.set_index("group_column").loc["g"]
+    coverage = result.group_coverage.filter(pl.col("group_column") == "g").row(0, named=True)
     assert coverage["status"] == "skipped"
     assert coverage["reason"] == "group_levels_exceed_max_group_levels"
-    assert set(result.numeric_comparisons["status"]) == {"skipped"}
+    assert set(result.numeric_comparisons["status"].to_list()) == {"skipped"}
 
 
 def test_complete_case_collapse_is_explicit_in_factorial():
@@ -93,14 +96,14 @@ def test_complete_case_collapse_is_explicit_in_factorial():
     ds = TabularDataset(frame, id_column="id", role_overrides={"y": "response", "g": "factor"})
     result = analyze_factorial(ds, response="y", factors=("g",))
     assert result.status.value in {"skipped", "degenerate"}
-    assert not result.exclusions.empty
+    assert not result.exclusions.is_empty()
 
 
 def test_analyses_do_not_mutate_input_dataframe(robust_tabular):
-    before = robust_tabular.to_frame()
+    before = robust_tabular.frame.clone()
     analyze_univariate(robust_tabular)
     analyze_bivariate(robust_tabular)
     analyze_distribution_diagnostics(robust_tabular, responses=("y",), groups=("group",))
     analyze_outliers(robust_tabular, include_flags=True)
-    after = robust_tabular.to_frame()
-    pd.testing.assert_frame_equal(before, after)
+    after = robust_tabular.frame.clone()
+    assert_frame_equal(before, after)

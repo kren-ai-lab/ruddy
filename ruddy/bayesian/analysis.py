@@ -3,25 +3,68 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole
+from ruddy.core.frames import present_values, to_float_array
 from ruddy.results import AnalysisProvenance
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
+
+MEANS_SCHEMA: dict[str, PolarsDataType] = {
+    "variable": pl.String,
+    "n": pl.Int64,
+    "posterior_mean": pl.Float64,
+    "posterior_median": pl.Float64,
+    "credible_low": pl.Float64,
+    "credible_high": pl.Float64,
+    "probability_positive": pl.Float64,
+    "probability_negative": pl.Float64,
+    "probability_direction": pl.Float64,
+    "rope_probability": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+MEANS_COLUMNS: tuple[str, ...] = tuple(MEANS_SCHEMA)
+
+MEAN_DIFFERENCES_SCHEMA: dict[str, PolarsDataType] = {
+    "variable": pl.String,
+    "group": pl.String,
+    "level_a": pl.String,
+    "level_b": pl.String,
+    "n_a": pl.Int64,
+    "n_b": pl.Int64,
+    "posterior_mean": pl.Float64,
+    "posterior_median": pl.Float64,
+    "credible_low": pl.Float64,
+    "credible_high": pl.Float64,
+    "probability_positive": pl.Float64,
+    "probability_negative": pl.Float64,
+    "probability_direction": pl.Float64,
+    "rope_probability": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+MEAN_DIFFERENCES_COLUMNS: tuple[str, ...] = tuple(MEAN_DIFFERENCES_SCHEMA)
+
+MEAN_DIFFERENCES_SCHEMA_BASE: dict[str, PolarsDataType] = {
+    col: dtype for col, dtype in MEAN_DIFFERENCES_SCHEMA.items() if col not in {"level_a", "level_b"}
+}
 
 
 @dataclass(frozen=True, slots=True)
 class BayesianEDAResult:
-    """Result of a Bayesian exploratory data analysis."""
+    """Results of Bayesian exploratory data analysis."""
 
-    means: pd.DataFrame
-    mean_differences: pd.DataFrame
+    means: pl.DataFrame
+    mean_differences: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -82,6 +125,42 @@ def _posterior_summary(draws: np.ndarray, *, level: float, rope: tuple[float, fl
     }
 
 
+def _build_mean_differences_frame(
+    rows: list[dict[str, Any]],
+    frame: pl.DataFrame,
+    groups: tuple[str, ...],
+) -> pl.DataFrame:
+    group_dtype = frame.get_column(groups[0]).dtype if groups else pl.String
+    if not rows:
+        schema = {
+            **MEAN_DIFFERENCES_SCHEMA_BASE,
+            "level_a": group_dtype,
+            "level_b": group_dtype,
+        }
+        return pl.DataFrame(schema={col: schema[col] for col in MEAN_DIFFERENCES_COLUMNS})
+
+    has_any_level = any(row.get("level_a") is not None or row.get("level_b") is not None for row in rows)
+    if not has_any_level:
+        overrides = {
+            **MEAN_DIFFERENCES_SCHEMA_BASE,
+            "level_a": group_dtype,
+            "level_b": group_dtype,
+        }
+        result_frame = pl.DataFrame(rows, schema_overrides=overrides)
+    else:
+        result_frame = pl.DataFrame(rows, schema_overrides=MEAN_DIFFERENCES_SCHEMA_BASE)
+        if result_frame.get_column("level_a").dtype != group_dtype:
+            result_frame = result_frame.with_columns(
+                pl.col("level_a").cast(group_dtype),
+                pl.col("level_b").cast(group_dtype),
+            )
+    for col in MEAN_DIFFERENCES_COLUMNS:
+        if col not in result_frame.columns:
+            dtype = group_dtype if col in {"level_a", "level_b"} else MEAN_DIFFERENCES_SCHEMA_BASE[col]
+            result_frame = result_frame.with_columns(pl.lit(None, dtype=dtype).alias(col))
+    return result_frame.select(list(MEAN_DIFFERENCES_COLUMNS))
+
+
 def analyze_bayesian_eda(
     dataset: TabularDataset,
     *,
@@ -99,31 +178,42 @@ def analyze_bayesian_eda(
 ) -> BayesianEDAResult:
     """Estimate Bayesian means and binary-group mean differences under a weak N-IG prior."""
     if not 0 < credible_level < 1:
-        msg = "credible_level must lie strictly between 0 and 1."
-        raise ValueError(msg)
+        raise ValueError("credible_level must lie strictly between 0 and 1.")
     if draws < 100:
-        msg = "draws must be at least 100."
-        raise ValueError(msg)
+        raise ValueError("draws must be at least 100.")
     if rope[0] > rope[1]:
-        msg = "rope lower bound cannot exceed upper bound."
-        raise ValueError(msg)
-    frame = dataset.to_frame()
+        raise ValueError("rope lower bound cannot exceed upper bound.")
+    frame = dataset.frame
     if variables is None:
         variables = tuple(
             c
-            for c in dataset.columns
+            for c in frame.columns
             if dataset.kind_of(c) is ColumnKind.NUMERIC
             and dataset.role_of(c) in {ColumnRole.VARIABLE, ColumnRole.RESPONSE, ColumnRole.COVARIATE}
         )
+    group_info: dict[str, tuple[Any, Any, np.ndarray, np.ndarray] | None] = {}
+    for group in groups:
+        if group not in frame.columns:
+            raise ValueError(f"Unknown Bayesian grouping column: {group!r}.")
+        g = frame.get_column(group)
+        non_missing = present_values(g)
+        levels = list(dict.fromkeys(non_missing.to_list()))
+        if len(levels) == 2:
+            a, b = levels
+            mask_a = g.eq(a).fill_null(value=False).to_numpy()
+            mask_b = g.eq(b).fill_null(value=False).to_numpy()
+            group_info[group] = (a, b, mask_a, mask_b)
+        else:
+            group_info[group] = None
+
     for column in variables:
-        if column not in dataset.columns or dataset.kind_of(column) is not ColumnKind.NUMERIC:
-            msg = f"Bayesian EDA variable must be numeric: {column!r}."
-            raise ValueError(msg)
+        if column not in frame.columns or dataset.kind_of(column) is not ColumnKind.NUMERIC:
+            raise ValueError(f"Bayesian EDA variable must be numeric: {column!r}.")
     rng = np.random.default_rng(random_state)
-    mean_rows: list[dict] = []
-    diff_rows: list[dict] = []
+    mean_rows: list[dict[str, Any]] = []
+    diff_rows: list[dict[str, Any]] = []
     for column in variables:
-        values = pd.to_numeric(frame[column], errors="raise").to_numpy(dtype=float)
+        values = to_float_array(frame.get_column(column))
         finite = values[np.isfinite(values)]
         if finite.size < min_n:
             mean_rows.append(
@@ -153,27 +243,33 @@ def analyze_bayesian_eda(
         }
         mean_rows.append(row)
         for group in groups:
-            if group not in dataset.columns:
-                msg = f"Unknown Bayesian grouping column: {group!r}."
-                raise ValueError(msg)
-            g = frame[group]
-            levels = list(pd.unique(g.dropna()))
-            if len(levels) != 2:
+            info = group_info[group]
+            if info is None:
                 diff_rows.append(
                     {
                         "variable": column,
                         "group": group,
                         "level_a": None,
                         "level_b": None,
+                        "n_a": None,
+                        "n_b": None,
+                        "posterior_mean": None,
+                        "posterior_median": None,
+                        "credible_low": None,
+                        "credible_high": None,
+                        "probability_positive": None,
+                        "probability_negative": None,
+                        "probability_direction": None,
+                        "rope_probability": None,
                         "status": "skipped",
                         "reason": "bayesian_mean_difference_requires_two_levels",
                     }
                 )
                 continue
-            a, b = levels
-            va = pd.to_numeric(frame.loc[g == a, column], errors="raise").to_numpy(dtype=float)
+            a, b, mask_a, mask_b = info
+            va = values[mask_a]
             va = va[np.isfinite(va)]
-            vb = pd.to_numeric(frame.loc[g == b, column], errors="raise").to_numpy(dtype=float)
+            vb = values[mask_b]
             vb = vb[np.isfinite(vb)]
             if len(va) < min_n or len(vb) < min_n:
                 diff_rows.append(
@@ -184,6 +280,14 @@ def analyze_bayesian_eda(
                         "level_b": b,
                         "n_a": len(va),
                         "n_b": len(vb),
+                        "posterior_mean": None,
+                        "posterior_median": None,
+                        "credible_low": None,
+                        "credible_high": None,
+                        "probability_positive": None,
+                        "probability_negative": None,
+                        "probability_direction": None,
+                        "rope_probability": None,
                         "status": "skipped",
                         "reason": "group_too_small",
                     }
@@ -231,10 +335,12 @@ def analyze_bayesian_eda(
             "groups": groups,
             "min_n": min_n,
         },
-        input_summary={"n_observations": dataset.n_observations, "variables": variables},
+        input_summary={"n_observations": frame.height, "variables": variables},
         random_state=random_state,
     )
-    return BayesianEDAResult(pd.DataFrame(mean_rows), pd.DataFrame(diff_rows), provenance)
+    mean_frame = pl.DataFrame(mean_rows, schema=MEANS_SCHEMA)
+    diff_frame = _build_mean_differences_frame(diff_rows, frame, groups)
+    return BayesianEDAResult(mean_frame, diff_frame, provenance)
 
 
 __all__ = ["BayesianEDAResult", "analyze_bayesian_eda"]

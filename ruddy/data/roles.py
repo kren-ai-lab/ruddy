@@ -5,15 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import pandas as pd
-from pandas.api.types import (
-    is_bool_dtype,
-    is_complex_dtype,
-    is_datetime64_any_dtype,
-    is_numeric_dtype,
-    is_object_dtype,
-    is_timedelta64_dtype,
-)
+import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.core.exceptions import (
@@ -36,18 +28,15 @@ class ColumnSpec:
     dtype: str
 
 
-def infer_column_kind(series: pd.Series) -> ColumnKind:
-    """Infer a statistical kind without coercing or transforming values."""
-    dtype = series.dtype
-    if is_bool_dtype(dtype):
+def infer_column_kind(dtype: pl.DataType) -> ColumnKind:
+    """Infer a statistical kind from a Polars dtype without coercing values."""
+    if dtype == pl.Boolean:
         return ColumnKind.BOOLEAN
-    if is_complex_dtype(dtype) or is_timedelta64_dtype(dtype):
-        return ColumnKind.UNKNOWN
-    if is_datetime64_any_dtype(dtype):
-        return ColumnKind.DATETIME
-    if is_numeric_dtype(dtype):
+    if dtype.is_numeric() or dtype.is_decimal():
         return ColumnKind.NUMERIC
-    if isinstance(dtype, pd.CategoricalDtype) or is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype):
+    if dtype in (pl.Date, pl.Datetime) or isinstance(dtype, pl.Datetime):
+        return ColumnKind.DATETIME
+    if dtype == pl.String or isinstance(dtype, (pl.Categorical, pl.Enum)):
         return ColumnKind.CATEGORICAL
     return ColumnKind.UNKNOWN
 
@@ -56,20 +45,18 @@ def _coerce_role(value: ColumnRole | str) -> ColumnRole:
     try:
         return value if isinstance(value, ColumnRole) else ColumnRole(value)
     except ValueError as exc:
-        msg = f"Unknown column role: {value!r}."
-        raise RoleConflictError(msg) from exc
+        raise RoleConflictError(f"Unknown column role: {value!r}.") from exc
 
 
 def _coerce_kind(value: ColumnKind | str) -> ColumnKind:
     try:
         return value if isinstance(value, ColumnKind) else ColumnKind(value)
     except ValueError as exc:
-        msg = f"Unknown column kind: {value!r}."
-        raise KindConflictError(msg) from exc
+        raise KindConflictError(f"Unknown column kind: {value!r}.") from exc
 
 
 def resolve_roles(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     *,
     id_column: str | None,
     overrides: RoleOverrides | None = None,
@@ -78,8 +65,7 @@ def resolve_roles(
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        msg = f"Role overrides reference unknown columns: {unknown}."
-        raise UnknownColumnError(msg)
+        raise UnknownColumnError(f"Role overrides reference unknown columns: {unknown}.")
 
     resolved = dict.fromkeys(frame.columns, ColumnRole.VARIABLE)
     for column, role in overrides.items():
@@ -89,27 +75,23 @@ def resolve_roles(
 
     if id_column is not None:
         if id_column not in frame.columns:
-            msg = f"Unknown observation ID column: {id_column!r}."
-            raise UnknownColumnError(msg)
+            raise UnknownColumnError(f"Unknown observation ID column: {id_column!r}.")
         explicit = resolved[id_column]
         if id_column in overrides and explicit is not ColumnRole.IDENTIFIER:
-            msg = (
+            raise RoleConflictError(
                 f"Column {id_column!r} is the observation ID but was explicitly "
                 "assigned "
                 f"role {explicit.value!r}."
             )
-            raise RoleConflictError(msg)
         for column in declared_identifiers:
             if column != id_column:
-                msg = (
+                raise RoleConflictError(
                     "Only one identifier column is supported; "
                     f"{column!r} conflicts with id_column={id_column!r}."
                 )
-                raise RoleConflictError(msg)
         resolved[id_column] = ColumnRole.IDENTIFIER
     elif len(declared_identifiers) > 1:
-        msg = f"Only one identifier column is supported; found {declared_identifiers}."
-        raise RoleConflictError(msg)
+        raise RoleConflictError(f"Only one identifier column is supported; found {declared_identifiers}.")
 
     return resolved
 
@@ -120,27 +102,24 @@ def _validate_kind_override(
     requested: ColumnKind,
 ) -> None:
     if requested is ColumnKind.NUMERIC and observed is not ColumnKind.NUMERIC:
-        msg = (
+        raise KindConflictError(
             f"Column {column!r} cannot be declared numeric without numeric dtype; "
             f"observed {observed.value!r}. Ruddy does not silently coerce strings."
         )
-        raise KindConflictError(msg)
     if requested is ColumnKind.BOOLEAN and observed is not ColumnKind.BOOLEAN:
-        msg = (
+        raise KindConflictError(
             f"Column {column!r} cannot be declared boolean without boolean dtype; "
             f"observed {observed.value!r}."
         )
-        raise KindConflictError(msg)
     if requested is ColumnKind.DATETIME and observed is not ColumnKind.DATETIME:
-        msg = (
+        raise KindConflictError(
             f"Column {column!r} cannot be declared datetime without datetime dtype; "
             f"observed {observed.value!r}."
         )
-        raise KindConflictError(msg)
 
 
 def resolve_kinds(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     *,
     overrides: KindOverrides | None = None,
 ) -> dict[str, ColumnKind]:
@@ -148,12 +127,11 @@ def resolve_kinds(
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(frame.columns))
     if unknown:
-        msg = f"Kind overrides reference unknown columns: {unknown}."
-        raise UnknownColumnError(msg)
+        raise UnknownColumnError(f"Kind overrides reference unknown columns: {unknown}.")
 
     resolved: dict[str, ColumnKind] = {}
     for column in frame.columns:
-        observed = infer_column_kind(frame[column])
+        observed = infer_column_kind(frame.schema[column])
         if column not in overrides:
             resolved[column] = observed
             continue
@@ -164,7 +142,7 @@ def resolve_kinds(
 
 
 def build_schema(
-    frame: pd.DataFrame,
+    frame: pl.DataFrame,
     *,
     roles: dict[str, ColumnRole],
     kinds: dict[str, ColumnKind],
@@ -175,7 +153,7 @@ def build_schema(
             name=str(column),
             role=roles[column],
             kind=kinds[column],
-            dtype=str(frame[column].dtype),
+            dtype=str(frame.schema[column]),
         )
         for column in frame.columns
     )

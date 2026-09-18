@@ -6,14 +6,62 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import ScalingMethod
+from ruddy.core.frames import id_dtype
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from polars._typing import PolarsDataType
+
+    from ruddy.core.types import ObservationID
     from ruddy.data import FeatureMatrix
+
+EXCLUSIONS_SCHEMA_BASE: dict[str, PolarsDataType] = {
+    "source_row_index": pl.Int64,
+    "stage": pl.String,
+    "reason": pl.String,
+}
+
+EXCLUSION_COLUMNS: tuple[str, ...] = (
+    "source_row_index",
+    "observation_id",
+    "stage",
+    "reason",
+)
+
+
+def _exclusions_table(
+    ids: Sequence[Any],
+    excluded_rows: Sequence[int] | np.ndarray,
+    *,
+    stage: str = "preprocessing",
+    reason: str | Sequence[str] = "non_finite_feature_row",
+) -> pl.DataFrame:
+    id_dt = id_dtype(ids)
+    if len(excluded_rows) == 0:
+        schema = {**EXCLUSIONS_SCHEMA_BASE, "observation_id": id_dt}
+        return pl.DataFrame(schema={col: schema[col] for col in EXCLUSION_COLUMNS})
+
+    indices = [int(i) for i in excluded_rows]
+    obs_ids = [ids[i] for i in indices]
+    reasons = [reason] * len(indices) if isinstance(reason, str) else list(reason)
+    stages = [stage] * len(indices) if isinstance(stage, str) else list(stage)
+    rows = [
+        {
+            "source_row_index": idx,
+            "observation_id": oid,
+            "stage": stg,
+            "reason": rsn,
+        }
+        for idx, oid, stg, rsn in zip(indices, obs_ids, stages, reasons, strict=False)
+    ]
+    frame = pl.DataFrame(rows, schema_overrides=EXCLUSIONS_SCHEMA_BASE)
+    return frame.select(list(EXCLUSION_COLUMNS))
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,25 +69,25 @@ class PreparedFeatures:
     """Finite-row feature matrix prepared with explicitly requested scaling."""
 
     matrix: Any
-    observation_ids: pd.Index
+    observation_ids: tuple[ObservationID, ...]
     feature_names: tuple[str, ...]
     source_row_indices: np.ndarray
-    exclusions: pd.DataFrame
+    exclusions: pl.DataFrame
     metadata: dict[str, Any]
 
     @property
     def n_observations(self) -> int:
-        """Return the number of finite observations in the prepared matrix."""
+        """Return the number of observations (rows) in the prepared matrix."""
         return int(self.matrix.shape[0])
 
     @property
     def n_features(self) -> int:
-        """Return the number of features in the prepared matrix."""
+        """Return the number of features (columns) in the prepared matrix."""
         return int(self.matrix.shape[1])
 
     @property
     def is_sparse(self) -> bool:
-        """Return whether the prepared matrix is sparsely encoded."""
+        """Return True if the underlying prepared matrix is sparse."""
         return sparse.issparse(self.matrix)
 
 
@@ -72,8 +120,9 @@ def _scale_matrix(matrix: Any, method: ScalingMethod) -> tuple[Any, dict[str, An
         }
 
     if method is ScalingMethod.MINMAX and is_sparse:
-        msg = "minmax scaling requires dense input; Ruddy will not silently densify a sparse matrix."
-        raise ValueError(msg)
+        raise ValueError(
+            "minmax scaling requires dense input; Ruddy will not silently densify a sparse matrix."
+        )
 
     if method is ScalingMethod.STANDARD:
         transformer = StandardScaler(with_mean=not is_sparse)
@@ -110,35 +159,25 @@ def prepare_features(
 ) -> PreparedFeatures:
     """Exclude non-finite rows and apply only explicitly requested scaling."""
     if minimum_observations < 2:
-        msg = "minimum_observations must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("minimum_observations must be at least 2.")
     method = _normalize_scaling(scaling)
     matrix = features.to_sparse() if features.is_sparse else features.to_array()
     valid_mask = _finite_row_mask(matrix)
     source_rows = np.flatnonzero(valid_mask).astype(np.int64)
     excluded_rows = np.flatnonzero(~valid_mask).astype(np.int64)
     ids = features.observation_ids
-
-    exclusions = pd.DataFrame(
-        {
-            "source_row_index": excluded_rows,
-            "observation_id": ids.take(excluded_rows).to_list(),
-            "stage": "preprocessing",
-            "reason": "non_finite_feature_row",
-        }
-    )
+    exclusions = _exclusions_table(ids, excluded_rows)
     if int(valid_mask.sum()) < minimum_observations:
-        msg = (
+        raise ValueError(
             "Feature projection requires at least "
             f"{minimum_observations} finite observation rows after preprocessing."
         )
-        raise ValueError(msg)
 
     prepared = matrix[valid_mask]  # pyrefly: ignore[bad-index]
     scaled, scaling_metadata = _scale_matrix(prepared, method)
     return PreparedFeatures(
         matrix=scaled,
-        observation_ids=ids.take(source_rows),
+        observation_ids=tuple(ids[i] for i in source_rows),
         feature_names=features.feature_names,
         source_row_indices=source_rows,
         exclusions=exclusions,

@@ -7,11 +7,13 @@ from itertools import combinations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
+from ruddy.bivariate.comparisons import _group_labels
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod
+from ruddy.core.frames import finite_or_none
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.bootstrap import bootstrap_confidence_interval
 from ruddy.statistics.confidence_intervals import (
@@ -21,23 +23,107 @@ from ruddy.statistics.confidence_intervals import (
     welch_mean_difference_confidence_interval,
 )
 from ruddy.statistics.effect_sizes import hedges_g
-from ruddy.univariate.categorical import _category_label
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
+
+MEANS_SCHEMA: dict[str, PolarsDataType] = {
+    "column": pl.String,
+    "n": pl.Int64,
+    "estimate": pl.Float64,
+    "standard_error": pl.Float64,
+    "confidence_level": pl.Float64,
+    "confidence_low": pl.Float64,
+    "confidence_high": pl.Float64,
+    "method": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+MEANS_COLUMNS: tuple[str, ...] = tuple(MEANS_SCHEMA)
+
+CORRELATION_CI_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "n": pl.Int64,
+    "estimate": pl.Float64,
+    "confidence_level": pl.Float64,
+    "confidence_low": pl.Float64,
+    "confidence_high": pl.Float64,
+    "ci_method": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+CORRELATION_CI_COLUMNS: tuple[str, ...] = tuple(CORRELATION_CI_SCHEMA)
+
+MEAN_DIFFERENCE_SCHEMA: dict[str, PolarsDataType] = {
+    "response": pl.String,
+    "group": pl.String,
+    "level_a": pl.String,
+    "level_b": pl.String,
+    "n_a": pl.Int64,
+    "n_b": pl.Int64,
+    "confidence_level": pl.Float64,
+    "estimate": pl.Float64,
+    "standard_error": pl.Float64,
+    "df": pl.Float64,
+    "confidence_low": pl.Float64,
+    "confidence_high": pl.Float64,
+    "method": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+MEAN_DIFFERENCE_COLUMNS: tuple[str, ...] = tuple(MEAN_DIFFERENCE_SCHEMA)
+
+EFFECT_SIZE_SCHEMA: dict[str, PolarsDataType] = {
+    "response": pl.String,
+    "group": pl.String,
+    "level_a": pl.String,
+    "level_b": pl.String,
+    "n_a": pl.Int64,
+    "n_b": pl.Int64,
+    "confidence_level": pl.Float64,
+    "estimate": pl.Float64,
+    "confidence_low": pl.Float64,
+    "confidence_high": pl.Float64,
+    "method": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+EFFECT_SIZE_COLUMNS: tuple[str, ...] = tuple(EFFECT_SIZE_SCHEMA)
+
+ODDS_RATIO_SCHEMA: dict[str, PolarsDataType] = {
+    "column_x": pl.String,
+    "column_y": pl.String,
+    "level_x_0": pl.String,
+    "level_x_1": pl.String,
+    "level_y_0": pl.String,
+    "level_y_1": pl.String,
+    "n_used": pl.Int64,
+    "estimate": pl.Float64,
+    "confidence_level": pl.Float64,
+    "confidence_low": pl.Float64,
+    "confidence_high": pl.Float64,
+    "method": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+ODDS_RATIO_COLUMNS: tuple[str, ...] = tuple(ODDS_RATIO_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
 class ConfidenceIntervalResult:
-    """Confidence intervals for dataset estimands."""
+    """Confidence intervals for tabular univariate and bivariate estimands."""
 
-    means: pd.DataFrame
-    correlations: pd.DataFrame
-    mean_differences: pd.DataFrame
-    effect_sizes: pd.DataFrame
-    odds_ratios: pd.DataFrame
+    means: pl.DataFrame
+    correlations: pl.DataFrame
+    mean_differences: pl.DataFrame
+    effect_sizes: pl.DataFrame
+    odds_ratios: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -56,7 +142,9 @@ def _numeric(dataset: TabularDataset) -> tuple[str, ...]:
     )
 
 
-def _correlation_statistic(method: CorrelationMethod) -> Callable[[np.ndarray, np.ndarray], float]:
+def _correlation_statistic(
+    method: CorrelationMethod,
+) -> Callable[[np.ndarray, np.ndarray], float]:
     if method is CorrelationMethod.PEARSON:
         return lambda x, y: float(stats.pearsonr(x, y).statistic)
     if method is CorrelationMethod.SPEARMAN:
@@ -77,24 +165,21 @@ def analyze_confidence_intervals(
 ) -> ConfidenceIntervalResult:
     """Estimate CIs for means, correlations, binary mean differences/effects, and ORs."""
     if not 0.0 < confidence_level < 1.0:
-        msg = "confidence_level must lie in (0, 1)."
-        raise ValueError(msg)
+        raise ValueError("confidence_level must lie in (0, 1).")
     if bootstrap_resamples < 100:
-        msg = "bootstrap_resamples must be at least 100."
-        raise ValueError(msg)
+        raise ValueError("bootstrap_resamples must be at least 100.")
     methods = tuple(
         m if isinstance(m, CorrelationMethod) else CorrelationMethod(m) for m in correlation_methods
     )
     if len(set(methods)) != len(methods):
-        msg = "correlation_methods cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError("correlation_methods cannot contain duplicates.")
     numeric = _numeric(dataset)
     categorical = _eligible_categorical(dataset)
-    frame = dataset.to_frame()
+    frame = dataset.frame
 
     mean_rows: list[dict[str, Any]] = []
     for column in numeric:
-        x = frame[column].to_numpy(dtype=float)
+        x = frame.get_column(column).cast(pl.Float64).fill_null(float("nan")).to_numpy()
         x = x[np.isfinite(x)]
         estimate, se, low, high = mean_confidence_interval(x, confidence_level)
         status = "ok" if np.isfinite(low) else "skipped"
@@ -102,11 +187,11 @@ def analyze_confidence_intervals(
             {
                 "column": column,
                 "n": int(x.size),
-                "estimate": estimate,
-                "standard_error": se,
+                "estimate": finite_or_none(estimate) if status == "ok" else None,
+                "standard_error": finite_or_none(se) if status == "ok" else None,
                 "confidence_level": confidence_level,
-                "confidence_low": low,
-                "confidence_high": high,
+                "confidence_low": finite_or_none(low) if status == "ok" else None,
+                "confidence_high": finite_or_none(high) if status == "ok" else None,
                 "method": "student_t",
                 "status": status,
                 "reason": None if status == "ok" else "insufficient_finite_observations",
@@ -116,7 +201,7 @@ def analyze_confidence_intervals(
     correlation_rows: list[dict[str, Any]] = []
     for method in methods:
         for x_name, y_name in combinations(numeric, 2):
-            values = frame[[x_name, y_name]].to_numpy(dtype=float)
+            values = frame.select(x_name, y_name).cast(pl.Float64).fill_null(float("nan")).to_numpy()
             values = values[np.all(np.isfinite(values), axis=1)]
             n = int(values.shape[0])
             row: dict[str, Any] = {
@@ -124,10 +209,10 @@ def analyze_confidence_intervals(
                 "column_x": x_name,
                 "column_y": y_name,
                 "n": n,
-                "estimate": np.nan,
+                "estimate": None,
                 "confidence_level": confidence_level,
-                "confidence_low": np.nan,
-                "confidence_high": np.nan,
+                "confidence_low": None,
+                "confidence_high": None,
                 "ci_method": None,
                 "status": "ok",
                 "reason": None,
@@ -136,12 +221,16 @@ def analyze_confidence_intervals(
                 row["status"] = "skipped"
                 row["reason"] = "insufficient_or_constant_pair"
             else:
-                estimate = _correlation_statistic(method)(values[:, 0], values[:, 1])
+                raw_estimate = _correlation_statistic(method)(values[:, 0], values[:, 1])
+                estimate = finite_or_none(raw_estimate)
                 row["estimate"] = estimate
                 if method is CorrelationMethod.PEARSON:
-                    low, high = pearson_confidence_interval(estimate, n, confidence_level)
-                    row["confidence_low"] = low
-                    row["confidence_high"] = high
+                    if estimate is not None:
+                        low, high = pearson_confidence_interval(estimate, n, confidence_level)
+                    else:
+                        low, high = float("nan"), float("nan")
+                    row["confidence_low"] = finite_or_none(low)
+                    row["confidence_high"] = finite_or_none(high)
                     row["ci_method"] = "fisher_z"
                     if not np.isfinite(low):
                         row["status"] = "degenerate"
@@ -156,8 +245,8 @@ def analyze_confidence_intervals(
                         method=bootstrap_method,
                         random_state=random_state,
                     )
-                    row["confidence_low"] = boot.confidence_low
-                    row["confidence_high"] = boot.confidence_high
+                    row["confidence_low"] = finite_or_none(boot.confidence_low)
+                    row["confidence_high"] = finite_or_none(boot.confidence_high)
                     row["ci_method"] = f"bootstrap_{boot.method}"
                     row["status"] = boot.status
                     row["reason"] = boot.reason
@@ -166,17 +255,21 @@ def analyze_confidence_intervals(
     difference_rows: list[dict[str, Any]] = []
     effect_rows: list[dict[str, Any]] = []
     for group in categorical:
-        pair_base = frame[[group]].dropna()
-        levels = sorted(pair_base[group].map(_category_label).astype(str).unique().tolist())
+        group_series = frame.get_column(group)
+        label_array, present_mask = _group_labels(group_series)
+        levels = sorted({lbl for lbl in label_array[present_mask] if lbl is not None})
         if len(levels) != 2 or len(levels) > max_category_levels:
             continue
+
+        mask_a = present_mask & (label_array == levels[0])
+        mask_b = present_mask & (label_array == levels[1])
+
         for response in numeric:
-            pair = frame[[response, group]].dropna(subset=[group]).copy()
-            pair["__group"] = pair[group].map(_category_label).astype(str)
-            pair["__value"] = pd.to_numeric(pair[response], errors="coerce")
-            pair = pair[np.isfinite(pair["__value"].to_numpy(dtype=float))]
-            a = pair.loc[pair["__group"].eq(levels[0]), "__value"].to_numpy(dtype=float)
-            b = pair.loc[pair["__group"].eq(levels[1]), "__value"].to_numpy(dtype=float)
+            resp_values = frame.get_column(response).cast(pl.Float64).fill_null(float("nan")).to_numpy()
+            vals_a = resp_values[mask_a]
+            vals_b = resp_values[mask_b]
+            a = vals_a[np.isfinite(vals_a)]
+            b = vals_b[np.isfinite(vals_b)]
             base: dict[str, Any] = {
                 "response": response,
                 "group": group,
@@ -190,11 +283,11 @@ def analyze_confidence_intervals(
                 difference_rows.append(
                     {
                         **base,
-                        "estimate": np.nan,
-                        "standard_error": np.nan,
-                        "df": np.nan,
-                        "confidence_low": np.nan,
-                        "confidence_high": np.nan,
+                        "estimate": None,
+                        "standard_error": None,
+                        "df": None,
+                        "confidence_low": None,
+                        "confidence_high": None,
                         "method": "welch",
                         "status": "skipped",
                         "reason": "group_too_small",
@@ -203,9 +296,9 @@ def analyze_confidence_intervals(
                 effect_rows.append(
                     {
                         **base,
-                        "estimate": np.nan,
-                        "confidence_low": np.nan,
-                        "confidence_high": np.nan,
+                        "estimate": None,
+                        "confidence_low": None,
+                        "confidence_high": None,
                         "method": f"hedges_g_bootstrap_{bootstrap_method}",
                         "status": "skipped",
                         "reason": "group_too_small",
@@ -216,24 +309,24 @@ def analyze_confidence_intervals(
             difference_rows.append(
                 {
                     **base,
-                    "estimate": estimate,
-                    "standard_error": se,
-                    "df": df,
-                    "confidence_low": low,
-                    "confidence_high": high,
+                    "estimate": finite_or_none(estimate),
+                    "standard_error": finite_or_none(se),
+                    "df": finite_or_none(df),
+                    "confidence_low": finite_or_none(low),
+                    "confidence_high": finite_or_none(high),
                     "method": "welch",
                     "status": "ok",
                     "reason": None,
                 }
             )
             effect = hedges_g(a, b)
-            if effect is None:
+            if effect is None or not np.isfinite(effect):
                 effect_rows.append(
                     {
                         **base,
-                        "estimate": np.nan,
-                        "confidence_low": np.nan,
-                        "confidence_high": np.nan,
+                        "estimate": None,
+                        "confidence_low": None,
+                        "confidence_high": None,
                         "method": f"hedges_g_bootstrap_{bootstrap_method}",
                         "status": "degenerate",
                         "reason": "undefined_hedges_g",
@@ -251,9 +344,9 @@ def analyze_confidence_intervals(
                 effect_rows.append(
                     {
                         **base,
-                        "estimate": effect,
-                        "confidence_low": boot.confidence_low,
-                        "confidence_high": boot.confidence_high,
+                        "estimate": finite_or_none(effect),
+                        "confidence_low": finite_or_none(boot.confidence_low),
+                        "confidence_high": finite_or_none(boot.confidence_high),
                         "method": f"hedges_g_bootstrap_{boot.method}",
                         "status": boot.status,
                         "reason": boot.reason,
@@ -276,10 +369,10 @@ def analyze_confidence_intervals(
                 "level_y_0": y_levels[0],
                 "level_y_1": y_levels[1],
                 "n_used": n_used,
-                "estimate": estimate,
+                "estimate": finite_or_none(estimate),
                 "confidence_level": confidence_level,
-                "confidence_low": low,
-                "confidence_high": high,
+                "confidence_low": finite_or_none(low),
+                "confidence_high": finite_or_none(high),
                 "method": "log_wald_no_zero_correction",
                 "status": status,
                 "reason": None if status == "ok" else "zero_cell_or_invalid_table",
@@ -297,14 +390,14 @@ def analyze_confidence_intervals(
             "odds_ratio_zero_cell_correction": False,
             "random_state": random_state,
         },
-        input_summary={"n_observations": dataset.n_observations, "n_columns": dataset.n_columns},
+        input_summary={"n_observations": frame.height, "n_columns": frame.width},
         random_state=random_state,
     )
     return ConfidenceIntervalResult(
-        means=pd.DataFrame(mean_rows),
-        correlations=pd.DataFrame(correlation_rows),
-        mean_differences=pd.DataFrame(difference_rows),
-        effect_sizes=pd.DataFrame(effect_rows),
-        odds_ratios=pd.DataFrame(odds_rows),
+        means=pl.DataFrame(mean_rows, schema=MEANS_SCHEMA),
+        correlations=pl.DataFrame(correlation_rows, schema=CORRELATION_CI_SCHEMA),
+        mean_differences=pl.DataFrame(difference_rows, schema=MEAN_DIFFERENCE_SCHEMA),
+        effect_sizes=pl.DataFrame(effect_rows, schema=EFFECT_SIZE_SCHEMA),
+        odds_ratios=pl.DataFrame(odds_rows, schema=ODDS_RATIO_SCHEMA),
         provenance=provenance,
     )

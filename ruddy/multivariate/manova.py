@@ -2,21 +2,48 @@
 
 from __future__ import annotations
 
+import collections
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from patsy import dmatrices  # pyrefly: ignore[missing-module-attribute]
 from statsmodels.multivariate.manova import MANOVA
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
+from ruddy.core.frames import finite_or_none
+from ruddy.factorial.design import complete_case
+from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import AnalysisProvenance
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
+
+MANOVA_TEST_SCHEMA: dict[str, PolarsDataType] = {
+    "term": pl.String,
+    "statistic": pl.String,
+    "value": pl.Float64,
+    "num_df": pl.Float64,
+    "den_df": pl.Float64,
+    "f_value": pl.Float64,
+    "p_value": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+FACTOR_LEVEL_SCHEMA: dict[str, PolarsDataType] = {
+    "factor": pl.String,
+    "level": pl.String,
+    "n": pl.Int64,
+    "status": pl.String,
+    "reason": pl.String,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,9 +52,9 @@ class MANOVAResult:
 
     status: ResultStatus
     reason: str | None
-    tests: pd.DataFrame
-    factor_levels: pd.DataFrame
-    exclusions: pd.DataFrame
+    tests: pl.DataFrame
+    factor_levels: pl.DataFrame
+    exclusions: pl.DataFrame
     model_summary: dict[str, Any]
     provenance: AnalysisProvenance
 
@@ -35,27 +62,12 @@ class MANOVAResult:
 def _normalize_columns(values: Iterable[str], label: str) -> tuple[str, ...]:
     normalized = tuple(str(value) for value in values)
     if len(set(normalized)) != len(normalized):
-        msg = f"{label} cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError(f"{label} cannot contain duplicates.")
     return normalized
 
 
-def _empty_tests() -> pd.DataFrame:
-    return pd.DataFrame(
-        columns=pd.Index(
-            (
-                "term",
-                "statistic",
-                "value",
-                "num_df",
-                "den_df",
-                "f_value",
-                "p_value",
-                "status",
-                "reason",
-            )
-        )
-    )
+def _empty_tests() -> pl.DataFrame:
+    return pl.DataFrame(schema=MANOVA_TEST_SCHEMA)
 
 
 def analyze_manova(
@@ -74,93 +86,76 @@ def analyze_manova(
     are treated categorically when their statistical role is ``factor``.
     """
     if max_responses < 2:
-        msg = "max_responses must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_responses must be at least 2.")
     if max_factor_levels < 2:
-        msg = "max_factor_levels must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_factor_levels must be at least 2.")
     if min_level_n < 2:
-        msg = "min_level_n must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("min_level_n must be at least 2.")
 
     response_names = _normalize_columns(responses, "responses")
     factor_names = _normalize_columns(factors, "factors")
     covariate_names = _normalize_columns(covariates, "covariates")
     if len(response_names) < 2:
-        msg = "MANOVA requires at least two numeric responses."
-        raise ValueError(msg)
+        raise ValueError("MANOVA requires at least two numeric responses.")
     if len(response_names) > max_responses:
-        msg = (
+        raise ValueError(
             f"MANOVA is limited to {max_responses} responses per run; use explicit "
             "dimensionality reduction before fitting a higher-dimensional response space."
         )
-        raise ValueError(msg)
     if not factor_names:
-        msg = "MANOVA requires at least one factor."
-        raise ValueError(msg)
+        raise ValueError("MANOVA requires at least one factor.")
     overlap = set(response_names) & (set(factor_names) | set(covariate_names))
     overlap |= set(factor_names) & set(covariate_names)
     if overlap:
-        msg = f"MANOVA roles overlap for columns: {sorted(overlap)}."
-        raise ValueError(msg)
+        raise ValueError(f"MANOVA roles overlap for columns: {sorted(overlap)}.")
 
     unknown = [
-        name for name in (*response_names, *factor_names, *covariate_names) if name not in dataset.columns
+        name
+        for name in (*response_names, *factor_names, *covariate_names)
+        if name not in dataset.frame.columns
     ]
     if unknown:
-        msg = f"Unknown MANOVA columns: {unknown}."
-        raise ValueError(msg)
+        raise ValueError(f"Unknown MANOVA columns: {unknown}.")
     for response in response_names:
         if dataset.kind_of(response) is not ColumnKind.NUMERIC:
-            msg = f"MANOVA response {response!r} must be numeric."
-            raise ValueError(msg)
+            raise ValueError(f"MANOVA response {response!r} must be numeric.")
     for covariate in covariate_names:
         if dataset.kind_of(covariate) is not ColumnKind.NUMERIC:
-            msg = f"MANOVA covariate {covariate!r} must be numeric."
-            raise ValueError(msg)
+            raise ValueError(f"MANOVA covariate {covariate!r} must be numeric.")
     for factor in factor_names:
         kind = dataset.kind_of(factor)
         role = dataset.role_of(factor)
         if kind not in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN} and role is not ColumnRole.FACTOR:
-            msg = (
-                f"MANOVA factor {factor!r} must be categorical/boolean or "
-                "explicitly assigned the factor role."
+            raise ValueError(
+                f"MANOVA factor {factor!r} must be categorical/boolean "
+                "or explicitly assigned the factor role."
             )
-            raise ValueError(msg)
 
     selected = (*response_names, *factor_names, *covariate_names)
-    frame = dataset.select(selected)
-    finite_numeric = np.ones(len(frame), dtype=bool)
-    for name in (*response_names, *covariate_names):
-        values = pd.to_numeric(frame[name], errors="coerce").to_numpy(dtype=float)
-        finite_numeric &= np.isfinite(values)
-    factor_present = np.ones(len(frame), dtype=bool)
-    for name in factor_names:
-        factor_present &= frame[name].notna().to_numpy()
-    complete = finite_numeric & factor_present
-    np.flatnonzero(complete)
-    excluded_rows = np.flatnonzero(~complete)
-    ids = dataset.observation_ids
-    exclusions = pd.DataFrame(
-        {
-            "source_row_index": excluded_rows.astype(np.int64),
-            "observation_id": ids.take(excluded_rows).to_list(),
-            "stage": "manova_complete_case",
-            "reason": "missing_or_non_finite_model_value",
-        }
+    frame = dataset.frame.select(selected)
+    model_frame, excluded_rows = complete_case(
+        frame,
+        numeric=(*responses, *covariates),
+        categorical=factors,
     )
-    model_frame = frame.loc[complete].reset_index(drop=True)
-    n = len(model_frame)
+    exclusions = _exclusions_table(
+        dataset.observation_ids,
+        excluded_rows,
+        stage="manova_complete_case",
+        reason="missing_or_non_finite_model_value",
+    )
+
+    n = model_frame.height
 
     level_rows: list[dict[str, Any]] = []
     for factor in factor_names:
-        counts = model_frame[factor].value_counts(dropna=False, sort=False)
-        if len(counts) < 2:
+        unique_levels = list(dict.fromkeys(model_frame.get_column(factor).to_list()))
+        if len(unique_levels) < 2:
             return MANOVAResult(
                 status=ResultStatus.DEGENERATE,
                 reason="factor_has_fewer_than_two_levels",
                 tests=_empty_tests(),
-                factor_levels=pd.DataFrame(level_rows),
+                factor_levels=pl.DataFrame(level_rows, schema=FACTOR_LEVEL_SCHEMA),
                 exclusions=exclusions,
                 model_summary={"factor": factor, "n_complete_case": n},
                 provenance=AnalysisProvenance(
@@ -170,17 +165,20 @@ def analyze_manova(
                         "factors": factor_names,
                         "covariates": covariate_names,
                     },
-                    input_summary={"n_observations": dataset.n_observations, "n_complete_case": n},
+                    input_summary={"n_observations": dataset.frame.height, "n_complete_case": n},
                 ),
             )
-        if len(counts) > max_factor_levels:
-            msg = f"MANOVA factor {factor!r} has {len(counts)} levels; maximum is {max_factor_levels}."
-            raise ValueError(msg)
-        for level, count in counts.items():
+        if len(unique_levels) > max_factor_levels:
+            raise ValueError(
+                f"MANOVA factor {factor!r} has {len(unique_levels)} levels; maximum is {max_factor_levels}."
+            )
+        counts_dict = dict(collections.Counter(model_frame.get_column(factor).to_list()))
+        for level in unique_levels:
+            count = counts_dict[level]
             level_rows.append(
                 {
                     "factor": factor,
-                    "level": level,
+                    "level": str(level),
                     "n": int(count),
                     "status": ResultStatus.OK.value
                     if int(count) >= min_level_n
@@ -188,8 +186,8 @@ def analyze_manova(
                     "reason": None if int(count) >= min_level_n else "level_too_small",
                 }
             )
-    factor_levels = pd.DataFrame(level_rows)
-    if not factor_levels.empty and (factor_levels["status"] != ResultStatus.OK.value).any():
+    factor_levels = pl.DataFrame(level_rows, schema=FACTOR_LEVEL_SCHEMA)
+    if not factor_levels.is_empty() and (factor_levels.get_column("status") != ResultStatus.OK.value).any():
         reason = "factor_level_too_small"
         provenance = AnalysisProvenance(
             analysis="manova",
@@ -203,7 +201,7 @@ def analyze_manova(
                 "interactions": False,
             },
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "n_excluded": len(excluded_rows),
             },
@@ -218,21 +216,23 @@ def analyze_manova(
             provenance=provenance,
         )
 
-    safe = pd.DataFrame(index=model_frame.index)
+    # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
+    pandas_frame = model_frame.to_pandas()
+    safe = pd.DataFrame(index=pandas_frame.index)
     response_map: dict[str, str] = {}
     factor_map: dict[str, str] = {}
     covariate_map: dict[str, str] = {}
     for index, name in enumerate(response_names):
         safe_name = f"Y{index}"
-        safe[safe_name] = pd.to_numeric(model_frame[name], errors="raise").astype(float)
+        safe[safe_name] = pd.to_numeric(pandas_frame[name], errors="raise").astype(float)
         response_map[safe_name] = name
     for index, name in enumerate(factor_names):
         safe_name = f"F{index}"
-        safe[safe_name] = model_frame[name].astype("category")
+        safe[safe_name] = pandas_frame[name].astype("category")
         factor_map[f"C({safe_name})"] = name
     for index, name in enumerate(covariate_names):
         safe_name = f"X{index}"
-        safe[safe_name] = pd.to_numeric(model_frame[name], errors="raise").astype(float)
+        safe[safe_name] = pd.to_numeric(pandas_frame[name], errors="raise").astype(float)
         covariate_map[safe_name] = name
 
     response_matrix = safe[list(response_map)].to_numpy(dtype=float)
@@ -242,7 +242,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "response_rank": response_rank,
             },
@@ -269,7 +269,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "exog_rank": exog_rank,
             },
@@ -292,7 +292,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "exog_rank": exog_rank,
             },
@@ -315,7 +315,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "exog_rank": exog_rank,
             },
@@ -339,16 +339,16 @@ def analyze_manova(
                 {
                     "term": term,
                     "statistic": str(statistic_name),
-                    "value": float(row["Value"]),
-                    "num_df": float(row["Num DF"]),
-                    "den_df": float(row["Den DF"]),
-                    "f_value": float(row["F Value"]),
-                    "p_value": float(row["Pr > F"]),
+                    "value": finite_or_none(row["Value"]),
+                    "num_df": finite_or_none(row["Num DF"]),
+                    "den_df": finite_or_none(row["Den DF"]),
+                    "f_value": finite_or_none(row["F Value"]),
+                    "p_value": finite_or_none(row["Pr > F"]),
                     "status": ResultStatus.OK.value,
                     "reason": None,
                 }
             )
-    tests = pd.DataFrame(rows)
+    tests = pl.DataFrame(rows, schema=MANOVA_TEST_SCHEMA)
     model_summary = {
         "formula_basis": "main_effects_only",
         "n_complete_case": int(n),
@@ -379,7 +379,7 @@ def analyze_manova(
             ),
         },
         input_summary={
-            "n_observations": dataset.n_observations,
+            "n_observations": dataset.frame.height,
             "n_complete_case": int(n),
             "n_excluded": len(excluded_rows),
             "n_responses": len(response_names),

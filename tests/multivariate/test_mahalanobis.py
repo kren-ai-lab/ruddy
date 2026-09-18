@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import polars as pl
 import pytest
 from scipy import sparse, stats
 from sklearn.covariance import EmpiricalCovariance, MinCovDet
@@ -12,7 +13,7 @@ def test_classical_mahalanobis_matches_sklearn(well_conditioned_features):
     array = well_conditioned_features.to_array()
     reference = EmpiricalCovariance().fit(array).mahalanobis(array)
     result = analyze_mahalanobis(well_conditioned_features, include_robust=False)
-    observed = result.distances.query("method == 'classical'")["squared_distance"].to_numpy()
+    observed = result.distances.filter(pl.col("method") == "classical")["squared_distance"].to_numpy()
     np.testing.assert_allclose(observed, reference, rtol=1e-11, atol=1e-12)
     assert result.status is ResultStatus.OK
 
@@ -21,7 +22,7 @@ def test_robust_mahalanobis_matches_mincovdet_under_fixed_seed(well_conditioned_
     array = well_conditioned_features.to_array()
     reference = MinCovDet(random_state=7).fit(array).mahalanobis(array)
     result = analyze_mahalanobis(well_conditioned_features, random_state=7)
-    observed = result.distances.query("method == 'robust'")["squared_distance"].to_numpy()
+    observed = result.distances.filter(pl.col("method") == "robust")["squared_distance"].to_numpy()
     np.testing.assert_allclose(observed, reference, rtol=1e-10, atol=1e-10)
 
 
@@ -32,10 +33,10 @@ def test_threshold_policy_is_recorded_and_flags_reference_chi_square():
     result = analyze_mahalanobis(
         FeatureMatrix(values, feature_names=("x", "y")), include_robust=False, threshold_quantile=0.99
     )
-    rows = result.distances.query("method == 'classical'")
+    rows = result.distances.filter(pl.col("method") == "classical")
     expected = stats.chi2.ppf(0.99, df=2)
-    assert rows["threshold_squared"].iloc[0] == pytest.approx(expected)
-    assert bool(rows.iloc[-1]["is_flagged"])
+    assert rows["threshold_squared"][0] == pytest.approx(expected)
+    assert bool(rows["is_flagged"][-1])
     assert result.provenance.parameters["degrees_of_freedom_policy"] == "n_features"
 
 
@@ -45,8 +46,8 @@ def test_singular_covariance_returns_degenerate_not_pseudoinverse_result():
     result = analyze_mahalanobis(matrix)
     assert result.status is ResultStatus.DEGENERATE
     assert result.reason == "mahalanobis_not_feasible"
-    assert result.distances.empty
-    assert set(result.methods["reason"]) <= {"singular_covariance"}
+    assert result.distances.is_empty()
+    assert set(result.methods["reason"].to_list()) <= {"singular_covariance"}
 
 
 def test_p_greater_than_n_is_explicitly_not_feasible():
@@ -54,8 +55,8 @@ def test_p_greater_than_n_is_explicitly_not_feasible():
     matrix = FeatureMatrix(rng.normal(size=(5, 8)))
     result = analyze_mahalanobis(matrix, max_features=10)
     assert result.status is ResultStatus.DEGENERATE
-    assert result.distances.empty
-    assert "insufficient_observations" in " ".join(result.methods["reason"].astype(str))
+    assert result.distances.is_empty()
+    assert "insufficient_observations" in " ".join(result.methods["reason"].to_list())
 
 
 def test_mahalanobis_never_silently_densifies_sparse():

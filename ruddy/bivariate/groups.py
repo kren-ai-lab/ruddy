@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
-from ruddy.bivariate.associations import ASSOCIATION_COLUMNS, summarize_categorical_associations
+from ruddy.bivariate.associations import (
+    ASSOCIATION_SCHEMA,
+    summarize_categorical_associations,
+)
 from ruddy.bivariate.comparisons import (
-    COMPARISON_COLUMNS,
-    _safe_float,
+    COMPARISON_SCHEMA,
     summarize_numeric_categorical_comparisons,
 )
 from ruddy.core.enums import ColumnKind, ColumnRole, ComparisonTest, PAdjustMethod
+from ruddy.core.frames import finite_or_none, n_missing, present_values, to_float_array
 from ruddy.data import AlignedAnnotations, TabularDataset, attach_annotations
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
@@ -24,99 +28,109 @@ from ruddy.univariate.categorical import _category_label
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-GROUP_COVERAGE_COLUMNS: tuple[str, ...] = (
-    "group_column",
-    "group_role",
-    "data_kind",
-    "n_dataset",
-    "n_group_present",
-    "n_group_missing",
-    "coverage_fraction",
-    "n_levels",
-    "levels_json",
-    "status",
-    "reason",
-)
+    from polars._typing import PolarsDataType
 
-RESPONSE_CATALOG_COLUMNS: tuple[str, ...] = (
-    "response",
-    "declared_role",
-    "data_kind",
-    "n_dataset",
-    "n_present",
-    "n_missing",
-    "n_finite",
-    "n_non_finite",
-    "status",
-    "reason",
-)
+GROUP_COVERAGE_SCHEMA: dict[str, PolarsDataType] = {
+    "group_column": pl.String,
+    "group_role": pl.String,
+    "data_kind": pl.String,
+    "n_dataset": pl.Int64,
+    "n_group_present": pl.Int64,
+    "n_group_missing": pl.Int64,
+    "coverage_fraction": pl.Float64,
+    "n_levels": pl.Int64,
+    "levels_json": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+GROUP_COVERAGE_COLUMNS: tuple[str, ...] = tuple(GROUP_COVERAGE_SCHEMA)
 
-NUMERIC_GROUP_SUMMARY_COLUMNS: tuple[str, ...] = (
-    "group_column",
-    "group_level",
-    "response",
-    "response_role",
-    "n_dataset",
-    "n_group_observations",
-    "n_response_present",
-    "n_response_finite",
-    "n_response_missing",
-    "n_response_non_finite",
-    "mean",
-    "std",
-    "median",
-    "q25",
-    "q75",
-    "iqr",
-    "min",
-    "max",
-    "status",
-    "reason",
-)
+RESPONSE_CATALOG_SCHEMA: dict[str, PolarsDataType] = {
+    "response": pl.String,
+    "declared_role": pl.String,
+    "data_kind": pl.String,
+    "n_dataset": pl.Int64,
+    "n_present": pl.Int64,
+    "n_missing": pl.Int64,
+    "n_finite": pl.Int64,
+    "n_non_finite": pl.Int64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+RESPONSE_CATALOG_COLUMNS: tuple[str, ...] = tuple(RESPONSE_CATALOG_SCHEMA)
 
-CATEGORICAL_GROUP_SUMMARY_COLUMNS: tuple[str, ...] = (
-    "group_column",
-    "group_level",
-    "response",
-    "response_role",
-    "response_level",
-    "n_dataset",
-    "n_group_observations",
-    "n_response_present",
-    "n_response_missing",
-    "count",
-    "fraction",
-    "status",
-    "reason",
-)
+NUMERIC_GROUP_SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
+    "group_column": pl.String,
+    "group_level": pl.String,
+    "response": pl.String,
+    "response_role": pl.String,
+    "n_dataset": pl.Int64,
+    "n_group_observations": pl.Int64,
+    "n_response_present": pl.Int64,
+    "n_response_finite": pl.Int64,
+    "n_response_missing": pl.Int64,
+    "n_response_non_finite": pl.Int64,
+    "mean": pl.Float64,
+    "std": pl.Float64,
+    "median": pl.Float64,
+    "q25": pl.Float64,
+    "q75": pl.Float64,
+    "iqr": pl.Float64,
+    "min": pl.Float64,
+    "max": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+NUMERIC_GROUP_SUMMARY_COLUMNS: tuple[str, ...] = tuple(NUMERIC_GROUP_SUMMARY_SCHEMA)
 
-ANNOTATION_COVERAGE_COLUMNS: tuple[str, ...] = (
-    "source_name",
-    "coverage",
-    "base_count",
-    "annotation_count",
-    "covered_count",
-    "coverage_fraction",
-    "n_missing_ids",
-    "n_unmatched_ids",
-    "columns_json",
-)
+CATEGORICAL_GROUP_SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
+    "group_column": pl.String,
+    "group_level": pl.String,
+    "response": pl.String,
+    "response_role": pl.String,
+    "response_level": pl.String,
+    "n_dataset": pl.Int64,
+    "n_group_observations": pl.Int64,
+    "n_response_present": pl.Int64,
+    "n_response_missing": pl.Int64,
+    "count": pl.Int64,
+    "fraction": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+CATEGORICAL_GROUP_SUMMARY_COLUMNS: tuple[str, ...] = tuple(CATEGORICAL_GROUP_SUMMARY_SCHEMA)
 
-_GROUPED_NUMERIC_COMPARISON_COLUMNS = (
-    "response",
-    "n_dataset",
-    "n_group_present",
-    "n_group_missing",
-    *COMPARISON_COLUMNS,
-)
-_GROUPED_CATEGORICAL_COMPARISON_COLUMNS = (
-    "response",
-    "group_column",
-    "n_dataset",
-    "n_group_present",
-    "n_group_missing",
-    *ASSOCIATION_COLUMNS,
-)
+ANNOTATION_COVERAGE_SCHEMA: dict[str, PolarsDataType] = {
+    "source_name": pl.String,
+    "coverage": pl.String,
+    "base_count": pl.Int64,
+    "annotation_count": pl.Int64,
+    "covered_count": pl.Int64,
+    "coverage_fraction": pl.Float64,
+    "n_missing_ids": pl.Int64,
+    "n_unmatched_ids": pl.Int64,
+    "columns_json": pl.String,
+}
+ANNOTATION_COVERAGE_COLUMNS: tuple[str, ...] = tuple(ANNOTATION_COVERAGE_SCHEMA)
+
+_GROUPED_NUMERIC_COMPARISON_SCHEMA: dict[str, PolarsDataType] = {
+    "response": pl.String,
+    "n_dataset": pl.Int64,
+    "n_group_present": pl.Int64,
+    "n_group_missing": pl.Int64,
+    **COMPARISON_SCHEMA,
+}
+_GROUPED_NUMERIC_COMPARISON_COLUMNS: tuple[str, ...] = tuple(_GROUPED_NUMERIC_COMPARISON_SCHEMA)
+
+_GROUPED_CATEGORICAL_COMPARISON_SCHEMA: dict[str, PolarsDataType] = {
+    "response": pl.String,
+    "group_column": pl.String,
+    "n_dataset": pl.Int64,
+    "n_group_present": pl.Int64,
+    "n_group_missing": pl.Int64,
+    **ASSOCIATION_SCHEMA,
+}
+_GROUPED_CATEGORICAL_COMPARISON_COLUMNS: tuple[str, ...] = tuple(_GROUPED_CATEGORICAL_COMPARISON_SCHEMA)
 
 _NUMERIC_TESTS = (
     ComparisonTest.WELCH_T,
@@ -131,21 +145,20 @@ _CATEGORICAL_TESTS = (ComparisonTest.CHI_SQUARE, ComparisonTest.FISHER_EXACT)
 class GroupAnalysisResult:
     """Complete response-centric grouped analysis output."""
 
-    response_catalog: pd.DataFrame
-    group_coverage: pd.DataFrame
-    numeric_summaries: pd.DataFrame
-    categorical_summaries: pd.DataFrame
-    numeric_comparisons: pd.DataFrame
-    categorical_comparisons: pd.DataFrame
-    annotation_coverage: pd.DataFrame
+    response_catalog: pl.DataFrame
+    group_coverage: pl.DataFrame
+    numeric_summaries: pl.DataFrame
+    categorical_summaries: pl.DataFrame
+    numeric_comparisons: pl.DataFrame
+    categorical_comparisons: pl.DataFrame
+    annotation_coverage: pl.DataFrame
     provenance: AnalysisProvenance
 
 
 def _unique_columns(values: Iterable[str], *, label: str) -> tuple[str, ...]:
     resolved = tuple(str(value) for value in values)
     if len(set(resolved)) != len(resolved):
-        msg = f"{label} cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError(f"{label} cannot contain duplicates.")
     return resolved
 
 
@@ -158,26 +171,25 @@ def resolve_responses(
         selected = dataset.columns_with_role(ColumnRole.RESPONSE)
     else:
         selected = _unique_columns(responses, label="responses")
-    unknown = [column for column in selected if column not in dataset.columns]
+    unknown = [column for column in selected if column not in dataset.frame.columns]
     if unknown:
-        msg = f"Unknown response columns: {unknown}."
-        raise ValueError(msg)
+        raise ValueError(f"Unknown response columns: {unknown}.")
     invalid_role = [
         column
         for column in selected
         if dataset.role_of(column) in {ColumnRole.IDENTIFIER, ColumnRole.EXCLUDED}
     ]
     if invalid_role:
-        msg = f"Response columns cannot be identifier/excluded columns: {invalid_role}."
-        raise ValueError(msg)
+        raise ValueError(f"Response columns cannot be identifier/excluded columns: {invalid_role}.")
     invalid_kind = [
         column
         for column in selected
         if dataset.kind_of(column) not in {ColumnKind.NUMERIC, ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
     ]
     if invalid_kind:
-        msg = f"Responses must be numeric, categorical, or boolean; invalid columns: {invalid_kind}."
-        raise ValueError(msg)
+        raise ValueError(
+            f"Responses must be numeric, categorical, or boolean; invalid columns: {invalid_kind}."
+        )
     return selected
 
 
@@ -190,10 +202,9 @@ def resolve_groups(
         selected = dataset.columns_with_role(ColumnRole.FACTOR)
     else:
         selected = _unique_columns(groups, label="groups")
-    unknown = [column for column in selected if column not in dataset.columns]
+    unknown = [column for column in selected if column not in dataset.frame.columns]
     if unknown:
-        msg = f"Unknown group columns: {unknown}."
-        raise ValueError(msg)
+        raise ValueError(f"Unknown group columns: {unknown}.")
     invalid: list[str] = []
     for column in selected:
         role = dataset.role_of(column)
@@ -206,19 +217,19 @@ def resolve_groups(
         if kind not in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}:
             invalid.append(column)
     if invalid:
-        msg = (
+        raise ValueError(
             "Group columns must be categorical/boolean or explicitly declared factors; "
             f"invalid columns: {invalid}."
         )
-        raise ValueError(msg)
     return selected
 
 
-def _normalized_group(series: pd.Series) -> pd.Series:
-    result = pd.Series(index=series.index, dtype="object")
-    present = series.notna()
-    result.loc[present] = series.loc[present].map(_category_label).astype(str)
-    return result
+def _normalized_group(series: pl.Series) -> list[str | None]:
+    """Label each row with ``_category_label``; missing (null or float NaN) rows become ``None``."""
+    return [
+        None if value is None or (isinstance(value, float) and math.isnan(value)) else _category_label(value)
+        for value in series.to_list()
+    ]
 
 
 def summarize_group_coverage(
@@ -226,18 +237,19 @@ def summarize_group_coverage(
     groups: Iterable[str] | None = None,
     *,
     max_group_levels: int = 20,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Describe observation coverage for each grouping variable."""
     if max_group_levels < 2:
-        msg = "max_group_levels must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_group_levels must be at least 2.")
     selected = resolve_groups(dataset, groups)
-    frame = dataset.to_frame()
+    frame = dataset.frame
+    n_dataset = frame.height
     rows: list[dict[str, Any]] = []
     for group in selected:
-        normalized = _normalized_group(frame[group])
-        levels = tuple(sorted(normalized.dropna().unique().tolist()))
-        n_present = int(normalized.notna().sum())
+        labels = _normalized_group(frame.get_column(group))
+        non_none_labels = [label for label in labels if label is not None]
+        levels = sorted(set(non_none_labels))
+        n_present = len(non_none_labels)
         status = "ok"
         reason = None
         if len(levels) < 2:
@@ -251,40 +263,40 @@ def summarize_group_coverage(
                 "group_column": group,
                 "group_role": dataset.role_of(group).value,
                 "data_kind": dataset.kind_of(group).value,
-                "n_dataset": dataset.n_observations,
+                "n_dataset": n_dataset,
                 "n_group_present": n_present,
-                "n_group_missing": dataset.n_observations - n_present,
-                "coverage_fraction": (
-                    float(n_present / dataset.n_observations) if dataset.n_observations else 1.0
-                ),
+                "n_group_missing": n_dataset - n_present,
+                "coverage_fraction": (float(n_present / n_dataset) if n_dataset else 1.0),
                 "n_levels": len(levels),
                 "levels_json": json.dumps(levels, separators=(",", ":")),
                 "status": status,
                 "reason": reason,
             }
         )
-    return pd.DataFrame(rows, columns=pd.Index(GROUP_COVERAGE_COLUMNS))
+    return pl.DataFrame(rows, schema=GROUP_COVERAGE_SCHEMA)
 
 
 def summarize_response_catalog(
     dataset: TabularDataset,
     responses: Iterable[str] | None = None,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Describe selected response variables and their usable observations."""
     selected = resolve_responses(dataset, responses)
-    frame = dataset.to_frame()
+    frame = dataset.frame
+    n_dataset = frame.height
     rows: list[dict[str, Any]] = []
     for response in selected:
-        series = frame[response]
-        n_missing = int(series.isna().sum())
-        n_present = int(len(series) - n_missing)
+        series = frame.get_column(response)
+        n_miss = n_missing(series)
+        n_present = n_dataset - n_miss
         kind = dataset.kind_of(response)
         n_finite: int | None = None
         n_non_finite: int | None = None
         status = "ok"
         reason = None
         if kind is ColumnKind.NUMERIC:
-            values = series.dropna().to_numpy(dtype=np.float64, na_value=np.nan)
+            non_missing = present_values(series)
+            values = non_missing.cast(pl.Float64).to_numpy()
             finite = np.isfinite(values)
             n_finite = int(finite.sum())
             n_non_finite = int((~finite).sum())
@@ -299,16 +311,16 @@ def summarize_response_catalog(
                 "response": response,
                 "declared_role": dataset.role_of(response).value,
                 "data_kind": kind.value,
-                "n_dataset": dataset.n_observations,
+                "n_dataset": n_dataset,
                 "n_present": n_present,
-                "n_missing": n_missing,
+                "n_missing": n_miss,
                 "n_finite": n_finite,
                 "n_non_finite": n_non_finite,
                 "status": status,
                 "reason": reason,
             }
         )
-    return pd.DataFrame(rows, columns=pd.Index(RESPONSE_CATALOG_COLUMNS))
+    return pl.DataFrame(rows, schema=RESPONSE_CATALOG_SCHEMA)
 
 
 def summarize_grouped_numeric_responses(
@@ -317,7 +329,7 @@ def summarize_grouped_numeric_responses(
     groups: Iterable[str] | None = None,
     *,
     max_group_levels: int = 20,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Compute descriptive summaries for numeric responses within groups."""
     selected_responses = tuple(
         response
@@ -325,27 +337,26 @@ def summarize_grouped_numeric_responses(
         if dataset.kind_of(response) is ColumnKind.NUMERIC
     )
     selected_groups = resolve_groups(dataset, groups)
-    frame = dataset.to_frame()
-    coverage = (
-        summarize_group_coverage(dataset, selected_groups, max_group_levels=max_group_levels).set_index(
-            "group_column"
-        )
-        if selected_groups
-        else pd.DataFrame()
-    )
+    frame = dataset.frame
+    n_dataset = frame.height
+    skipped = _skipped_groups(dataset, selected_groups, max_group_levels)
     rows: list[dict[str, Any]] = []
     for group in selected_groups:
-        if not coverage.empty and coverage.loc[group, "status"] == "skipped":
+        if group in skipped:
             continue
-        normalized = _normalized_group(frame[group])
-        levels = tuple(sorted(normalized.dropna().unique().tolist()))
+        group_labels = _normalized_group(frame.get_column(group))
+        labels_arr = np.asarray(group_labels, dtype=object)
+        levels = sorted({label for label in group_labels if label is not None})
+        response_arrays = {resp: to_float_array(frame.get_column(resp)) for resp in selected_responses}
         for level in levels:
-            mask = normalized.eq(level)
+            mask = labels_arr == level
             n_group = int(mask.sum())
             for response in selected_responses:
-                series = frame.loc[mask, response]
-                n_missing = int(series.isna().sum())
-                present = series.dropna().to_numpy(dtype=np.float64, na_value=np.nan)
+                raw_values = response_arrays[response]
+                values = raw_values[mask]
+                missing_mask = np.isnan(values)
+                n_missing = int(missing_mask.sum())
+                present = values[~missing_mask]
                 finite = present[np.isfinite(present)]
                 n_non_finite = int(len(present) - len(finite))
                 row: dict[str, Any] = {
@@ -353,7 +364,7 @@ def summarize_grouped_numeric_responses(
                     "group_level": level,
                     "response": response,
                     "response_role": dataset.role_of(response).value,
-                    "n_dataset": dataset.n_observations,
+                    "n_dataset": n_dataset,
                     "n_group_observations": n_group,
                     "n_response_present": int(n_group - n_missing),
                     "n_response_finite": len(finite),
@@ -377,16 +388,16 @@ def summarize_grouped_numeric_responses(
                     continue
                 q25, median, q75 = np.quantile(finite, (0.25, 0.5, 0.75))
                 row.update(
-                    mean=_safe_float(np.mean(finite)),
-                    median=_safe_float(median),
-                    q25=_safe_float(q25),
-                    q75=_safe_float(q75),
-                    iqr=_safe_float(q75 - q25),
-                    min=_safe_float(np.min(finite)),
-                    max=_safe_float(np.max(finite)),
+                    mean=finite_or_none(np.mean(finite)),
+                    median=finite_or_none(median),
+                    q25=finite_or_none(q25),
+                    q75=finite_or_none(q75),
+                    iqr=finite_or_none(q75 - q25),
+                    min=finite_or_none(np.min(finite)),
+                    max=finite_or_none(np.max(finite)),
                 )
                 if len(finite) >= 2:
-                    row["std"] = _safe_float(np.std(finite, ddof=1))
+                    row["std"] = finite_or_none(np.std(finite, ddof=1))
                 else:
                     row["status"] = "degenerate"
                     row["reason"] = "single_finite_response_observation"
@@ -394,7 +405,7 @@ def summarize_grouped_numeric_responses(
                     row["status"] = "degenerate"
                     row["reason"] = "constant_response_within_group"
                 rows.append(row)
-    return pd.DataFrame(rows, columns=pd.Index(NUMERIC_GROUP_SUMMARY_COLUMNS))
+    return pl.DataFrame(rows, schema=NUMERIC_GROUP_SUMMARY_SCHEMA)
 
 
 def summarize_grouped_categorical_responses(
@@ -403,7 +414,7 @@ def summarize_grouped_categorical_responses(
     groups: Iterable[str] | None = None,
     *,
     max_group_levels: int = 20,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Compute within-group frequency summaries for categorical responses."""
     selected_responses = tuple(
         response
@@ -411,28 +422,24 @@ def summarize_grouped_categorical_responses(
         if dataset.kind_of(response) in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
     )
     selected_groups = resolve_groups(dataset, groups)
-    frame = dataset.to_frame()
-    coverage = (
-        summarize_group_coverage(dataset, selected_groups, max_group_levels=max_group_levels).set_index(
-            "group_column"
-        )
-        if selected_groups
-        else pd.DataFrame()
-    )
+    frame = dataset.frame
+    n_dataset = frame.height
+    skipped = _skipped_groups(dataset, selected_groups, max_group_levels)
     rows: list[dict[str, Any]] = []
     for group in selected_groups:
-        if not coverage.empty and coverage.loc[group, "status"] == "skipped":
+        if group in skipped:
             continue
-        normalized_group = _normalized_group(frame[group])
-        group_levels = tuple(sorted(normalized_group.dropna().unique().tolist()))
+        group_labels = _normalized_group(frame.get_column(group))
+        group_levels = sorted({label for label in group_labels if label is not None})
         for response in selected_responses:
-            normalized_response = _normalized_group(frame[response])
-            response_levels = tuple(sorted(normalized_response.dropna().unique().tolist()))
+            response_labels = _normalized_group(frame.get_column(response))
+            response_levels = sorted({label for label in response_labels if label is not None})
             for group_level in group_levels:
-                mask = normalized_group.eq(group_level)
+                mask = np.array([label == group_level for label in group_labels], dtype=bool)
                 n_group = int(mask.sum())
-                response_slice = normalized_response.loc[mask]
-                n_present = int(response_slice.notna().sum())
+                indices = np.flatnonzero(mask)
+                response_slice = [response_labels[i] for i in indices]
+                n_present = sum(1 for v in response_slice if v is not None)
                 n_missing = n_group - n_present
                 if not response_levels:
                     rows.append(
@@ -442,7 +449,7 @@ def summarize_grouped_categorical_responses(
                             "response": response,
                             "response_role": dataset.role_of(response).value,
                             "response_level": None,
-                            "n_dataset": dataset.n_observations,
+                            "n_dataset": n_dataset,
                             "n_group_observations": n_group,
                             "n_response_present": n_present,
                             "n_response_missing": n_missing,
@@ -454,7 +461,7 @@ def summarize_grouped_categorical_responses(
                     )
                     continue
                 for response_level in response_levels:
-                    count = int(response_slice.eq(response_level).sum())
+                    count = sum(1 for v in response_slice if v == response_level)
                     rows.append(
                         {
                             "group_column": group,
@@ -462,7 +469,7 @@ def summarize_grouped_categorical_responses(
                             "response": response,
                             "response_role": dataset.role_of(response).value,
                             "response_level": response_level,
-                            "n_dataset": dataset.n_observations,
+                            "n_dataset": n_dataset,
                             "n_group_observations": n_group,
                             "n_response_present": n_present,
                             "n_response_missing": n_missing,
@@ -472,12 +479,12 @@ def summarize_grouped_categorical_responses(
                             "reason": None if n_present else "all_missing_response",
                         }
                     )
-    return pd.DataFrame(rows, columns=pd.Index(CATEGORICAL_GROUP_SUMMARY_COLUMNS))
+    return pl.DataFrame(rows, schema=CATEGORICAL_GROUP_SUMMARY_SCHEMA)
 
 
 def summarize_annotation_coverage(
     sources: Iterable[AlignedAnnotations],
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Return one traceable coverage row per external annotation source."""
     rows: list[dict[str, Any]] = []
     for source in sources:
@@ -495,12 +502,14 @@ def summarize_annotation_coverage(
                 "columns_json": json.dumps(list(source.columns), separators=(",", ":"), ensure_ascii=False),
             }
         )
-    return pd.DataFrame(rows, columns=pd.Index(ANNOTATION_COVERAGE_COLUMNS))
+    return pl.DataFrame(rows, schema=ANNOTATION_COVERAGE_SCHEMA)
 
 
 def _group_counts(dataset: TabularDataset, group: str) -> tuple[int, int]:
-    present = int(dataset.to_frame()[group].notna().sum())
-    return present, dataset.n_observations - present
+    frame = dataset.frame
+    missing = n_missing(frame.get_column(group))
+    present = frame.height - missing
+    return present, missing
 
 
 def _numeric_response_comparisons(
@@ -513,8 +522,9 @@ def _numeric_response_comparisons(
     max_group_levels: int,
     pairwise: bool,
     p_adjust: PAdjustMethod,
-) -> pd.DataFrame:
-    rows: list[pd.DataFrame] = []
+) -> pl.DataFrame:
+    tables: list[pl.DataFrame] = []
+    n_dataset = dataset.frame.height
     for response in responses:
         if dataset.kind_of(response) is not ColumnKind.NUMERIC:
             continue
@@ -529,29 +539,30 @@ def _numeric_response_comparisons(
                 pairwise=pairwise,
                 p_adjust=PAdjustMethod.NONE,
             )
-            if table.empty:
+            if table.height == 0:
                 continue
             n_present, n_missing = _group_counts(dataset, group)
-            table = table.copy()
-            table.insert(0, "response", response)
-            table.insert(1, "n_dataset", dataset.n_observations)
-            table.insert(2, "n_group_present", n_present)
-            table.insert(3, "n_group_missing", n_missing)
-            table["family_id"] = table.apply(
-                lambda row, group=group, response=response: (
-                    f"grouped_numeric:{group}:{response}:{row['scope']}:{row['test']}"
-                ),
-                axis=1,
-            )
-            table["correction"] = p_adjust.value
-            table["q_value"] = np.nan
-            table["family_size"] = 0
-            rows.append(table)
-    if not rows:
-        return pd.DataFrame(columns=pd.Index(_GROUPED_NUMERIC_COMPARISON_COLUMNS))
-    combined = pd.concat(rows, ignore_index=True)
-    combined = apply_multiple_testing(combined, p_adjust)
-    return combined.loc[:, _GROUPED_NUMERIC_COMPARISON_COLUMNS]
+            table = table.with_columns(
+                pl.lit(response).alias("response"),
+                pl.lit(n_dataset, dtype=pl.Int64).alias("n_dataset"),
+                pl.lit(n_present, dtype=pl.Int64).alias("n_group_present"),
+                pl.lit(n_missing, dtype=pl.Int64).alias("n_group_missing"),
+                pl.format(
+                    "grouped_numeric:{}:{}:{}:{}",
+                    pl.lit(group),
+                    pl.lit(response),
+                    pl.col("scope"),
+                    pl.col("test"),
+                ).alias("family_id"),
+                pl.lit(p_adjust.value).alias("correction"),
+                pl.lit(None, dtype=pl.Float64).alias("q_value"),
+                pl.lit(0, dtype=pl.Int64).alias("family_size"),
+            ).select(list(_GROUPED_NUMERIC_COMPARISON_COLUMNS))
+            tables.append(table)
+    if not tables:
+        return pl.DataFrame(schema=_GROUPED_NUMERIC_COMPARISON_SCHEMA)
+    combined = pl.concat(tables, how="vertical")
+    return apply_multiple_testing(combined, p_adjust)
 
 
 def _categorical_response_comparisons(
@@ -562,8 +573,9 @@ def _categorical_response_comparisons(
     tests: tuple[ComparisonTest, ...],
     max_category_levels: int,
     p_adjust: PAdjustMethod,
-) -> pd.DataFrame:
-    rows: list[pd.DataFrame] = []
+) -> pl.DataFrame:
+    tables: list[pl.DataFrame] = []
+    n_dataset = dataset.frame.height
     for response in responses:
         if dataset.kind_of(response) not in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}:
             continue
@@ -575,27 +587,30 @@ def _categorical_response_comparisons(
                 max_category_levels=max_category_levels,
                 p_adjust=PAdjustMethod.NONE,
             )
-            if table.empty:
+            if table.height == 0:
                 continue
             n_present, n_missing = _group_counts(dataset, group)
-            table = table.copy()
-            table.insert(0, "response", response)
-            table.insert(1, "group_column", group)
-            table.insert(2, "n_dataset", dataset.n_observations)
-            table.insert(3, "n_group_present", n_present)
-            table.insert(4, "n_group_missing", n_missing)
-            table["family_id"] = table["test"].map(
-                lambda test, group=group, response=response: f"grouped_categorical:{group}:{response}:{test}"
-            )
-            table["correction"] = p_adjust.value
-            table["q_value"] = np.nan
-            table["family_size"] = 0
-            rows.append(table)
-    if not rows:
-        return pd.DataFrame(columns=pd.Index(_GROUPED_CATEGORICAL_COMPARISON_COLUMNS))
-    combined = pd.concat(rows, ignore_index=True)
-    combined = apply_multiple_testing(combined, p_adjust)
-    return combined.loc[:, _GROUPED_CATEGORICAL_COMPARISON_COLUMNS]
+            table = table.with_columns(
+                pl.lit(response).alias("response"),
+                pl.lit(group).alias("group_column"),
+                pl.lit(n_dataset, dtype=pl.Int64).alias("n_dataset"),
+                pl.lit(n_present, dtype=pl.Int64).alias("n_group_present"),
+                pl.lit(n_missing, dtype=pl.Int64).alias("n_group_missing"),
+                pl.format(
+                    "grouped_categorical:{}:{}:{}",
+                    pl.lit(group),
+                    pl.lit(response),
+                    pl.col("test"),
+                ).alias("family_id"),
+                pl.lit(p_adjust.value).alias("correction"),
+                pl.lit(None, dtype=pl.Float64).alias("q_value"),
+                pl.lit(0, dtype=pl.Int64).alias("family_size"),
+            ).select(list(_GROUPED_CATEGORICAL_COMPARISON_COLUMNS))
+            tables.append(table)
+    if not tables:
+        return pl.DataFrame(schema=_GROUPED_CATEGORICAL_COMPARISON_SCHEMA)
+    combined = pl.concat(tables, how="vertical")
+    return apply_multiple_testing(combined, p_adjust)
 
 
 def analyze_grouped_responses(
@@ -630,21 +645,21 @@ def analyze_grouped_responses(
     selected_groups = resolve_groups(augmented, groups)
     overlap = sorted(set(selected_responses) & set(selected_groups))
     if overlap:
-        msg = f"A column cannot be both response and grouping variable in one analysis: {overlap}."
-        raise ValueError(msg)
+        raise ValueError(
+            f"A column cannot be both response and grouping variable in one analysis: {overlap}."
+        )
     if not selected_responses:
-        msg = "At least one response must be selected explicitly or declared with role 'response'."
-        raise ValueError(msg)
+        raise ValueError(
+            "At least one response must be selected explicitly or declared with role 'response'."
+        )
     if not selected_groups:
-        msg = "At least one group must be selected explicitly or declared with role 'factor'."
-        raise ValueError(msg)
+        raise ValueError("At least one group must be selected explicitly or declared with role 'factor'.")
 
     tests = tuple(
         test if isinstance(test, ComparisonTest) else ComparisonTest(test) for test in comparison_tests
     )
     if len(set(tests)) != len(tests):
-        msg = "comparison_tests cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError("comparison_tests cannot contain duplicates.")
     correction = p_adjust if isinstance(p_adjust, PAdjustMethod) else PAdjustMethod(p_adjust)
     numeric_tests = tuple(test for test in tests if test in _NUMERIC_TESTS)
     categorical_tests = tuple(test for test in tests if test in _CATEGORICAL_TESTS)
@@ -698,8 +713,8 @@ def analyze_grouped_responses(
             "numeric_response_policy": "finite_values_only",
         },
         input_summary={
-            "n_observations": augmented.n_observations,
-            "n_columns": augmented.n_columns,
+            "n_observations": augmented.frame.height,
+            "n_columns": augmented.frame.width,
             "n_responses": len(selected_responses),
             "n_groups": len(selected_groups),
             "n_annotation_sources": len(annotation_sources),
@@ -715,3 +730,10 @@ def analyze_grouped_responses(
         annotation_coverage=annotation_coverage,
         provenance=provenance,
     )
+
+
+def _skipped_groups(dataset: TabularDataset, groups: tuple[str, ...], max_group_levels: int) -> set[str]:
+    if not groups:
+        return set()
+    coverage = summarize_group_coverage(dataset, groups, max_group_levels=max_group_levels)
+    return {row["group_column"] for row in coverage.iter_rows(named=True) if row["status"] == "skipped"}

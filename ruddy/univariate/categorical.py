@@ -2,53 +2,54 @@
 
 from __future__ import annotations
 
+import collections
+import datetime
 import math
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
-from ruddy.core.enums import ColumnKind, ColumnRole
+from ruddy.core.frames import finite_or_none, present_values
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-CATEGORICAL_STATISTICS_COLUMNS: tuple[str, ...] = (
-    "column",
-    "role",
-    "n_total",
-    "n_present",
-    "n_missing",
-    "n_levels",
-    "mode",
-    "mode_count",
-    "mode_fraction",
-    "entropy",
-    "normalized_entropy",
-    "entropy_base",
-    "n_levels_reported",
-    "frequencies_truncated",
-    "unreported_count",
-    "unreported_fraction",
-    "status",
-    "reason",
-)
+CATEGORICAL_STATISTICS_SCHEMA: dict[str, PolarsDataType] = {
+    "column": pl.String,
+    "role": pl.String,
+    "n_total": pl.Int64,
+    "n_present": pl.Int64,
+    "n_missing": pl.Int64,
+    "n_levels": pl.Int64,
+    "mode": pl.String,
+    "mode_count": pl.Int64,
+    "mode_fraction": pl.Float64,
+    "entropy": pl.Float64,
+    "normalized_entropy": pl.Float64,
+    "entropy_base": pl.Int64,
+    "n_levels_reported": pl.Int64,
+    "frequencies_truncated": pl.Boolean,
+    "unreported_count": pl.Int64,
+    "unreported_fraction": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
 
-CATEGORICAL_FREQUENCY_COLUMNS: tuple[str, ...] = (
-    "column",
-    "role",
-    "level",
-    "count",
-    "fraction",
-    "rank",
-)
+CATEGORICAL_STATISTICS_COLUMNS: tuple[str, ...] = tuple(CATEGORICAL_STATISTICS_SCHEMA)
 
+CATEGORICAL_FREQUENCIES_SCHEMA: dict[str, PolarsDataType] = {
+    "column": pl.String,
+    "role": pl.String,
+    "level": pl.String,
+    "count": pl.Int64,
+    "fraction": pl.Float64,
+    "rank": pl.Int64,
+}
 
-def _safe_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    converted = float(value)
-    return converted if math.isfinite(converted) else None
+CATEGORICAL_FREQUENCY_COLUMNS: tuple[str, ...] = tuple(CATEGORICAL_FREQUENCIES_SCHEMA)
 
 
 def _category_label(value: Any) -> str:
@@ -62,34 +63,30 @@ def _category_label(value: Any) -> str:
         converted = float(value)
         if math.isfinite(converted):
             return repr(converted)
-    if isinstance(value, pd.Timestamp):
+    if isinstance(value, (datetime.datetime, datetime.date)):
         return value.isoformat()
     return str(value)
-
-
-def _eligible_categorical(profile: pd.Series) -> bool:
-    if not bool(profile["analysis_eligible"]):
-        return False
-    role = ColumnRole(str(profile["role"]))
-    kind = ColumnKind(str(profile["data_kind"]))
-    if role is ColumnRole.FACTOR:
-        return True
-    return kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
 
 
 def _profile(
     *,
     column: str,
     role: str,
-    series: pd.Series,
+    series: pl.Series,
     max_category_levels: int,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    n_total = len(series)
-    n_missing = int(series.isna().sum())
+    n_total = series.len()
+    n_missing = series.null_count()
+    if series.dtype.is_float():
+        nan_sum = series.is_nan().sum()
+        if nan_sum is not None:
+            n_missing += int(nan_sum)
     n_present = n_total - n_missing
 
-    labels = series.dropna().map(_category_label)
-    counts = labels.value_counts(dropna=False, sort=False)
+    present = present_values(series)
+
+    labels = [_category_label(v) for v in present.to_list()]
+    counts = collections.Counter(labels)
     ordered = sorted(
         ((str(level), int(count)) for level, count in counts.items()),
         key=lambda item: (-item[1], item[0]),
@@ -112,11 +109,11 @@ def _profile(
         mode, mode_count = ordered[0]
         mode_fraction = float(mode_count / n_present)
         probabilities = np.asarray([count / n_present for _, count in ordered], dtype=np.float64)
-        entropy = _safe_float(-np.sum(probabilities * np.log2(probabilities)))
+        entropy = finite_or_none(-np.sum(probabilities * np.log2(probabilities)))
         if n_levels <= 1:
             normalized_entropy = 0.0
         elif entropy is not None:
-            normalized_entropy = _safe_float(entropy / math.log2(n_levels))
+            normalized_entropy = finite_or_none(entropy / math.log2(n_levels))
 
     n_reported = min(n_levels, max_category_levels)
     reported = ordered[:n_reported]
@@ -159,31 +156,34 @@ def _profile(
 
 def summarize_categorical_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
+    columns: pl.DataFrame,
     *,
     max_category_levels: int = 50,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Summarize eligible categorical, boolean, and factor variables."""
     if max_category_levels < 2:
-        msg = "max_category_levels must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("max_category_levels must be at least 2.")
 
-    selected = columns.loc[columns.apply(_eligible_categorical, axis=1)]
-    frame = dataset.to_frame()
+    selected = columns.filter(
+        pl.col("analysis_eligible")
+        & ((pl.col("role") == "factor") | pl.col("data_kind").is_in(["categorical", "boolean"]))
+    )
     summaries: list[dict[str, Any]] = []
     frequencies: list[dict[str, Any]] = []
-    for _, profile in selected.iterrows():
+    for profile in selected.iter_rows(named=True):
         column = str(profile["column"])
+        role = str(profile["role"])
+        series = dataset.frame.get_column(column)
         summary, rows = _profile(
             column=column,
-            role=str(profile["role"]),
-            series=frame[column],
+            role=role,
+            series=series,
             max_category_levels=max_category_levels,
         )
         summaries.append(summary)
         frequencies.extend(rows)
 
     return (
-        pd.DataFrame(summaries, columns=pd.Index(CATEGORICAL_STATISTICS_COLUMNS)),
-        pd.DataFrame(frequencies, columns=pd.Index(CATEGORICAL_FREQUENCY_COLUMNS)),
+        pl.DataFrame(summaries, schema=CATEGORICAL_STATISTICS_SCHEMA),
+        pl.DataFrame(frequencies, schema=CATEGORICAL_FREQUENCIES_SCHEMA),
     )

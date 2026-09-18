@@ -37,7 +37,7 @@ def balanced_factorial_dataset() -> TabularDataset:
 
 @pytest.fixture
 def unbalanced_factorial_dataset(balanced_factorial_dataset: TabularDataset) -> TabularDataset:
-    frame = balanced_factorial_dataset.to_frame()
+    frame = balanced_factorial_dataset.frame.to_pandas()
     drop = frame.index[(frame["factor_a"] == "A0") & (frame["factor_b"] == "B0")][:10]
     frame = frame.drop(drop).reset_index(drop=True)
     return TabularDataset(

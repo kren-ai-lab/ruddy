@@ -2,35 +2,55 @@
 
 from __future__ import annotations
 
+import collections
 import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from statsmodels.formula.api import mixedlm
 
 from ruddy.core.enums import ColumnKind, ResultStatus
-from ruddy.factorial.design import FactorialDesign, build_factorial_design
+from ruddy.core.frames import finite_or_none
+from ruddy.factorial.design import FactorialDesign, build_factorial_design, complete_case
+from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
-FIXED_COLUMNS = (
-    "parameter",
-    "estimate",
-    "std_error",
-    "z_value",
-    "p_value",
-    "ci_lower",
-    "ci_upper",
-    "status",
-    "reason",
-)
-VARIANCE_COLUMNS = ("component", "row", "column", "estimate", "status", "reason")
-RANDOM_EFFECT_COLUMNS = ("group", "effect", "estimate", "status", "reason")
-EXCLUSION_COLUMNS = ("source_row_index", "observation_id", "stage", "reason")
+FIXED_SCHEMA: dict[str, PolarsDataType] = {
+    "parameter": pl.String,
+    "estimate": pl.Float64,
+    "std_error": pl.Float64,
+    "z_value": pl.Float64,
+    "p_value": pl.Float64,
+    "ci_lower": pl.Float64,
+    "ci_upper": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+VARIANCE_SCHEMA: dict[str, PolarsDataType] = {
+    "component": pl.String,
+    "row": pl.String,
+    "column": pl.String,
+    "estimate": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+RANDOM_EFFECT_SCHEMA: dict[str, PolarsDataType] = {
+    "group": pl.String,
+    "effect": pl.String,
+    "estimate": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,21 +59,23 @@ class MixedEffectsResult:
 
     status: ResultStatus
     reason: str | None
-    fixed_effects: pd.DataFrame
-    variance_components: pd.DataFrame
-    random_effects: pd.DataFrame
-    exclusions: pd.DataFrame
+    fixed_effects: pl.DataFrame
+    variance_components: pl.DataFrame
+    random_effects: pl.DataFrame
+    exclusions: pl.DataFrame
     model_summary: dict[str, Any]
     advisories: tuple[Advisory, ...]
     provenance: AnalysisProvenance
 
 
 def _safe_fixed_frame(
-    frame: pd.DataFrame,
+    model_frame: pl.DataFrame,
     design: FactorialDesign,
     group: str,
     random_slopes: tuple[str, ...],
 ) -> tuple[pd.DataFrame, str, dict[str, str], dict[str, str]]:
+    # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
+    frame = model_frame.to_pandas()
     safe = pd.DataFrame(index=frame.index)
     safe["Y"] = pd.to_numeric(frame[design.response], errors="raise").astype(float)
     safe["G"] = frame[group].astype("category")
@@ -73,14 +95,6 @@ def _safe_fixed_frame(
     fixed_formula = f"Y ~ {rhs}"
     ("1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes))
     return safe, fixed_formula, expression, random_names
-
-
-def _finite_or_none(value: Any) -> float | None:
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return number if np.isfinite(number) else None
 
 
 def analyze_mixed_effects(
@@ -106,22 +120,17 @@ def analyze_mixed_effects(
     Ruddy intentionally does not provide a general mixed-model DSL here. Random effects
     are one grouping factor, a random intercept, and optional numeric random slopes.
     """
-    if group not in dataset.columns:
-        msg = f"Unknown mixed-effects grouping column: {group!r}."
-        raise ValueError(msg)
+    if group not in dataset.frame.columns:
+        raise ValueError(f"Unknown mixed-effects grouping column: {group!r}.")
     if not 0.0 < confidence_level < 1.0:
-        msg = "confidence_level must lie in (0, 1)."
-        raise ValueError(msg)
+        raise ValueError("confidence_level must lie in (0, 1).")
     if min_groups < 2 or min_group_n < 1:
-        msg = "min_groups must be >=2 and min_group_n >=1."
-        raise ValueError(msg)
+        raise ValueError("min_groups must be >=2 and min_group_n >=1.")
     if max_iter < 1:
-        msg = "max_iter must be positive."
-        raise ValueError(msg)
+        raise ValueError("max_iter must be positive.")
     random_slopes = tuple(str(value) for value in random_slopes)
     if len(set(random_slopes)) != len(random_slopes):
-        msg = "random_slopes cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError("random_slopes cannot contain duplicates.")
 
     design = build_factorial_design(
         dataset,
@@ -135,33 +144,26 @@ def analyze_mixed_effects(
     )
     unknown_slopes = [name for name in random_slopes if name not in design.covariates]
     if unknown_slopes:
-        msg = f"Random slopes must be declared numeric covariates; invalid={unknown_slopes}."
-        raise ValueError(msg)
+        raise ValueError(f"Random slopes must be declared numeric covariates; invalid={unknown_slopes}.")
     for name in random_slopes:
         if dataset.kind_of(name) is not ColumnKind.NUMERIC:
-            msg = f"Random slope {name!r} must be numeric."
-            raise ValueError(msg)
+            raise ValueError(f"Random slope {name!r} must be numeric.")
 
     selected = tuple(dict.fromkeys((design.response, *design.factors, *design.covariates, group)))
-    frame = dataset.select(selected)
-    complete = np.ones(len(frame), dtype=bool)
-    for name in (design.response, *design.covariates):
-        complete &= np.isfinite(pd.to_numeric(frame[name], errors="coerce").to_numpy(dtype=float))
-    for name in (*design.factors, group):
-        complete &= frame[name].notna().to_numpy()
-    model_frame = frame.loc[complete].reset_index(drop=True)
-    excluded_idx = np.flatnonzero(~complete)
-    exclusions = pd.DataFrame(
-        {
-            "source_row_index": excluded_idx.astype(np.int64),
-            "observation_id": dataset.observation_ids.take(excluded_idx).to_list(),
-            "stage": "mixed_effects_complete_case",
-            "reason": "missing_or_non_finite_model_value",
-        },
-        columns=pd.Index(EXCLUSION_COLUMNS),
+    frame = dataset.frame.select(selected)
+    model_frame, excluded_rows = complete_case(
+        frame,
+        numeric=(design.response, *design.covariates),
+        categorical=[*list(design.factors), group],
+    )
+    exclusions = _exclusions_table(
+        dataset.observation_ids,
+        excluded_rows,
+        stage="mixed_effects_complete_case",
+        reason="missing_or_non_finite_model_value",
     )
 
-    group_counts = model_frame[group].value_counts(dropna=False)
+    group_counts = dict(collections.Counter(model_frame.get_column(group).to_list()))
     provenance = AnalysisProvenance(
         analysis="mixed_effects",
         parameters={
@@ -178,15 +180,15 @@ def analyze_mixed_effects(
             "confidence_level": confidence_level,
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_complete_case": int(complete.sum()),
-            "n_excluded": int((~complete).sum()),
+            "n_observations": dataset.frame.height,
+            "n_complete_case": model_frame.height,
+            "n_excluded": len(excluded_rows),
             "n_groups": len(group_counts),
         },
     )
-    empty_fixed = pd.DataFrame(columns=pd.Index(FIXED_COLUMNS))
-    empty_var = pd.DataFrame(columns=pd.Index(VARIANCE_COLUMNS))
-    empty_random = pd.DataFrame(columns=pd.Index(RANDOM_EFFECT_COLUMNS))
+    empty_fixed = pl.DataFrame(schema=FIXED_SCHEMA)
+    empty_var = pl.DataFrame(schema=VARIANCE_SCHEMA)
+    empty_random = pl.DataFrame(schema=RANDOM_EFFECT_SCHEMA)
 
     if len(group_counts) < min_groups:
         return MixedEffectsResult(
@@ -200,7 +202,7 @@ def analyze_mixed_effects(
             (),
             provenance,
         )
-    if (group_counts < min_group_n).any():
+    if any(count < min_group_n for count in group_counts.values()):
         return MixedEffectsResult(
             ResultStatus.DEGENERATE,
             "group_too_small",
@@ -208,11 +210,11 @@ def analyze_mixed_effects(
             empty_var,
             empty_random,
             exclusions,
-            {"group_counts": group_counts.to_dict()},
+            {"group_counts": group_counts},
             (),
             provenance,
         )
-    if model_frame[design.response].nunique(dropna=True) < 2:
+    if model_frame.get_column(design.response).n_unique() < 2:
         return MixedEffectsResult(
             ResultStatus.DEGENERATE,
             "constant_response",
@@ -263,7 +265,10 @@ def analyze_mixed_effects(
         estimate = float(fit.fe_params[name])
         se = float(fit.bse_fe[name])
         z_value = estimate / se if se > 0 else (np.inf if estimate != 0 else 0.0)
-        p_value = float(fit.pvalues[name]) if name in fit.pvalues.index else np.nan
+        p_val = fit.pvalues.get(name)
+        p_value = finite_or_none(p_val) if p_val is not None else None
+        ci_low = finite_or_none(ci.loc[name, 0])
+        ci_high = finite_or_none(ci.loc[name, 1])
         fixed_rows.append(
             {
                 "parameter": str(name),
@@ -271,8 +276,8 @@ def analyze_mixed_effects(
                 "std_error": se,
                 "z_value": float(z_value),
                 "p_value": p_value,
-                "ci_lower": float(ci.loc[name, 0]),
-                "ci_upper": float(ci.loc[name, 1]),
+                "ci_lower": ci_low,
+                "ci_upper": ci_high,
                 "status": ResultStatus.OK.value,
                 "reason": None,
             }
@@ -308,7 +313,7 @@ def analyze_mixed_effects(
             for effect_name, estimate in pd.Series(effects).items():
                 random_rows.append(
                     {
-                        "group": level,
+                        "group": str(level),
                         "effect": str(effect_name),
                         "estimate": float(estimate),
                         "status": ResultStatus.OK.value,
@@ -353,26 +358,26 @@ def analyze_mixed_effects(
     summary = {
         "fixed_formula": fixed_formula,
         "random_formula": re_formula,
-        "n_complete_case": int(complete.sum()),
+        "n_complete_case": model_frame.height,
         "n_groups": len(group_counts),
         "converged": converged,
         "singular_random_effect_covariance": singular,
         "reml": bool(reml),
-        "log_likelihood": _finite_or_none(fit.llf),
-        "aic": _finite_or_none(fit.aic),
-        "bic": _finite_or_none(fit.bic),
+        "log_likelihood": finite_or_none(fit.llf),
+        "aic": finite_or_none(fit.aic),
+        "bic": finite_or_none(fit.bic),
         "residual_variance": residual_var,
         "random_intercept_variance": random_intercept_var,
-        "icc_random_intercept": _finite_or_none(icc),
+        "icc_random_intercept": finite_or_none(icc),
     }
     status = ResultStatus.OK if converged else ResultStatus.DEGENERATE
     reason = None if converged else "mixed_model_not_converged"
     return MixedEffectsResult(
         status=status,
         reason=reason,
-        fixed_effects=pd.DataFrame(fixed_rows, columns=pd.Index(FIXED_COLUMNS)),
-        variance_components=pd.DataFrame(variance_rows, columns=pd.Index(VARIANCE_COLUMNS)),
-        random_effects=pd.DataFrame(random_rows, columns=pd.Index(RANDOM_EFFECT_COLUMNS)),
+        fixed_effects=pl.DataFrame(fixed_rows, schema=FIXED_SCHEMA),
+        variance_components=pl.DataFrame(variance_rows, schema=VARIANCE_SCHEMA),
+        random_effects=pl.DataFrame(random_rows, schema=RANDOM_EFFECT_SCHEMA),
         exclusions=exclusions,
         model_summary=summary,
         advisories=tuple(advisories),

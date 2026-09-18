@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
+import polars as pl
+import polars.testing as pl_testing
 import pytest
 
 from ruddy import ColumnRole, TabularDataset, analyze_outliers, summarize_outliers
@@ -28,10 +32,10 @@ def _dataset() -> TabularDataset:
     )
 
 
-def _summary(result, column: str, method: str) -> pd.Series:
-    rows = result.summaries.loc[result.summaries["column"].eq(column) & result.summaries["method"].eq(method)]
-    assert len(rows) == 1
-    return rows.iloc[0]
+def _summary(result, column: str, method: str) -> dict[str, Any]:
+    rows = result.summaries.filter((pl.col("column") == column) & (pl.col("method") == method))
+    assert rows.height == 1
+    return rows.row(0, named=True)
 
 
 def test_iqr_flags_known_extreme_with_auditable_fences() -> None:
@@ -45,9 +49,9 @@ def test_iqr_flags_known_extreme_with_auditable_fences() -> None:
     assert row["n_flagged"] == 1
     assert row["flagged_fraction"] == pytest.approx(1 / 8)
 
-    flags = result.flags.loc[(result.flags["column"] == "x") & (result.flags["method"] == "iqr")]
-    assert len(flags) == 1
-    flag = flags.iloc[0]
+    flags = result.flags.filter((pl.col("column") == "x") & (pl.col("method") == "iqr"))
+    assert flags.height == 1
+    flag = flags.row(0, named=True)
     assert flag["observation_id"] == "r8"
     assert flag["source_row_index"] == 7
     assert flag["value"] == pytest.approx(100.0)
@@ -63,21 +67,23 @@ def test_robust_z_uses_modified_z_and_reports_raw_bounds() -> None:
     assert row["threshold"] == pytest.approx(3.5)
     assert row["n_flagged"] == 1
     expected = 0.6744897501960817 * (100.0 - 3.0)
-    flag = result.flags.loc[(result.flags["column"] == "x") & (result.flags["method"] == "robust_z")].iloc[0]
+    flag = result.flags.filter((pl.col("column") == "x") & (pl.col("method") == "robust_z")).row(
+        0, named=True
+    )
     assert flag["score"] == pytest.approx(expected)
     assert flag["direction"] == "high"
 
 
 def test_flags_are_opt_in_but_counts_are_always_available() -> None:
     result = analyze_outliers(_dataset(), include_flags=False)
-    assert result.flags.empty
+    assert result.flags.height == 0
     assert _summary(result, "x", "iqr")["n_flagged"] == 1
     assert _summary(result, "x", "robust_z")["n_flagged"] == 1
 
 
 def test_numeric_response_is_eligible_but_numeric_factor_is_not() -> None:
     result = analyze_outliers(_dataset(), methods=("iqr",))
-    observed = set(result.summaries["column"])
+    observed = set(result.summaries["column"].to_list())
     assert "response" in observed
     assert "factor_code" not in observed
     assert "label" not in observed
@@ -97,17 +103,17 @@ def test_method_order_and_output_are_deterministic() -> None:
     dataset = _dataset()
     left = analyze_outliers(dataset, methods=("robust_z", "iqr"), include_flags=True)
     right = analyze_outliers(dataset, methods=("robust_z", "iqr"), include_flags=True)
-    pd.testing.assert_frame_equal(left.summaries, right.summaries, check_exact=True)
-    pd.testing.assert_frame_equal(left.flags, right.flags, check_exact=True)
-    first = list(zip(left.summaries["column"], left.summaries["method"], strict=True))[:4]
+    pl_testing.assert_frame_equal(left.summaries, right.summaries, check_exact=True)
+    pl_testing.assert_frame_equal(left.flags, right.flags, check_exact=True)
+    first = list(zip(left.summaries["column"].to_list(), left.summaries["method"].to_list(), strict=True))[:4]
     assert first == [("x", "robust_z"), ("x", "iqr"), ("y", "robust_z"), ("y", "iqr")]
 
 
 def test_analysis_never_mutates_or_removes_source_records() -> None:
     dataset = _dataset()
-    before = dataset.to_frame()
+    before = dataset.frame.clone()
     result = analyze_outliers(dataset, include_flags=True)
-    pd.testing.assert_frame_equal(dataset.to_frame(), before)
+    pl_testing.assert_frame_equal(dataset.frame, before)
     assert result.provenance.parameters["record_removal"] is False
     assert result.provenance.parameters["value_modification"] is False
     assert result.provenance.parameters["automatic_cleaning"] is False
@@ -120,3 +126,39 @@ def test_summarize_outliers_requires_explicit_nonempty_unique_methods() -> None:
         summarize_outliers(dataset, methods=())
     with pytest.raises(ValueError, match="duplicates"):
         summarize_outliers(dataset, methods=("iqr", "iqr"))
+
+
+def test_flags_observation_id_dtype_follows_dataset_ids() -> None:
+    # String IDs with flags
+    ds_str = _dataset()
+    res_str = analyze_outliers(ds_str, methods=("iqr",), include_flags=True)
+    assert res_str.flags.height > 0
+    assert res_str.flags["observation_id"].dtype == pl.String
+
+    # Generated integer IDs with flags
+    frame_int = pd.DataFrame(
+        {
+            "x": [1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 100.0],
+        }
+    )
+    ds_int = TabularDataset(frame_int)
+    res_int = analyze_outliers(ds_int, methods=("iqr",), include_flags=True)
+    assert res_int.flags.height > 0
+    assert res_int.flags["observation_id"].dtype == pl.Int64
+
+    # Dataset producing no flags (with string IDs)
+    frame_no_flags = pd.DataFrame(
+        {
+            "x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        }
+    )
+    ds_no_flags_str = TabularDataset(frame_no_flags, observation_ids=[f"id_{i}" for i in range(6)])
+    res_no_flags_str = analyze_outliers(ds_no_flags_str, methods=("iqr",), include_flags=True)
+    assert res_no_flags_str.flags.height == 0
+    assert res_no_flags_str.flags["observation_id"].dtype == pl.String
+
+    # Dataset producing no flags (with integer IDs)
+    ds_no_flags_int = TabularDataset(frame_no_flags)
+    res_no_flags_int = analyze_outliers(ds_no_flags_int, methods=("iqr",), include_flags=True)
+    assert res_no_flags_int.flags.height == 0
+    assert res_no_flags_int.flags["observation_id"].dtype == pl.Int64

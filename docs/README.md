@@ -1,56 +1,30 @@
-# Ruddy technical documentation
+# Ruddy documentation
 
-This directory documents the scientific MVP as implemented in the current codebase. It is intended to answer four practical questions:
+Start with the [quickstart](../README.md) to install Ruddy and run an analysis.
+Use the guides below for input requirements, method choices and result interpretation.
 
-1. **What is implemented?**
-2. **What mathematical/statistical policy does each method follow?**
-3. **What structured outputs are produced?**
-4. **What does Ruddy deliberately refuse to infer or do automatically?**
-
-The documentation is code-oriented and describes the current public behavior, not a future product specification.
-
-## Recommended reading order
-
-| Document | Purpose |
+| I want to… | Read |
 | --- | --- |
-| [`SCIENTIFIC_SCOPE.md`](SCIENTIFIC_SCOPE.md) | Scope, boundaries, scientific design and intended role |
-| [`DATA_CONTRACTS.md`](DATA_CONTRACTS.md) | `TabularDataset`, `FeatureMatrix`, roles, kinds, alignment, annotations |
-| [`METHOD_INVENTORY.md`](METHOD_INVENTORY.md) | Fast capability matrix of everything currently implemented |
-| [`METHODS.md`](METHODS.md) | Detailed scientific/methodological reference |
-| [`STATISTICAL_POLICIES.md`](STATISTICAL_POLICIES.md) | Cross-cutting policies: missingness, scaling, FDR, permutations, assumptions, degeneracies |
-| [`RESULTS_AND_PROVENANCE.md`](RESULTS_AND_PROVENANCE.md) | Result objects, status/reason/advisory contracts, exclusions and provenance |
-| [`OUTPUT_SCHEMAS.md`](OUTPUT_SCHEMAS.md) | Exact declared column schemas for tabular outputs |
-| [`UNIFIED_ANALYSIS.md`](UNIFIED_ANALYSIS.md) | `AnalysisConfig`, `AnalysisBlock` and `ruddy.analyze()` |
-| [`CLI_REFERENCE.md`](CLI_REFERENCE.md) | Current functional CLI and command-to-analysis mapping |
-| [`VISUALIZATION_EXAMPLES.md`](VISUALIZATION_EXAMPLES.md) | External visualization examples and what each one demonstrates |
-| [`TESTING_AND_REPRODUCIBILITY.md`](TESTING_AND_REPRODUCIBILITY.md) | Test layout, robustness suite, deterministic stochastic analyses and feature freeze |
-| [`PUBLIC_API.md`](PUBLIC_API.md) | Generated inventory of current public Python call signatures |
+| Load a table or feature matrix and align observations | [Data contracts](DATA_CONTRACTS.md) |
+| Choose an analysis and understand its assumptions and limits | [Methods](METHODS.md) |
+| Read, filter and export results; inspect exclusions and provenance | [Results](RESULTS_AND_PROVENANCE.md) |
+| Run several analyses with one configuration | [Unified analysis](UNIFIED_ANALYSIS.md) |
+| Run Ruddy from the terminal | [CLI reference](CLI_REFERENCE.md) |
+| Explore complete workflows and plots | [Example notebooks](../examples/README.md) |
+| Set up a checkout, change code and run checks | [Development guide](../DEVELOPMENT.md) |
 
-## Current scientific layers
+## Python API help
 
-```text
-TabularDataset                         FeatureMatrix
-     │                                      │
-     ├─ profiling                           ├─ preprocessing
-     ├─ univariate                          ├─ PCA / t-SNE / UMAP
-     ├─ diagnostics                         ├─ covariance / VIF
-     ├─ bivariate                           ├─ Mahalanobis
-     ├─ dependence                          ├─ anomaly detection
-     ├─ contingency                         └─ compositional analysis
-     ├─ groups                                  │
-     ├─ post-hoc                                │
-     ├─ factorial                               │
-     ├─ marginal means                          │
-     ├─ mixed effects                           │
-     └─ Bayesian EDA                            │
-            │                                   │
-            └──────── PERMANOVA/PERMDISP ──────┘
-                                                │
-FeatureMatrix A ───── representation comparison ───── FeatureMatrix B
-                   CCA / CKA / Procrustes /
-                   distance similarity / Mantel
+Import public analysis functions and data contracts from `ruddy`. Use Python
+help for the signatures and defaults of your installed version:
+
+```python
+import ruddy
+
+help(ruddy.analyze_bivariate)
+help(ruddy.AnalysisConfig)
 ```
 
-## Core versus visualization
-
-The current scientific package under `ruddy/` produces data structures and numerical results only. Visualization examples are intentionally kept under `examples/`. This boundary protects the statistical core from plotting dependencies while giving downstream interfaces a clear structured contract to consume.
+The method guide links the main entry points to their scientific behavior.
+Result tables expose their column names and types through `.schema`; see the
+[results guide](RESULTS_AND_PROVENANCE.md#inspect-and-export-tables) for a working example.

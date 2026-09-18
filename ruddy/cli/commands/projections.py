@@ -55,7 +55,7 @@ def load_feature_matrix(
             if ids is not None:
                 msg = "Use either --id-column or --ids-file, not both."
                 raise ValueError(msg)
-            ids = frame[id_column].tolist()
+            ids = frame[id_column].to_list()
         selected = list(feature_columns)
         if not selected:
             selected = [column for column in frame.columns if column != id_column]
@@ -65,7 +65,7 @@ def load_feature_matrix(
             raise ValueError(msg)
         return _recorded(
             FeatureMatrix(
-                frame[selected],
+                frame.select(selected),
                 observation_ids=ids,
                 feature_names=selected,
             )
@@ -81,7 +81,7 @@ def write_pca_result(result: PCAResult, output_dir: str | Path) -> Path:
     write_table(result.scores, target / "pca_scores.csv")
     write_table(result.loadings, target / "pca_loadings.csv")
     write_table(result.variance, target / "pca_variance.csv")
-    if not result.exclusions.empty:
+    if not result.exclusions.is_empty():
         write_table(result.exclusions, target / "projection_exclusions.csv")
     payload = {
         "status": result.status.value,
@@ -99,7 +99,7 @@ def write_projection_result(result: ProjectionResult, output_dir: str | Path) ->
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.coordinates, target / "projection_coordinates.csv")
-    if not result.exclusions.empty:
+    if not result.exclusions.is_empty():
         write_table(result.exclusions, target / "projection_exclusions.csv")
     payload = {
         "status": result.status.value,
@@ -139,9 +139,9 @@ def run_project(args: CliArgs) -> int:
                     {
                         "method": "pca",
                         "status": result.status.value,
-                        "n_scores": int(result.scores.shape[0]),
-                        "n_components": int(result.variance.shape[0]),
-                        "n_excluded": int(result.exclusions.shape[0]),
+                        "n_scores": result.scores.height,
+                        "n_components": result.variance.height,
+                        "n_excluded": result.exclusions.height,
                         "inferential_allowed": result.inferential_allowed,
                     },
                     indent=2,
@@ -174,9 +174,9 @@ def run_project(args: CliArgs) -> int:
                 {
                     "method": result.method.value,
                     "status": result.status.value,
-                    "n_coordinates": int(result.coordinates.shape[0]),
+                    "n_coordinates": result.coordinates.height,
                     "n_components": args.n_components,
-                    "n_excluded": int(result.exclusions.shape[0]),
+                    "n_excluded": result.exclusions.height,
                     "exploratory": result.exploratory,
                     "inferential_allowed": result.inferential_allowed,
                 },

@@ -1,16 +1,22 @@
-"""Deterministic numerical univariate statistics."""
+"""Deterministic numerical univariate statistics.
+
+Skewness and kurtosis use the adjusted Fisher-Pearson G1 and unbiased excess G2
+estimators, matching the formulas historically provided by pandas.
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
+from scipy import stats
 
-from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.univariate.categorical import _safe_float
+from ruddy.core.frames import finite_or_none, to_float_array
 
 if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
     from ruddy.data import TabularDataset
 
 NUMERIC_STATISTICS_BASE_COLUMNS: tuple[str, ...] = (
@@ -57,32 +63,37 @@ def numeric_statistics_columns(quantiles: tuple[float, ...]) -> tuple[str, ...]:
     return (*prefix, *quantile_columns, *suffix)
 
 
+def numeric_statistics_schema(quantiles: tuple[float, ...]) -> dict[str, PolarsDataType]:
+    """Return the Polars schema dictionary for numerical statistics."""
+    schema: dict[str, PolarsDataType] = {}
+    for col in numeric_statistics_columns(quantiles):
+        if col in {"column", "role", "status", "reason"}:
+            schema[col] = pl.String
+        elif col.startswith("n_") or col == "zero_count":
+            schema[col] = pl.Int64
+        else:
+            schema[col] = pl.Float64
+    return schema
+
+
 def validate_quantiles(quantiles: tuple[float, ...]) -> tuple[float, ...]:
-    """Validate and normalize a sequence of quantiles."""
+    """Validate quantile probabilities for univariate numerical statistics."""
     values = tuple(float(value) for value in quantiles)
     if not values:
-        msg = "At least one quantile must be configured."
-        raise ValueError(msg)
+        raise ValueError("At least one quantile must be configured.")
     if any(value <= 0.0 or value >= 1.0 for value in values):
-        msg = "Quantiles must lie strictly between 0 and 1."
-        raise ValueError(msg)
+        raise ValueError("Quantiles must lie strictly between 0 and 1.")
     if len(set(values)) != len(values):
-        msg = "Quantiles cannot contain duplicates."
-        raise ValueError(msg)
+        raise ValueError("Quantiles cannot contain duplicates.")
     if values != tuple(sorted(values)):
-        msg = "Quantiles must be sorted in ascending order."
-        raise ValueError(msg)
+        raise ValueError("Quantiles must be sorted in ascending order.")
     if not {0.25, 0.50, 0.75}.issubset(set(values)):
-        msg = "Quantiles must include 0.25, 0.50, and 0.75."
-        raise ValueError(msg)
+        raise ValueError("Quantiles must include 0.25, 0.50, and 0.75.")
     return values
 
 
-def _finite_numeric_values(series: pd.Series) -> np.ndarray:
-    present = series.dropna()
-    if present.empty:
-        return np.asarray([], dtype=np.float64)
-    values = present.to_numpy(dtype=np.float64, na_value=np.nan)
+def _finite_numeric_values(series: pl.Series) -> np.ndarray:
+    values = to_float_array(series)
     return values[np.isfinite(values)]
 
 
@@ -100,27 +111,21 @@ def _status(
     return "ok", None
 
 
-def _eligible_numeric(profile: pd.Series) -> bool:
-    if not bool(profile["analysis_eligible"]):
-        return False
-    role = ColumnRole(str(profile["role"]))
-    kind = ColumnKind(str(profile["data_kind"]))
-    if role is ColumnRole.FACTOR:
-        return False
-    return kind is ColumnKind.NUMERIC
-
-
 def _numeric_row(
     *,
     column: str,
     role: str,
-    series: pd.Series,
+    series: pl.Series,
     quantiles: tuple[float, ...],
     min_numeric_n: int,
 ) -> dict[str, Any]:
     values = _finite_numeric_values(series)
-    n_total = len(series)
-    n_missing = int(series.isna().sum())
+    n_total = series.len()
+    n_missing = series.null_count()
+    if series.dtype.is_float():
+        nan_sum = series.is_nan().sum()
+        if nan_sum is not None:
+            n_missing += int(nan_sum)
     n_present = n_total - n_missing
     n_finite = int(values.size)
     n_non_finite = int(n_present - n_finite)
@@ -161,18 +166,18 @@ def _numeric_row(
     if n_finite == 0:
         return row
 
-    minimum = _safe_float(np.min(values))
-    maximum = _safe_float(np.max(values))
-    row["mean"] = _safe_float(np.mean(values))
+    minimum = finite_or_none(np.min(values))
+    maximum = finite_or_none(np.max(values))
+    row["mean"] = finite_or_none(np.mean(values))
     row["min"] = minimum
     row["max"] = maximum
     if minimum is not None and maximum is not None:
-        row["range"] = _safe_float(maximum - minimum)
+        row["range"] = finite_or_none(maximum - minimum)
 
     quantile_values = np.quantile(values, quantiles)
     quantile_lookup: dict[float, float] = {}
     for quantile, value in zip(quantiles, quantile_values, strict=True):
-        converted = _safe_float(value)
+        converted = finite_or_none(value)
         row[quantile_column_name(quantile)] = converted
         if converted is not None:
             quantile_lookup[float(quantile)] = converted
@@ -182,48 +187,48 @@ def _numeric_row(
     q75 = quantile_lookup.get(0.75)
     row["median"] = median
     if q25 is not None and q75 is not None:
-        row["iqr"] = _safe_float(q75 - q25)
+        row["iqr"] = finite_or_none(q75 - q25)
     if median is not None:
-        row["mad"] = _safe_float(np.median(np.abs(values - median)))
+        row["mad"] = finite_or_none(np.median(np.abs(values - median)))
 
     zero_count = int(np.count_nonzero(values == 0.0))
     row["zero_count"] = zero_count
     row["zero_fraction"] = float(zero_count / n_finite)
 
     if n_finite >= 2:
-        variance = _safe_float(np.var(values, ddof=1))
+        variance = finite_or_none(np.var(values, ddof=1))
         row["variance"] = variance
-        row["std"] = _safe_float(np.std(values, ddof=1))
+        row["std"] = finite_or_none(np.std(values, ddof=1))
     if not is_constant and n_finite >= 3:
-        row["skewness"] = _safe_float(pd.Series(values).skew())
+        row["skewness"] = finite_or_none(stats.skew(values, bias=False))
     if not is_constant and n_finite >= 4:
-        row["kurtosis"] = _safe_float(pd.Series(values).kurt())
+        row["kurtosis"] = finite_or_none(stats.kurtosis(values, bias=False))
     return row
 
 
 def summarize_numeric_statistics(
     dataset: TabularDataset,
-    columns: pd.DataFrame,
+    columns: pl.DataFrame,
     *,
     quantiles: tuple[float, ...] = (0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99),
     min_numeric_n: int = 3,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Summarize eligible numerical variables using finite observations only."""
     quantiles = validate_quantiles(quantiles)
     if min_numeric_n < 2:
-        msg = "min_numeric_n must be at least 2."
-        raise ValueError(msg)
+        raise ValueError("min_numeric_n must be at least 2.")
 
-    selected = columns.loc[columns.apply(_eligible_numeric, axis=1)]
-    frame = dataset.to_frame()
+    selected = columns.filter(
+        pl.col("analysis_eligible") & (pl.col("role") != "factor") & (pl.col("data_kind") == "numeric")
+    )
     rows = [
         _numeric_row(
             column=str(profile["column"]),
             role=str(profile["role"]),
-            series=frame[str(profile["column"])],
+            series=dataset.frame.get_column(str(profile["column"])),
             quantiles=quantiles,
             min_numeric_n=min_numeric_n,
         )
-        for _, profile in selected.iterrows()
+        for profile in selected.iter_rows(named=True)
     ]
-    return pd.DataFrame(rows, columns=pd.Index(numeric_statistics_columns(quantiles)))
+    return pl.DataFrame(rows, schema=numeric_statistics_schema(quantiles))
