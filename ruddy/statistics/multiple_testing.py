@@ -64,7 +64,7 @@ def family_sizes(
             counts[family] = counts.get(family, 0) + 1
         return counts
 
-    # ponytail: temporary pandas adapter, removed in task 3D
+    # ponytail: temporary pandas adapter, removed in phase 5
     if table.empty:
         return {}
     mask = table[status_column].eq(ok_status)
@@ -164,7 +164,7 @@ def apply_multiple_testing(
             pl.Series(family_size_column, sizes, dtype=pl.Int64),
         )
 
-    # ponytail: temporary pandas adapter, removed in task 3D
+    # ponytail: temporary pandas adapter, removed in phase 5
     required = {family_column, status_column, p_column, correction_column}
     missing = sorted(required - set(table.columns))
     if missing:
