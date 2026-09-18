@@ -135,11 +135,11 @@ def test_multivariate_matches_standalone(pipeline_dataset, pipeline_features):
     standalone = analyze_multivariate(pipeline_features, **config.multivariate_kwargs())
     assert result.multivariate is not None
     assert result.multivariate.covariance is not None
-    assert_frame_equal(result.multivariate.covariance.covariance, standalone.covariance.covariance)
+    pl_testing.assert_frame_equal(result.multivariate.covariance.covariance, standalone.covariance.covariance)
     assert result.multivariate.collinearity is not None
-    assert_frame_equal(result.multivariate.collinearity.features, standalone.collinearity.features)
+    pl_testing.assert_frame_equal(result.multivariate.collinearity.features, standalone.collinearity.features)
     assert result.multivariate.mahalanobis is not None
-    assert_frame_equal(result.multivariate.mahalanobis.distances, standalone.mahalanobis.distances)
+    pl_testing.assert_frame_equal(result.multivariate.mahalanobis.distances, standalone.mahalanobis.distances)
 
 
 def test_manova_matches_standalone(pipeline_dataset):
@@ -249,8 +249,8 @@ def test_same_seed_produces_identical_pca_scientific_outputs(pipeline_dataset, p
     second = analyze(pipeline_dataset, config=config, features=pipeline_features)
     assert second.pca is not None
     assert first.pca is not None
-    assert_frame_equal(first.pca.scores, second.pca.scores)
-    assert_frame_equal(first.pca.variance, second.pca.variance)
+    pl_testing.assert_frame_equal(first.pca.scores, second.pca.scores)
+    pl_testing.assert_frame_equal(first.pca.variance, second.pca.variance)
 
 
 def test_multiple_blocks_preserve_requested_order(pipeline_dataset, pipeline_features):

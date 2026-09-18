@@ -3,24 +3,68 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
+from polars._typing import PolarsDataType
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 
 from ruddy.core.enums import ScalingMethod
+from ruddy.core.types import ObservationID
 from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
 
+ANOMALY_SCORE_SCHEMA_BASE: dict[str, PolarsDataType] = {
+    "source_row_index": pl.Int64,
+    "method": pl.String,
+    "anomaly_score": pl.Float64,
+    "is_flagged": pl.Boolean,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+ANOMALY_SCORE_COLUMNS: tuple[str, ...] = (
+    "observation_id",
+    "source_row_index",
+    "method",
+    "anomaly_score",
+    "is_flagged",
+    "status",
+    "reason",
+)
+
+ANOMALY_METHOD_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "n_observations": pl.Int64,
+    "n_flagged": pl.Int64,
+    "contamination": pl.String,
+    "parameter": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
 
 @dataclass(frozen=True, slots=True)
 class AnomalyResult:
-    scores: pd.DataFrame
-    methods: pd.DataFrame
-    exclusions: pd.DataFrame
+    scores: pl.DataFrame
+    methods: pl.DataFrame
+    exclusions: pl.DataFrame
     provenance: AnalysisProvenance
+
+
+def _build_anomaly_scores(
+    rows: list[dict[str, Any]],
+    ids: tuple[ObservationID, ...],
+) -> pl.DataFrame:
+    id_dtype = pl.Series(ids).dtype if len(ids) > 0 else pl.String
+    if not rows:
+        schema = {**ANOMALY_SCORE_SCHEMA_BASE, "observation_id": id_dtype}
+        return pl.DataFrame(schema={col: schema[col] for col in ANOMALY_SCORE_COLUMNS})
+    frame = pl.DataFrame(rows, schema_overrides=ANOMALY_SCORE_SCHEMA_BASE)
+    return frame.select(list(ANOMALY_SCORE_COLUMNS))
 
 
 def analyze_anomalies(
@@ -56,9 +100,9 @@ def analyze_anomalies(
         ):
             rows.append(
                 {
-                    "method": "isolation_forest",
-                    "source_row_index": int(idx),
                     "observation_id": oid,
+                    "source_row_index": int(idx),
+                    "method": "isolation_forest",
                     "anomaly_score": float(score),
                     "is_flagged": bool(flag),
                     "status": "ok",
@@ -70,7 +114,7 @@ def analyze_anomalies(
                 "method": "isolation_forest",
                 "n_observations": n,
                 "n_flagged": int((pred == -1).sum()),
-                "contamination": contamination,
+                "contamination": str(contamination),
                 "parameter": f"n_estimators={isolation_estimators}",
                 "status": "ok",
                 "reason": None,
@@ -83,7 +127,7 @@ def analyze_anomalies(
                     "method": "lof",
                     "n_observations": n,
                     "n_flagged": 0,
-                    "contamination": contamination,
+                    "contamination": str(contamination),
                     "parameter": f"n_neighbors={lof_neighbors}",
                     "status": "skipped",
                     "reason": "lof_neighbors_must_be_less_than_observations",
@@ -98,9 +142,9 @@ def analyze_anomalies(
             ):
                 rows.append(
                     {
-                        "method": "lof",
-                        "source_row_index": int(idx),
                         "observation_id": oid,
+                        "source_row_index": int(idx),
+                        "method": "lof",
                         "anomaly_score": float(score),
                         "is_flagged": bool(flag),
                         "status": "ok",
@@ -112,7 +156,7 @@ def analyze_anomalies(
                     "method": "lof",
                     "n_observations": n,
                     "n_flagged": int((pred == -1).sum()),
-                    "contamination": contamination,
+                    "contamination": str(contamination),
                     "parameter": f"n_neighbors={lof_neighbors}",
                     "status": "ok",
                     "reason": None,
@@ -134,7 +178,13 @@ def analyze_anomalies(
         },
         random_state=random_state,
     )
-    return AnomalyResult(pd.DataFrame(rows), pd.DataFrame(method_rows), prepared.exclusions, provenance)
+    scores = _build_anomaly_scores(rows, prepared.observation_ids)
+    methods_df = (
+        pl.DataFrame(method_rows, schema_overrides=ANOMALY_METHOD_SCHEMA)
+        if method_rows
+        else pl.DataFrame(schema=ANOMALY_METHOD_SCHEMA)
+    )
+    return AnomalyResult(scores, methods_df, prepared.exclusions, provenance)
 
 
 __all__ = ["AnomalyResult", "analyze_anomalies"]

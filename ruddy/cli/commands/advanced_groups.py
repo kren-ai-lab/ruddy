@@ -106,7 +106,7 @@ def run_permanova(args: CliArgs) -> int:
                 {
                     "status": result.status.value,
                     "reason": result.reason,
-                    "rows": len(result.summary),
+                    "rows": result.summary.height,
                 },
                 indent=2,
             )

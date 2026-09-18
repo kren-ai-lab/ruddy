@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 import numpy as np
+import polars as pl
 import pytest
 
 from ruddy import FeatureMatrix, analyze_anomalies, analyze_composition
@@ -50,8 +49,8 @@ def test_extreme_multivariate_anomaly_is_ranked_high_by_both_methods():
         random_state=2,
     )
     for method in ("isolation_forest", "lof"):
-        subset = r.scores[r.scores.method == method].sort_values("anomaly_score", ascending=False)
-        assert "o119" in set(subset.head(3).observation_id)
+        subset = r.scores.filter(pl.col("method") == method).sort("anomaly_score", descending=True)
+        assert "o119" in set(subset.head(3)["observation_id"].to_list())
 
 
 def test_nonfinite_anomaly_rows_are_excluded_from_all_methods_once():
@@ -59,5 +58,5 @@ def test_nonfinite_anomaly_rows_are_excluded_from_all_methods_once():
     x = rng.normal(size=(50, 3))
     x[4, 1] = np.inf
     r = analyze_anomalies(FeatureMatrix(x, observation_ids=[f"o{i}" for i in range(50)]))
-    assert list(r.exclusions.observation_id) == ["o4"]
-    assert "o4" not in set(r.scores.observation_id)
+    assert r.exclusions["observation_id"].to_list() == ["o4"]
+    assert "o4" not in set(r.scores["observation_id"].to_list())

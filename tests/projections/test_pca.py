@@ -17,19 +17,19 @@ def test_pca_matches_sklearn_reference():
     result = analyze_pca(FeatureMatrix(x), n_components=4, random_state=7)
     reference = PCA(n_components=4, random_state=7).fit(x)
     np.testing.assert_allclose(
-        result.scores[["PC1", "PC2", "PC3", "PC4"]].to_numpy(),
+        result.scores.select(["PC1", "PC2", "PC3", "PC4"]).to_numpy(),
         reference.transform(x),
         rtol=1e-12,
         atol=1e-12,
     )
     np.testing.assert_allclose(
-        result.loadings[["PC1", "PC2", "PC3", "PC4"]].to_numpy(),
+        result.loadings.select(["PC1", "PC2", "PC3", "PC4"]).to_numpy(),
         reference.components_.T,
         rtol=1e-12,
         atol=1e-12,
     )
     np.testing.assert_allclose(
-        result.variance["explained_variance_ratio"],
+        result.variance["explained_variance_ratio"].to_numpy(),
         reference.explained_variance_ratio_,
         rtol=1e-12,
         atol=1e-12,
@@ -41,24 +41,32 @@ def test_pca_standard_scaling_only_when_requested():
     raw = analyze_pca(FeatureMatrix(x), n_components=2, scaling="none")
     scaled = analyze_pca(FeatureMatrix(x), n_components=2, scaling="standard")
     expected = PCA(n_components=2).fit_transform(StandardScaler().fit_transform(x))
-    assert not np.allclose(raw.scores[["PC1", "PC2"]], scaled.scores[["PC1", "PC2"]])
-    np.testing.assert_allclose(scaled.scores[["PC1", "PC2"]].to_numpy(), expected, rtol=1e-12, atol=1e-12)
+    assert not np.allclose(
+        raw.scores.select(["PC1", "PC2"]).to_numpy(),
+        scaled.scores.select(["PC1", "PC2"]).to_numpy(),
+    )
+    np.testing.assert_allclose(
+        scaled.scores.select(["PC1", "PC2"]).to_numpy(),
+        expected,
+        rtol=1e-12,
+        atol=1e-12,
+    )
 
 
 def test_full_rank_explained_variance_ratios_sum_to_one():
     x = _matrix()
     result = analyze_pca(FeatureMatrix(x), n_components=6)
-    assert np.isclose(result.variance["explained_variance_ratio"].sum(), 1.0)
-    assert np.isclose(result.variance["cumulative_explained_variance_ratio"].iloc[-1], 1.0)
+    assert np.isclose(float(result.variance["explained_variance_ratio"].sum()), 1.0)
+    assert np.isclose(float(result.variance["cumulative_explained_variance_ratio"][-1]), 1.0)
 
 
 def test_pca_exclusions_preserve_row_mapping():
     x = _matrix()[:8]
     x[2, 1] = np.nan
     result = analyze_pca(FeatureMatrix(x, observation_ids=[f"r{i}" for i in range(8)]), n_components=2)
-    assert result.scores["observation_id"].tolist() == ["r0", "r1", "r3", "r4", "r5", "r6", "r7"]
-    assert result.exclusions["observation_id"].tolist() == ["r2"]
-    assert result.scores["source_row_index"].tolist() == [0, 1, 3, 4, 5, 6, 7]
+    assert result.scores["observation_id"].to_list() == ["r0", "r1", "r3", "r4", "r5", "r6", "r7"]
+    assert result.exclusions["observation_id"].to_list() == ["r2"]
+    assert result.scores["source_row_index"].to_list() == [0, 1, 3, 4, 5, 6, 7]
 
 
 def test_pca_component_count_is_rank_bounded():

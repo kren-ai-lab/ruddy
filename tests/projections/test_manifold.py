@@ -16,8 +16,8 @@ def test_tsne_is_deterministic_under_fixed_seed_and_noninferential():
     first = analyze_tsne(features, perplexity=5.0, max_iter=250, random_state=19)
     second = analyze_tsne(features, perplexity=5.0, max_iter=250, random_state=19)
     np.testing.assert_allclose(
-        first.coordinates[["component_1", "component_2"]],
-        second.coordinates[["component_1", "component_2"]],
+        first.coordinates.select(["component_1", "component_2"]).to_numpy(),
+        second.coordinates.select(["component_1", "component_2"]).to_numpy(),
         rtol=0.0,
         atol=0.0,
     )
@@ -35,8 +35,8 @@ def test_tsne_excludes_nonfinite_rows_explicitly():
         max_iter=250,
         random_state=1,
     )
-    assert result.exclusions["observation_id"].tolist() == [4]
-    assert 4 not in result.coordinates["observation_id"].tolist()
+    assert result.exclusions["observation_id"].to_list() == [4]
+    assert 4 not in result.coordinates["observation_id"].to_list()
 
 
 def test_tsne_requires_valid_perplexity():
@@ -52,8 +52,8 @@ def test_umap_optional_dependency_or_deterministic_output():
     first = analyze_umap(_features(), n_neighbors=5, random_state=9)
     second = analyze_umap(_features(), n_neighbors=5, random_state=9)
     np.testing.assert_allclose(
-        first.coordinates[["component_1", "component_2"]],
-        second.coordinates[["component_1", "component_2"]],
+        first.coordinates.select(["component_1", "component_2"]).to_numpy(),
+        second.coordinates.select(["component_1", "component_2"]).to_numpy(),
     )
     assert first.exploratory is True
     assert first.inferential_allowed is False

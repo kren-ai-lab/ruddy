@@ -78,7 +78,7 @@ def write_anomaly_result(result: AnomalyResult, output_dir: str | Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.scores, target / "anomaly_scores.csv")
     write_table(result.methods, target / "anomaly_methods.csv")
-    if not result.exclusions.empty:
+    if not result.exclusions.is_empty():
         write_table(result.exclusions, target / "anomaly_exclusions.csv")
     write_json(result.provenance.to_dict(), target / "anomaly_provenance.json")
     return target

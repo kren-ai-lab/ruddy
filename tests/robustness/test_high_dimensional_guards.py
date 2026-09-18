@@ -44,7 +44,7 @@ def test_perfect_collinearity_is_detected_before_mahalanobis():
     x = np.column_stack([x, 2.0 * x[:, 0]])
     result = analyze_mahalanobis(FeatureMatrix(x), include_robust=False)
     assert result.status.value == "degenerate"
-    assert result.methods.loc[0, "reason"] == "singular_covariance"
+    assert result.methods["reason"][0] == "singular_covariance"
 
 
 def test_multivariate_high_dimensional_limits_fail_loudly():

@@ -29,20 +29,10 @@ def write_multivariate_result(result: MultivariateResult, output_dir: str | Path
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     cov = result.covariance
-    write_table(
-        cov.covariance,
-        target / "covariance_matrix.csv",
-        index=True,
-        index_label="feature",
-    )
-    write_table(cov.pearson, target / "pearson_matrix.csv", index=True, index_label="feature")
-    write_table(cov.spearman, target / "spearman_matrix.csv", index=True, index_label="feature")
-    write_table(
-        cov.pairwise_counts,
-        target / "pairwise_counts.csv",
-        index=True,
-        index_label="feature",
-    )
+    write_table(cov.covariance, target / "covariance_matrix.csv")
+    write_table(cov.pearson, target / "pearson_matrix.csv")
+    write_table(cov.spearman, target / "spearman_matrix.csv")
+    write_table(cov.pairwise_counts, target / "pairwise_counts.csv")
     write_table(cov.feature_diagnostics, target / "covariance_feature_diagnostics.csv")
     write_table(cov.condition_spectrum, target / "covariance_condition_spectrum.csv")
 
@@ -53,7 +43,7 @@ def write_multivariate_result(result: MultivariateResult, output_dir: str | Path
     mah = result.mahalanobis
     write_table(mah.methods, target / "mahalanobis_methods.csv")
     write_table(mah.distances, target / "mahalanobis_distances.csv")
-    if not cov.exclusions.empty:
+    if not cov.exclusions.is_empty():
         write_table(cov.exclusions, target / "multivariate_exclusions.csv")
 
     write_json(cov.summary, target / "covariance_summary.json")

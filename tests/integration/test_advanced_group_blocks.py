@@ -20,7 +20,7 @@ def test_unified_permanova_matches_standalone(group_dataset, separated_features)
         separated_features, group_dataset, factor="group", n_permutations=19, random_state=4
     )
     assert unified.permanova is not None
-    pd.testing.assert_frame_equal(unified.permanova.summary, standalone.summary)
+    pl_testing.assert_frame_equal(unified.permanova.summary, standalone.summary)
 
 
 def test_unified_permanova_requires_features(group_dataset):

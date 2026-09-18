@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
+from polars._typing import PolarsDataType
 from scipy import sparse
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
@@ -16,6 +17,21 @@ from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
 
+COLLINEARITY_FEATURE_SCHEMA: dict[str, PolarsDataType] = {
+    "feature": pl.String,
+    "vif": pl.Float64,
+    "tolerance": pl.Float64,
+    "is_constant": pl.Boolean,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+CONDITION_SPECTRUM_SCHEMA: dict[str, PolarsDataType] = {
+    "component": pl.Int64,
+    "singular_value": pl.Float64,
+    "condition_index": pl.Float64,
+}
+
 
 @dataclass(frozen=True, slots=True)
 class CollinearityResult:
@@ -23,10 +39,10 @@ class CollinearityResult:
 
     status: ResultStatus
     reason: str | None
-    features: pd.DataFrame
-    condition_spectrum: pd.DataFrame
+    features: pl.DataFrame
+    condition_spectrum: pl.DataFrame
     summary: dict[str, Any]
-    exclusions: pd.DataFrame
+    exclusions: pl.DataFrame
     preprocessing: dict[str, Any]
     provenance: AnalysisProvenance
 
@@ -84,19 +100,20 @@ def analyze_collinearity(
         mask = singular_values > tol
         if singular_values.size:
             indices[mask] = singular_values[0] / singular_values[mask]
-        spectrum = pd.DataFrame(
+        spectrum = pl.DataFrame(
             {
-                "component": np.arange(1, singular_values.size + 1, dtype=int),
+                "component": np.arange(1, singular_values.size + 1, dtype=np.int64),
                 "singular_value": singular_values.astype(float),
                 "condition_index": indices.astype(float),
-            }
+            },
+            schema=CONDITION_SPECTRUM_SCHEMA,
         )
     else:
         z = np.empty((n, 0), dtype=float)
         rank = 0
         full_rank = False
         condition_number = np.inf
-        spectrum = pd.DataFrame(columns=pd.Index(("component", "singular_value", "condition_index")))
+        spectrum = pl.DataFrame(schema=CONDITION_SPECTRUM_SCHEMA)
 
     usable_count = int(usable.sum())
     residual_df_ok = bool(n > usable_count + 1)
@@ -135,8 +152,8 @@ def analyze_collinearity(
         feature_rows.append(
             {
                 "feature": name,
-                "vif": vif,
-                "tolerance": tolerance,
+                "vif": None if np.isnan(vif) else float(vif),
+                "tolerance": None if np.isnan(tolerance) else float(tolerance),
                 "is_constant": bool(constant[index]),
                 "status": status.value,
                 "reason": reason,
@@ -159,7 +176,7 @@ def analyze_collinearity(
     summary = {
         "n_source_observations": int(features.n_observations),
         "n_complete_case_observations": int(n),
-        "n_excluded_observations": int(prepared.exclusions.shape[0]),
+        "n_excluded_observations": prepared.exclusions.height,
         "n_features": int(p),
         "n_nonconstant_features": usable_count,
         "rank": int(rank),
@@ -185,7 +202,7 @@ def analyze_collinearity(
     return CollinearityResult(
         status=overall_status,
         reason=overall_reason,
-        features=pd.DataFrame(feature_rows),
+        features=pl.DataFrame(feature_rows, schema=COLLINEARITY_FEATURE_SCHEMA),
         condition_spectrum=spectrum,
         summary=summary,
         exclusions=prepared.exclusions,

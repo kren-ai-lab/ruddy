@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
+from polars._typing import PolarsDataType
 from scipy import sparse, stats
 from sklearn.covariance import EmpiricalCovariance, MinCovDet
 
@@ -16,6 +18,44 @@ from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
 
+MAHALANOBIS_DISTANCE_SCHEMA_BASE: dict[str, PolarsDataType] = {
+    "source_row_index": pl.Int64,
+    "method": pl.String,
+    "squared_distance": pl.Float64,
+    "distance": pl.Float64,
+    "degrees_of_freedom": pl.Int64,
+    "threshold_quantile": pl.Float64,
+    "threshold_squared": pl.Float64,
+    "is_flagged": pl.Boolean,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+MAHALANOBIS_DISTANCE_COLUMNS: tuple[str, ...] = (
+    "source_row_index",
+    "observation_id",
+    "method",
+    "squared_distance",
+    "distance",
+    "degrees_of_freedom",
+    "threshold_quantile",
+    "threshold_squared",
+    "is_flagged",
+    "status",
+    "reason",
+)
+
+MAHALANOBIS_METHOD_SCHEMA: dict[str, PolarsDataType] = {
+    "method": pl.String,
+    "n_observations": pl.Int64,
+    "n_features": pl.Int64,
+    "covariance_rank": pl.Int64,
+    "threshold_quantile": pl.Float64,
+    "degrees_of_freedom": pl.Int64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
 
 @dataclass(frozen=True, slots=True)
 class MahalanobisResult:
@@ -23,9 +63,9 @@ class MahalanobisResult:
 
     status: ResultStatus
     reason: str | None
-    distances: pd.DataFrame
-    methods: pd.DataFrame
-    exclusions: pd.DataFrame
+    distances: pl.DataFrame
+    methods: pl.DataFrame
+    exclusions: pl.DataFrame
     preprocessing: dict[str, Any]
     provenance: AnalysisProvenance
 
@@ -34,28 +74,34 @@ def _method_rows(
     squared: np.ndarray,
     *,
     method: str,
-    ids: pd.Index,
+    ids: Sequence[Any],
     source_rows: np.ndarray,
     df: int,
     threshold_quantile: float,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     threshold_squared = float(stats.chi2.ppf(threshold_quantile, df=df))
     values = np.asarray(squared, dtype=float)
-    return pd.DataFrame(
+    id_list = list(ids)
+    id_dtype = pl.Series(id_list).dtype if len(id_list) > 0 else pl.String
+    return pl.DataFrame(
         {
-            "source_row_index": source_rows.astype(np.int64),
-            "observation_id": ids.to_list(),
-            "method": method,
-            "squared_distance": values,
-            "distance": np.sqrt(np.maximum(values, 0.0)),
-            "degrees_of_freedom": int(df),
-            "threshold_quantile": float(threshold_quantile),
-            "threshold_squared": threshold_squared,
-            "is_flagged": values > threshold_squared,
-            "status": ResultStatus.OK.value,
-            "reason": None,
+            "source_row_index": pl.Series("source_row_index", source_rows.astype(np.int64), dtype=pl.Int64),
+            "observation_id": pl.Series("observation_id", id_list, dtype=id_dtype),
+            "method": pl.Series("method", [method] * len(values), dtype=pl.String),
+            "squared_distance": pl.Series("squared_distance", values, dtype=pl.Float64),
+            "distance": pl.Series("distance", np.sqrt(np.maximum(values, 0.0)), dtype=pl.Float64),
+            "degrees_of_freedom": pl.Series("degrees_of_freedom", [int(df)] * len(values), dtype=pl.Int64),
+            "threshold_quantile": pl.Series(
+                "threshold_quantile", [float(threshold_quantile)] * len(values), dtype=pl.Float64
+            ),
+            "threshold_squared": pl.Series(
+                "threshold_squared", [threshold_squared] * len(values), dtype=pl.Float64
+            ),
+            "is_flagged": pl.Series("is_flagged", values > threshold_squared, dtype=pl.Boolean),
+            "status": pl.Series("status", [ResultStatus.OK.value] * len(values), dtype=pl.String),
+            "reason": pl.Series("reason", [None] * len(values), dtype=pl.String),
         }
-    )
+    ).select(list(MAHALANOBIS_DISTANCE_COLUMNS))
 
 
 def analyze_mahalanobis(
@@ -98,7 +144,7 @@ def analyze_mahalanobis(
     centered_rank = int(np.linalg.matrix_rank(matrix - matrix.mean(axis=0)))
 
     method_records: list[dict[str, Any]] = []
-    distance_frames: list[pd.DataFrame] = []
+    distance_frames: list[pl.DataFrame] = []
     classical_ok = bool(n > p and centered_rank == p)
     if classical_ok:
         classical = EmpiricalCovariance(assume_centered=False).fit(matrix)
@@ -201,28 +247,20 @@ def analyze_mahalanobis(
                 }
             )
 
-    methods = pd.DataFrame(method_records)
-    distances = (
-        pd.concat(distance_frames, ignore_index=True)
-        if distance_frames
-        else pd.DataFrame(
-            columns=pd.Index(
-                (
-                    "source_row_index",
-                    "observation_id",
-                    "method",
-                    "squared_distance",
-                    "distance",
-                    "degrees_of_freedom",
-                    "threshold_quantile",
-                    "threshold_squared",
-                    "is_flagged",
-                    "status",
-                    "reason",
-                )
-            )
-        )
+    methods = (
+        pl.DataFrame(method_records, schema=MAHALANOBIS_METHOD_SCHEMA)
+        if method_records
+        else pl.DataFrame(schema=MAHALANOBIS_METHOD_SCHEMA)
     )
+    if distance_frames:
+        distances = pl.concat(distance_frames, how="vertical")
+    else:
+        id_dtype = (
+            pl.Series(prepared.observation_ids).dtype if len(prepared.observation_ids) > 0 else pl.String
+        )
+        schema = {**MAHALANOBIS_DISTANCE_SCHEMA_BASE, "observation_id": id_dtype}
+        distances = pl.DataFrame(schema={col: schema[col] for col in MAHALANOBIS_DISTANCE_COLUMNS})
+
     any_ok = bool((methods["status"] == ResultStatus.OK.value).any())
     status = ResultStatus.OK if any_ok else ResultStatus.DEGENERATE
     reason = None if any_ok else "mahalanobis_not_feasible"
@@ -242,7 +280,7 @@ def analyze_mahalanobis(
             "n_observations": features.n_observations,
             "n_features": features.n_features,
             "n_complete_case_observations": int(n),
-            "n_excluded_observations": int(prepared.exclusions.shape[0]),
+            "n_excluded_observations": prepared.exclusions.height,
             "centered_rank": centered_rank,
         },
         random_state=int(random_state),

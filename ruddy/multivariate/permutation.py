@@ -3,34 +3,50 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
-import pandas as pd
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy.stats import f_oneway
 from sklearn.metrics import pairwise_distances
 
 from ruddy.core.enums import AlignmentMode, ResultStatus
 from ruddy.data import FeatureMatrix, TabularDataset
 from ruddy.data.validation import AlignmentReport, align_annotations
+from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
 
-SUMMARY_COLUMNS = (
-    "analysis",
-    "factor",
-    "statistic",
-    "value",
-    "df_between",
-    "df_within",
-    "r_squared",
-    "p_value",
-    "n_permutations",
-    "status",
-    "reason",
-)
-GROUP_COLUMNS = ("factor", "level", "n", "mean_distance_to_centroid")
-CENTROID_COLUMNS = (
+SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
+    "analysis": pl.String,
+    "factor": pl.String,
+    "statistic": pl.String,
+    "value": pl.Float64,
+    "df_between": pl.Int64,
+    "df_within": pl.Int64,
+    "r_squared": pl.Float64,
+    "p_value": pl.Float64,
+    "n_permutations": pl.Int64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+GROUP_SCHEMA: dict[str, PolarsDataType] = {
+    "factor": pl.String,
+    "level": pl.String,
+    "n": pl.Int64,
+    "mean_distance_to_centroid": pl.Float64,
+}
+
+CENTROID_SCHEMA_BASE: dict[str, PolarsDataType] = {
+    "source_row_index": pl.Int64,
+    "factor": pl.String,
+    "level": pl.String,
+    "distance_to_centroid": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+
+CENTROID_COLUMNS: tuple[str, ...] = (
     "source_row_index",
     "observation_id",
     "factor",
@@ -39,7 +55,6 @@ CENTROID_COLUMNS = (
     "status",
     "reason",
 )
-EXCLUSION_COLUMNS = ("source_row_index", "observation_id", "stage", "reason")
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,10 +63,10 @@ class PermutationGroupResult:
 
     status: ResultStatus
     reason: str | None
-    summary: pd.DataFrame
-    groups: pd.DataFrame
-    distances_to_centroid: pd.DataFrame
-    exclusions: pd.DataFrame
+    summary: pl.DataFrame
+    groups: pl.DataFrame
+    distances_to_centroid: pl.DataFrame
+    exclusions: pl.DataFrame
     alignment: AlignmentReport
     advisories: tuple[Advisory, ...]
     provenance: AnalysisProvenance
@@ -74,18 +89,17 @@ def _aligned_factor(
     dataset: TabularDataset,
     factor: str,
     alignment: AlignmentMode | str,
-) -> tuple[pd.Series, AlignmentReport]:
+) -> tuple[pl.Series, AlignmentReport]:
     if factor not in dataset.frame.columns:
         raise ValueError(f"Unknown grouping factor: {factor!r}.")
     annotations = dataset.frame.select(factor).with_columns(pl.Series("__id", dataset.observation_id_tuple))
     aligned, report = align_annotations(
-        features.observation_ids,
+        features.observation_id_tuple,
         annotations,
         id_column="__id",
         mode=alignment,
     )
-    # ponytail: temporary pandas adapter, removed in phase 5
-    return aligned[factor].to_pandas(), report
+    return aligned.get_column(factor), report
 
 
 def _permanova_statistic(distance_matrix: np.ndarray, labels: np.ndarray) -> tuple[float, float, int, int]:
@@ -168,23 +182,22 @@ def analyze_permutation_group_structure(
 
     group_series, report = _aligned_factor(features, dataset, factor, alignment)
     valid_features = _feature_valid_rows(features)
-    valid_group = group_series.notna().to_numpy()
+    valid_group = group_series.is_not_null().to_numpy()
     keep = valid_features & valid_group
-    ids = features.observation_ids
-    exclusions_rows: list[dict[str, Any]] = []
-    for row in np.flatnonzero(~keep):
-        reason = "non_finite_feature_row" if not valid_features[row] else "missing_group_value"
-        exclusions_rows.append(
-            {
-                "source_row_index": int(row),
-                "observation_id": ids[row],  # pyrefly: ignore[bad-index]
-                "stage": "permutation_group_complete_case",
-                "reason": reason,
-            }
-        )
-    exclusions = pd.DataFrame(exclusions_rows, columns=pd.Index(EXCLUSION_COLUMNS))
+    ids = features.observation_id_tuple
+    excluded_rows = np.flatnonzero(~keep).astype(np.int64)
+    reasons = [
+        "non_finite_feature_row" if not valid_features[row] else "missing_group_value"
+        for row in excluded_rows
+    ]
+    exclusions = _exclusions_table(
+        ids,
+        excluded_rows,
+        stage="permutation_group_complete_case",
+        reason=reasons,
+    )
 
-    labels = group_series.to_numpy()[keep]
+    labels = np.array(group_series.to_list())[keep]
     levels, counts = np.unique(labels, return_counts=True)
     provenance = AnalysisProvenance(
         analysis="permutation_group_structure",
@@ -199,14 +212,17 @@ def analyze_permutation_group_structure(
         input_summary={
             "n_source_observations": features.n_observations,
             "n_complete_case": int(keep.sum()),
-            "n_excluded": int((~keep).sum()),
+            "n_excluded": exclusions.height,
             "n_features": features.n_features,
         },
         random_state=random_state,
     )
-    empty_summary = pd.DataFrame(columns=pd.Index(SUMMARY_COLUMNS))
-    empty_groups = pd.DataFrame(columns=pd.Index(GROUP_COLUMNS))
-    empty_dist = pd.DataFrame(columns=pd.Index(CENTROID_COLUMNS))
+    id_dtype = pl.Series(ids).dtype if len(ids) > 0 else pl.String
+    empty_summary = pl.DataFrame(schema=SUMMARY_SCHEMA)
+    empty_groups = pl.DataFrame(schema=GROUP_SCHEMA)
+    centroid_schema = {**CENTROID_SCHEMA_BASE, "observation_id": id_dtype}
+    empty_dist = pl.DataFrame(schema={col: centroid_schema[col] for col in CENTROID_COLUMNS})
+
     if len(levels) < 2:
         return PermutationGroupResult(
             ResultStatus.DEGENERATE,
@@ -222,9 +238,16 @@ def analyze_permutation_group_structure(
     if len(levels) > max_group_levels:
         raise ValueError(f"Factor {factor!r} has {len(levels)} levels; maximum is {max_group_levels}.")
     if np.any(counts < min_group_n):
-        groups = pd.DataFrame(
-            {"factor": factor, "level": levels, "n": counts, "mean_distance_to_centroid": np.nan},
-            columns=pd.Index(GROUP_COLUMNS),
+        groups = pl.DataFrame(
+            {
+                "factor": pl.Series("factor", [factor] * len(levels), dtype=pl.String),
+                "level": pl.Series("level", [str(lvl) for lvl in levels], dtype=pl.String),
+                "n": pl.Series("n", counts, dtype=pl.Int64),
+                "mean_distance_to_centroid": pl.Series(
+                    "mean_distance_to_centroid", [np.nan] * len(levels), dtype=pl.Float64
+                ),
+            },
+            schema=GROUP_SCHEMA,
         )
         return PermutationGroupResult(
             ResultStatus.DEGENERATE,
@@ -311,7 +334,7 @@ def analyze_permutation_group_structure(
             return None
         return float((1 + np.sum(finite >= observed)) / (1 + len(finite)))
 
-    summary = pd.DataFrame(
+    summary = pl.DataFrame(
         [
             {
                 "analysis": "permanova",
@@ -342,10 +365,11 @@ def analyze_permutation_group_structure(
                 "reason": None if np.isfinite(permdisp_f) else "non_estimable_permdisp",
             },
         ],
-        columns=pd.Index(SUMMARY_COLUMNS),
+        schema=SUMMARY_SCHEMA,
     )
 
-    kept_ids = ids[keep]
+    kept_indices = np.flatnonzero(keep)
+    kept_ids = tuple(ids[i] for i in kept_indices)
     dist_rows = []
     group_rows = []
     for level in levels:
@@ -353,26 +377,30 @@ def analyze_permutation_group_structure(
         group_rows.append(
             {
                 "factor": factor,
-                "level": level,
+                "level": str(level),
                 "n": int(mask.sum()),
                 "mean_distance_to_centroid": float(centroid_distances[mask].mean()),
             }
         )
     for row, (obs_id, level, distance) in enumerate(zip(kept_ids, labels, centroid_distances, strict=True)):
-        source_row = int(np.flatnonzero(keep)[row])
+        source_row = int(kept_indices[row])
         dist_rows.append(
             {
                 "source_row_index": source_row,
                 "observation_id": obs_id,
                 "factor": factor,
-                "level": level,
+                "level": str(level),
                 "distance_to_centroid": float(distance),
                 "status": ResultStatus.OK.value,
                 "reason": None,
             }
         )
-    groups = pd.DataFrame(group_rows, columns=pd.Index(GROUP_COLUMNS))
-    distances_df = pd.DataFrame(dist_rows, columns=pd.Index(CENTROID_COLUMNS))
+    groups = pl.DataFrame(group_rows, schema=GROUP_SCHEMA)
+    if dist_rows:
+        dist_frame = pl.DataFrame(dist_rows, schema_overrides=CENTROID_SCHEMA_BASE)
+        distances_df = dist_frame.select(list(CENTROID_COLUMNS))
+    else:
+        distances_df = empty_dist
 
     advisories: list[Advisory] = []
     negative = eigenvalues[eigenvalues < 0]

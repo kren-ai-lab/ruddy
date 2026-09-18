@@ -33,9 +33,9 @@ def test_unified_pca_matches_standalone_exactly(robust_tabular):
     )
     unified = analyze(robust_tabular, config=config, features=f).pca
     assert unified is not None
-    pd.testing.assert_frame_equal(standalone.scores, unified.scores)
-    pd.testing.assert_frame_equal(standalone.loadings, unified.loadings)
-    pd.testing.assert_frame_equal(standalone.variance, unified.variance)
+    pl_testing.assert_frame_equal(standalone.scores, unified.scores)
+    pl_testing.assert_frame_equal(standalone.loadings, unified.loadings)
+    pl_testing.assert_frame_equal(standalone.variance, unified.variance)
 
 
 def test_unified_anomaly_matches_standalone_exactly(robust_tabular):
@@ -52,8 +52,8 @@ def test_unified_anomaly_matches_standalone_exactly(robust_tabular):
     )
     unified = analyze(robust_tabular, config=config, features=f).anomaly
     assert unified is not None
-    pd.testing.assert_frame_equal(standalone.scores, unified.scores)
-    pd.testing.assert_frame_equal(standalone.methods, unified.methods)
+    pl_testing.assert_frame_equal(standalone.scores, unified.scores)
+    pl_testing.assert_frame_equal(standalone.methods, unified.methods)
 
 
 def test_unified_representation_matches_standalone_exactly(robust_tabular):
@@ -92,23 +92,23 @@ def test_cli_writer_preserves_unified_component_tables(tmp_path, robust_tabular)
     )
     result = analyze(robust_tabular, config=cfg, features=f)
     out = write_unified_result(result, tmp_path / "out")
-    pca_scores = pd.read_csv(out / "pca" / "pca_scores.csv")
-    anomaly_scores = pd.read_csv(out / "anomaly" / "anomaly_scores.csv")
     assert result.pca is not None
-    pd.testing.assert_frame_equal(pca_scores, result.pca.scores, check_dtype=False, rtol=1e-12, atol=1e-12)
+    pca_scores = pl.read_csv(out / "pca" / "pca_scores.csv", schema=result.pca.scores.schema)
+    pl_testing.assert_frame_equal(
+        pca_scores, result.pca.scores, check_exact=False, rel_tol=1e-12, abs_tol=1e-12
+    )
     assert result.anomaly is not None
     assert result.anomaly.scores is not None
-    expected_anomaly = result.anomaly.scores.copy()
-    for column in expected_anomaly.select_dtypes(include="object").columns:
-        expected_anomaly[column] = expected_anomaly[column].fillna("")
-        anomaly_scores[column] = anomaly_scores[column].fillna("")
-    pd.testing.assert_frame_equal(anomaly_scores, expected_anomaly, check_dtype=False, rtol=1e-12, atol=1e-12)
+    anomaly_scores = pl.read_csv(out / "anomaly" / "anomaly_scores.csv", schema=result.anomaly.scores.schema)
+    pl_testing.assert_frame_equal(
+        anomaly_scores, result.anomaly.scores, check_exact=False, rel_tol=1e-12, abs_tol=1e-12
+    )
     summary = json.loads((out / "analysis_summary.json").read_text())
     assert summary["executed_blocks"] == ["pca", "anomaly"]
 
 
 def test_feature_alignment_never_uses_row_position(robust_tabular):
-    ids = robust_tabular.observation_ids.to_list()
+    ids = list(robust_tabular.observation_id_tuple)
     rng = np.random.default_rng(65)
     x = rng.normal(size=(len(ids), 4))
     order = np.arange(len(ids))[::-1]
@@ -120,11 +120,15 @@ def test_feature_alignment_never_uses_row_position(robust_tabular):
     assert result.pca is not None
     assert result.pca.scores is not None
     components = ["PC1", "PC2"]
-    scores_by_id = result.pca.scores.set_index("observation_id").loc[ids]
+    scores_by_id = pl.DataFrame({"observation_id": ids}).join(
+        result.pca.scores, on="observation_id", how="left"
+    )
     # Project the original rows onto the returned axes to avoid PCA sign ambiguity.
-    expected_scores = (x - x.mean(axis=0)) @ result.pca.loadings[components].to_numpy()
-    np.testing.assert_allclose(scores_by_id[components], expected_scores, rtol=1e-12, atol=1e-12)
-    np.testing.assert_array_equal(scores_by_id["source_row_index"], np.argsort(order))
+    expected_scores = (x - x.mean(axis=0)) @ result.pca.loadings.select(components).to_numpy()
+    np.testing.assert_allclose(
+        scores_by_id.select(components).to_numpy(), expected_scores, rtol=1e-12, atol=1e-12
+    )
+    np.testing.assert_array_equal(scores_by_id["source_row_index"].to_numpy(), np.argsort(order))
 
 
 def test_actual_cli_roundtrip_matches_standalone_univariate(tmp_path):

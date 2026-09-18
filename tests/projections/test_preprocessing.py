@@ -31,10 +31,10 @@ def test_dense_scaling_matches_sklearn(method, transformer):
 def test_non_finite_rows_are_explicitly_excluded():
     x = np.array([[1.0, 2.0], [np.nan, 4.0], [5.0, np.inf], [7.0, 8.0]])
     result = prepare_features(FeatureMatrix(x, observation_ids=["a", "b", "c", "d"]), scaling="none")
-    assert result.observation_ids.tolist() == ["a", "d"]
+    assert list(result.observation_ids) == ["a", "d"]
     assert result.source_row_indices.tolist() == [0, 3]
-    assert result.exclusions["observation_id"].tolist() == ["b", "c"]
-    assert set(result.exclusions["reason"]) == {"non_finite_feature_row"}
+    assert result.exclusions["observation_id"].to_list() == ["b", "c"]
+    assert set(result.exclusions["reason"].to_list()) == {"non_finite_feature_row"}
 
 
 def test_sparse_standard_scaling_stays_sparse_without_centering():
@@ -54,5 +54,5 @@ def test_sparse_minmax_refuses_hidden_densification():
 def test_sparse_non_finite_rows_are_excluded():
     x = sparse.csr_matrix([[0.0, 1.0], [2.0, np.inf], [3.0, 4.0]])
     result = prepare_features(FeatureMatrix(x, observation_ids=[10, 11, 12]))
-    assert result.observation_ids.tolist() == [10, 12]
-    assert result.exclusions["observation_id"].tolist() == [11]
+    assert list(result.observation_ids) == [10, 12]
+    assert result.exclusions["observation_id"].to_list() == [11]
