@@ -157,8 +157,8 @@ def test_manova_matches_standalone(pipeline_dataset):
         **config.manova_kwargs(),
     )
     assert result.manova is not None
-    assert_frame_equal(result.manova.tests, standalone.tests)
-    assert_frame_equal(result.manova.factor_levels, standalone.factor_levels)
+    pl_testing.assert_frame_equal(result.manova.tests, standalone.tests)
+    pl_testing.assert_frame_equal(result.manova.factor_levels, standalone.factor_levels)
 
 
 def test_factorial_matches_standalone_with_formula(pipeline_dataset):
@@ -174,8 +174,8 @@ def test_factorial_matches_standalone_with_formula(pipeline_dataset):
         **config.factorial_kwargs(),
     )
     assert result.factorial is not None
-    assert_frame_equal(result.factorial.effects, standalone.effects)
-    assert_frame_equal(result.factorial.coefficients, standalone.coefficients)
+    pl_testing.assert_frame_equal(result.factorial.effects, standalone.effects)
+    pl_testing.assert_frame_equal(result.factorial.coefficients, standalone.coefficients)
     assert result.factorial.design is not None
     assert result.factorial.design.resolved_formula == standalone.design.resolved_formula
 
@@ -189,7 +189,7 @@ def test_factorial_explicit_model_uses_configured_interaction(pipeline_dataset):
     )
     result = analyze(pipeline_dataset, config=config)
     assert result.factorial is not None
-    terms = set(result.factorial.effects["term"].astype(str))
+    terms = set(result.factorial.effects.get_column("term").to_list())
     assert any("factor" in term and "batch" in term for term in terms)
 
 

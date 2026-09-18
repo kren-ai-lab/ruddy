@@ -82,7 +82,7 @@ def write_manova_result(result: MANOVAResult, output_dir: str | Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
     write_table(result.tests, target / "manova_tests.csv")
     write_table(result.factor_levels, target / "manova_factor_levels.csv")
-    if not result.exclusions.empty:
+    if not result.exclusions.is_empty():
         write_table(result.exclusions, target / "manova_exclusions.csv")
     write_json(result.model_summary, target / "manova_model_summary.json")
     write_json(
@@ -164,7 +164,7 @@ def run_manova(args: CliArgs) -> int:
                 {
                     "status": result.status.value,
                     "reason": result.reason,
-                    "n_tests": int(result.tests.shape[0]),
+                    "n_tests": int(result.tests.height),
                     "n_complete_case": result.model_summary.get("n_complete_case", 0),
                 },
                 indent=2,

@@ -152,10 +152,14 @@ def analyze_composition(
         prepared = closed
         replacement = pl.DataFrame(
             {
-                "source_row_index": pl.Series("source_row_index", np.arange(features.n_observations), dtype=pl.Int64),
+                "source_row_index": pl.Series(
+                    "source_row_index", np.arange(features.n_observations), dtype=pl.Int64
+                ),
                 "zero_count": pl.Series("zero_count", (closed == 0).sum(axis=1), dtype=pl.Int64),
                 "delta": pl.Series("delta", np.zeros(features.n_observations, dtype=float), dtype=pl.Float64),
-                "replaced": pl.Series("replaced", np.zeros(features.n_observations, dtype=bool), dtype=pl.Boolean),
+                "replaced": pl.Series(
+                    "replaced", np.zeros(features.n_observations, dtype=bool), dtype=pl.Boolean
+                ),
             },
             schema=ZERO_REPLACEMENT_SCHEMA,
         )

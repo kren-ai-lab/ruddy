@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
-
 from ruddy import analyze_marginal_means, analyze_posthoc
 
 
@@ -14,5 +12,5 @@ def test_posthoc_methods_do_not_auto_switch(robust_tabular):
 
 def test_marginal_means_covariate_adjustment_is_finite(robust_tabular):
     result = analyze_marginal_means(robust_tabular, response="y", factors=("group",), covariates=("x",))
-    assert np.isfinite(result.means["estimate"]).all()
-    assert np.isfinite(result.contrasts["estimate_difference"]).all()
+    assert result.means.get_column("estimate").is_finite().all()
+    assert result.contrasts.get_column("estimate_difference").is_finite().all()

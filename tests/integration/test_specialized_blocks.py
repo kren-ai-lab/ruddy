@@ -77,9 +77,7 @@ def test_unified_representation_matches_standalone():
         random_state=7,
     )
     u = analyze(ds, config=cfg, features=x, comparison_features=y).representation
-    s = analyze_representation_similarity(
-        x, y, cca_components=2, mantel_permutations=19, random_state=7
-    )
+    s = analyze_representation_similarity(x, y, cca_components=2, mantel_permutations=19, random_state=7)
     assert u is not None
     pl_testing.assert_frame_equal(u.cca.correlations, s.cca.correlations)
     pl_testing.assert_frame_equal(u.cka, s.cka)

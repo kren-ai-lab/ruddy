@@ -95,7 +95,7 @@ def test_complete_case_collapse_is_explicit_in_factorial():
     ds = TabularDataset(frame, id_column="id", role_overrides={"y": "response", "g": "factor"})
     result = analyze_factorial(ds, response="y", factors=("g",))
     assert result.status.value in {"skipped", "degenerate"}
-    assert not result.exclusions.empty
+    assert not result.exclusions.is_empty()
 
 
 def test_analyses_do_not_mutate_input_dataframe(robust_tabular):

@@ -38,14 +38,14 @@ def write_factorial_result(result: FactorialResult, output_dir: str | Path) -> P
     write_table(result.effects, target / "factorial_effects.csv")
     write_table(result.coefficients, target / "factorial_coefficients.csv")
     write_table(result.diagnostics, target / "factorial_diagnostics.csv")
-    if not result.observation_diagnostics.empty:
+    if not result.observation_diagnostics.is_empty():
         write_table(
             result.observation_diagnostics,
             target / "factorial_observation_diagnostics.csv",
         )
-    if not result.cells.empty:
+    if not result.cells.is_empty():
         write_table(result.cells, target / "factorial_cells.csv")
-    if not result.exclusions.empty:
+    if not result.exclusions.is_empty():
         write_table(result.exclusions, target / "factorial_exclusions.csv")
     write_json(result.model_summary, target / "factorial_model_summary.json")
     write_json(

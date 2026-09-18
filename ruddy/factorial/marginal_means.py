@@ -3,93 +3,107 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from itertools import combinations, product
 from typing import Any
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from patsy import build_design_matrices, dmatrices  # pyrefly: ignore[missing-module-attribute]
+from polars._typing import PolarsDataType
 from scipy.stats import t as student_t
 from statsmodels.api import OLS
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
 from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, build_factorial_design
+from ruddy.projections.preprocessing import EXCLUSION_COLUMNS, _exclusions_table
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
 
-MEAN_COLUMNS = (
-    "response",
-    "term",
-    "levels_json",
-    "estimate",
-    "std_error",
-    "df",
-    "confidence_level",
-    "ci_lower",
-    "ci_upper",
-    "weighting",
-    "status",
-    "reason",
-)
-CONTRAST_COLUMNS = (
-    "response",
-    "term",
-    "levels_a_json",
-    "levels_b_json",
-    "estimate_difference",
-    "std_error",
-    "df",
-    "t_value",
-    "p_value",
-    "q_value",
-    "correction",
-    "family_size",
-    "confidence_level",
-    "ci_lower",
-    "ci_upper",
-    "status",
-    "reason",
-)
-EXCLUSION_COLUMNS = ("source_row_index", "observation_id", "stage", "reason")
+MEAN_SCHEMA: dict[str, PolarsDataType] = {
+    "response": pl.String,
+    "term": pl.String,
+    "levels_json": pl.String,
+    "estimate": pl.Float64,
+    "std_error": pl.Float64,
+    "df": pl.Float64,
+    "confidence_level": pl.Float64,
+    "ci_lower": pl.Float64,
+    "ci_upper": pl.Float64,
+    "weighting": pl.String,
+    "status": pl.String,
+    "reason": pl.String,
+}
+MEAN_COLUMNS = tuple(MEAN_SCHEMA)
+
+CONTRAST_SCHEMA: dict[str, PolarsDataType] = {
+    "response": pl.String,
+    "term": pl.String,
+    "levels_a_json": pl.String,
+    "levels_b_json": pl.String,
+    "estimate_difference": pl.Float64,
+    "std_error": pl.Float64,
+    "df": pl.Float64,
+    "t_value": pl.Float64,
+    "p_value": pl.Float64,
+    "q_value": pl.Float64,
+    "correction": pl.String,
+    "family_size": pl.Int64,
+    "confidence_level": pl.Float64,
+    "ci_lower": pl.Float64,
+    "ci_upper": pl.Float64,
+    "status": pl.String,
+    "reason": pl.String,
+}
+CONTRAST_COLUMNS = tuple(CONTRAST_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
 class MarginalMeansResult:
     """Estimated marginal means plus pairwise contrasts for requested factor terms."""
 
-    means: pd.DataFrame
-    contrasts: pd.DataFrame
-    exclusions: pd.DataFrame
+    means: pl.DataFrame
+    contrasts: pl.DataFrame
+    exclusions: pl.DataFrame
     provenance: AnalysisProvenance
 
 
 def _safe_model(
     dataset: TabularDataset,
     design: FactorialDesign,
-) -> tuple[Any, pd.DataFrame, np.ndarray, dict[str, str], dict[str, str], Any]:
+) -> tuple[Any, pl.DataFrame, np.ndarray, dict[str, str], dict[str, str], Any]:
     selected = (design.response, *design.factors, *design.covariates)
-    frame = dataset.select(selected)
-    complete = np.ones(len(frame), dtype=bool)
+    frame = dataset.frame.select(selected)
+    complete = np.ones(frame.height, dtype=bool)
     for name in (design.response, *design.covariates):
-        complete &= np.isfinite(pd.to_numeric(frame[name], errors="coerce").to_numpy(dtype=float))
+        values = frame.get_column(name).cast(pl.Float64).fill_null(float("nan")).to_numpy()
+        complete &= np.isfinite(values)
     for name in design.factors:
-        complete &= frame[name].notna().to_numpy()
-    model_frame = frame.loc[complete].reset_index(drop=True)
-    safe = pd.DataFrame(index=model_frame.index)
-    safe["Y"] = pd.to_numeric(model_frame[design.response], errors="raise").astype(float)
+        series = frame.get_column(name)
+        valid = series.is_not_null()
+        if series.dtype.is_float():
+            valid = valid & ~series.is_nan()
+        complete &= valid.fill_null(False).to_numpy()
+    model_frame = frame.filter(pl.Series(complete))
+
+    # pandas boundary: statsmodels/Patsy consume pandas; see docs/POLARS_MIGRATION_PLAN.md
+    pandas_frame = model_frame.to_pandas()
+    safe = pd.DataFrame(index=pandas_frame.index)
+    safe["Y"] = pd.to_numeric(pandas_frame[design.response], errors="raise").astype(float)
     factor_safe: dict[str, str] = {}
     covariate_safe: dict[str, str] = {}
     expression: dict[str, str] = {}
     for idx, name in enumerate(design.factors):
         safe_name = f"F{idx}"
-        safe[safe_name] = pd.Categorical(model_frame[name])
+        safe[safe_name] = pd.Categorical(pandas_frame[name])
         factor_safe[name] = safe_name
         expression[name] = f"C({safe_name}, Sum)"
     for idx, name in enumerate(design.covariates):
         safe_name = f"X{idx}"
-        safe[safe_name] = pd.to_numeric(model_frame[name], errors="raise").astype(float)
+        safe[safe_name] = pd.to_numeric(pandas_frame[name], errors="raise").astype(float)
         covariate_safe[name] = safe_name
         expression[name] = safe_name
     rhs = " + ".join(":".join(expression[name] for name in term.columns) for term in design.terms)
@@ -119,19 +133,20 @@ def _normalize_terms(
 
 
 def _grid_l_vectors(
-    model_frame: pd.DataFrame,
+    model_frame: pl.DataFrame,
     design: FactorialDesign,
     factor_safe: dict[str, str],
     covariate_safe: dict[str, str],
     design_info,
     term: tuple[str, ...],
 ) -> list[tuple[tuple[object, ...], np.ndarray]]:
-    levels = {name: list(pd.unique(model_frame[name])) for name in design.factors}
+    levels = {name: list(dict.fromkeys(model_frame.get_column(name).to_list())) for name in design.factors}
     nuisance = tuple(name for name in design.factors if name not in term)
     target_combinations = list(product(*(levels[name] for name in term)))
     nuisance_combinations = list(product(*(levels[name] for name in nuisance))) if nuisance else [()]
     cov_means = {
-        name: float(pd.to_numeric(model_frame[name], errors="raise").mean()) for name in design.covariates
+        name: float(np.mean(model_frame.get_column(name).cast(pl.Float64).to_numpy()))
+        for name in design.covariates
     }
     result: list[tuple[tuple[object, ...], np.ndarray]] = []
     for target_values in target_combinations:
@@ -245,7 +260,7 @@ def analyze_marginal_means(
                     "df": df,
                     "t_value": float(t_value),
                     "p_value": p_value,
-                    "q_value": np.nan,
+                    "q_value": None,
                     "correction": correction.value,
                     "family_size": len(l_vectors) * (len(l_vectors) - 1) // 2,
                     "confidence_level": confidence_level,
@@ -260,18 +275,16 @@ def analyze_marginal_means(
                 np.asarray([row["p_value"] for row in family_rows], dtype=float), method=correction
             )
             for row, q_value in zip(family_rows, q_values, strict=True):
-                row["q_value"] = float(q_value) if q_value is not None else np.nan
+                row["q_value"] = float(q_value) if q_value is not None and math.isfinite(q_value) else None
             contrast_rows.extend(family_rows)
 
-    exclusions_idx = np.flatnonzero(~complete)
-    exclusions = pd.DataFrame(
-        {
-            "source_row_index": exclusions_idx.astype(np.int64),
-            "observation_id": dataset.observation_ids.take(exclusions_idx).to_list(),
-            "stage": "marginal_means_complete_case",
-            "reason": "missing_or_non_finite_model_value",
-        },
-        columns=pd.Index(EXCLUSION_COLUMNS),
+    exclusions_idx = np.flatnonzero(~complete).astype(np.int64)
+    ids = dataset.observation_id_tuple
+    exclusions = _exclusions_table(
+        ids,
+        exclusions_idx,
+        stage="marginal_means_complete_case",
+        reason="missing_or_non_finite_model_value",
     )
     provenance = AnalysisProvenance(
         analysis="marginal_means",
@@ -294,11 +307,21 @@ def analyze_marginal_means(
         },
     )
     return MarginalMeansResult(
-        means=pd.DataFrame(mean_rows, columns=pd.Index(MEAN_COLUMNS)),
-        contrasts=pd.DataFrame(contrast_rows, columns=pd.Index(CONTRAST_COLUMNS)),
+        means=pl.DataFrame(mean_rows, schema=MEAN_SCHEMA) if mean_rows else pl.DataFrame(schema=MEAN_SCHEMA),
+        contrasts=pl.DataFrame(contrast_rows, schema=CONTRAST_SCHEMA)
+        if contrast_rows
+        else pl.DataFrame(schema=CONTRAST_SCHEMA),
         exclusions=exclusions,
         provenance=provenance,
     )
 
 
-__all__ = ["MarginalMeansResult", "analyze_marginal_means"]
+__all__ = [
+    "CONTRAST_COLUMNS",
+    "CONTRAST_SCHEMA",
+    "EXCLUSION_COLUMNS",
+    "MEAN_COLUMNS",
+    "MEAN_SCHEMA",
+    "MarginalMeansResult",
+    "analyze_marginal_means",
+]
