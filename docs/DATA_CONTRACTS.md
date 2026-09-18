@@ -1,231 +1,163 @@
 # Data contracts and alignment
 
-Ruddy separates the statistical meaning of a column from its observed storage type and treats observation identity as a first-class scientific contract.
+Use `TabularDataset` for columns with statistical roles, and `FeatureMatrix`
+for numerical representations. Supply observation IDs whenever objects will
+be combined; matching row positions do not establish identity.
 
-## `TabularDataset`
+## Tabular datasets
 
 ```python
+import polars as pl
 from ruddy import TabularDataset
 
+frame = pl.DataFrame({
+    "id": ["s1", "s2", "s3", "s4"],
+    "activity": [1.2, 2.4, 1.8, 3.1],
+    "batch": [0, 0, 1, 1],
+})
 dataset = TabularDataset(
     frame,
     id_column="id",
-    role_overrides={
-        "activity": "response",
-        "family": "factor",
-        "length": "covariate",
-        "sequence": "excluded",
-    },
+    role_overrides={"activity": "response", "batch": "factor"},
 )
+print(dataset.frame.select("activity"))
+print(dataset.observation_ids)
+print(dataset.schema)
 ```
 
-`TabularDataset` stores tabular data internally as a Polars DataFrame (`pl.DataFrame`) exposed via the `.frame` property. Inputs may be either Polars or pandas DataFrames. When constructed from pandas, the frame is deep-copied and converted via Arrow without index. Constructing a dataset does not coerce values, impute data or silently remove observations. Temporary adapter methods (frame export, `select()`, `n_observations`, `n_columns`, `columns`, `__len__`, `observation_id_tuple`) have been removed; callers access `dataset.frame.height`, `dataset.frame.width`, `dataset.frame.columns`, and `dataset.frame.select(...)`.
+Inputs can be Polars or pandas DataFrames. `dataset.frame` is a Polars
+DataFrame; use its `.height`, `.width`, `.columns` and `.select(...)` for table
+operations. `dataset.schema` records each column's role, kind and Polars dtype
+name, such as `Float64` or `String`.
 
-### Column roles
+Column names must be unique strings. Unsupported data types, including complex
+numbers and pandas categoricals with non-string categories, require an explicit
+conversion before construction. Numeric-looking strings are not converted to
+numbers; missing values are not imputed and rows are not dropped.
 
-| Role | Meaning |
+### Roles and kinds
+
+A role states how a column is used. A kind describes its observed data type.
+For example, the numeric `batch` column above is treated categorically because
+its role is `factor`.
+
+| Role | Use |
 | --- | --- |
-| `identifier` | Observation identity; excluded from statistical analysis |
+| `identifier` | Observation identity; excluded from analysis |
 | `variable` | General analyzable variable |
-| `response` | Variable explicitly treated as a response in response-centric analyses |
-| `factor` | Grouping/factor variable; treated categorically even when numerically encoded |
+| `response` | Outcome selected for response-centric analyses |
+| `factor` | Categorical grouping or model factor |
 | `covariate` | Numeric adjustment/model variable |
 | `annotation` | Contextual aligned metadata |
-| `excluded` | Retained in the source table but excluded from analyses |
+| `excluded` | Retained in the table, excluded from analysis |
 
-A crucial design decision is that a numerically encoded column can be a factor:
+Kinds are `numeric`, `categorical`, `boolean`, `datetime` and `unknown`.
+Use `kind_overrides` when an explicit statistical kind is needed; an override
+does not convert the underlying values. All-null columns need an explicit
+input dtype to establish that they are numeric.
 
-```python
-TabularDataset(
-    frame,
-    id_column="id",
-    role_overrides={"batch": "factor"},
-)
-```
+Inspect selections with `dataset.role_of(name)`, `dataset.kind_of(name)`,
+`dataset.columns_with_role(...)` and `dataset.columns_with_kind(...)`.
 
-`batch = 0, 1, 2` is then treated as categorical grouping information rather than a continuous trend.
+### Observation identity
 
-### Observed data kinds
+IDs must be non-missing and unique. For `TabularDataset`, choose either:
 
-| Kind | Meaning |
-| --- | --- |
-| `numeric` | Numeric dtype suitable for numeric analysis |
-| `categorical` | Nominal/categorical values |
-| `boolean` | Boolean data kept distinct from generic categorical data |
-| `datetime` | Datetime data for descriptive temporal range summaries |
-| `unknown` | Unsupported/unknown observed kind |
+- `id_column="id"` to use a table column;
+- `observation_ids=ids` to provide a sequence matching the number of rows.
 
-Roles and kinds are distinct. A factor may have numeric kind, and a response may be numeric or categorical.
+Passing both raises an error. Without either, Ruddy generates integer IDs
+`0..n-1`. IDs are exposed as an immutable tuple in `dataset.observation_ids`.
+Generated IDs only identify rows within that dataset; supply shared IDs before
+combining independently loaded objects.
 
-### Identity requirements
+A pandas DataFrame with a non-default index requires an explicit identity
+choice for `TabularDataset`: pass `observation_ids=frame.index`, or use
+`frame.reset_index()` and specify the resulting `id_column`.
 
-Observation identifiers must be non-missing and unique. Identity can be established in three ways:
-1. `id_column`: Specified column from the table.
-2. `observation_ids`: Explicit sequence of identifiers matching `frame.height`.
-3. Generated integer IDs: When neither is provided, default IDs `0..n-1` are generated (`range(n)`).
+## Feature matrices
 
-**A pandas index is never treated as identity.** If a pandas DataFrame with a non-default index is passed without `id_column` or `observation_ids`, Ruddy raises a `ValueError` requiring the caller to explicitly provide `observation_ids=frame.index` or call `frame.reset_index()`.
-
-Observation IDs are exposed as an immutable tuple via `dataset.observation_ids`.
-
-Ruddy requires unique string column names so schemas remain stable across serialization and downstream tooling. Columns with complex number dtypes (e.g. `complex64`, `complex128`) are rejected with a `TypeError`.
-
-## `FeatureMatrix`
-
-`FeatureMatrix` represents an observations × features numerical space.
+`FeatureMatrix` accepts a two-dimensional NumPy array, a numeric Polars or
+pandas DataFrame, or a SciPy sparse matrix. DataFrame inputs must contain only
+numeric features; provide identifiers separately.
 
 ```python
 from ruddy import FeatureMatrix
 
 features = FeatureMatrix(
-    matrix,
-    observation_ids=ids,
-    feature_names=feature_names,
+    dataset.frame.select("activity"),
+    observation_ids=dataset.observation_ids,
 )
+print(features.shape)
+print(features.feature_names)
 ```
 
-Accepted inputs include:
+Feature names come from DataFrame columns or an explicit `feature_names`
+sequence. Otherwise they are generated as `feature_0`, `feature_1`, and so on.
+Names must be unique. Pass `observation_ids` explicitly for consistent identity
+across all input formats. Access the validated tuple as `features.observation_ids`.
 
-- NumPy 2D arrays;
-- numeric Polars DataFrames;
-- numeric pandas DataFrames;
-- SciPy sparse matrices.
+Sparse support depends on the method. Preprocessing preserves sparse data where
+supported; PCA and representation comparison require dense inputs. Operations
+that would need implicit densification are rejected. Any dense conversion must
+be an explicit caller decision.
 
-A DataFrame supplied to `FeatureMatrix` must contain numeric columns only. Observation IDs are exposed as an immutable tuple via `features.observation_ids` (`observation_id_tuple` has been removed). Optional metadata is stored as a Polars DataFrame (`features.metadata`).
+## Align annotations and metadata
 
-### Feature names
-
-If names are not supplied, Ruddy generates stable names:
-
-```text
-feature_0
-feature_1
-...
-```
-
-Names must be unique.
-
-### Dense and sparse behavior
-
-Sparse support is method-specific. Ruddy preserves sparse input when a method can safely operate on it and rejects operations that would require hidden densification.
-
-Examples:
-
-- standard/robust preprocessing can support sparse matrices without centering where appropriate;
-- PCA as currently implemented requires dense input and will not silently densify a large sparse representation;
-- pairwise representation comparison currently requires dense input.
-
-The user must make any memory-expensive dense conversion explicitly.
-
-## Feature metadata
-
-A `FeatureMatrix` can receive metadata aligned by observation ID:
-
-```python
-features = FeatureMatrix(
-    matrix,
-    observation_ids=ids,
-    metadata=metadata,
-    metadata_id_column="id",
-    metadata_alignment="strict",
-)
-```
-
-The resulting alignment report remains accessible.
-
-## Strict versus partial alignment
-
-Ruddy supports two alignment policies.
-
-### `strict`
-
-Requires exact one-to-one ID coverage. Missing or unmatched observation IDs produce an alignment error.
-
-Use strict alignment when the two objects are expected to describe exactly the same observation set.
-
-### `partial`
-
-Uses the overlapping observations while retaining an explicit report of:
-
-- base count;
-- incoming/annotation count;
-- covered count;
-- coverage fraction;
-- missing IDs;
-- unmatched IDs.
-
-Partial alignment is never a silent inner join.
-
-## External annotations
-
-External annotation tables can be aligned before group-wise analysis:
+Annotation tables require an explicit ID column. They are aligned by ID,
+regardless of input row order.
 
 ```python
 from ruddy import align_annotation_source, attach_annotations
 
+metadata = pl.DataFrame({"id": ["s4", "s1"], "source": ["B", "A"]})
 aligned = align_annotation_source(
     dataset,
     metadata,
-    source_name="experimental_metadata",
+    source_name="sample_metadata",
     id_column="id",
     mode="partial",
-    role_overrides={"cohort": "factor"},
+    role_overrides={"source": "factor"},
 )
-
-extended = attach_annotations(dataset, aligned)
+extended = attach_annotations(dataset, (aligned,))
+print(aligned.report)
 ```
 
-`align_annotations` and `align_annotation_source` require an explicit `id_column`. A pandas DataFrame without `id_column` raises `ValueError("Annotations require id_column; a pandas index is not an identity. Pass frame.reset_index() with the ID as a column.")`. Aligned annotations store data as a Polars DataFrame (`aligned.frame`).
+| Mode | Behavior |
+| --- | --- |
+| `strict` | Requires exact one-to-one ID coverage; mismatches raise an error |
+| `partial` | Allows incomplete coverage and reports missing/unmatched IDs |
 
-Annotation coverage is represented as `complete`, `partial` or `absent` and can be summarized as a table for reporting.
+Aligned annotations retain the base observations, with nulls where metadata is
+absent. Partial representation comparison uses the overlapping observations.
+Both expose an alignment report with base/incoming counts, coverage and
+missing/unmatched IDs. Partial coverage does not silently drop rows from the
+source dataset.
 
-## Non-finite values and missingness
+Feature metadata uses the same contract:
 
-Ruddy distinguishes:
+```python
+features_with_metadata = FeatureMatrix(
+    dataset.frame.select("activity"),
+    observation_ids=dataset.observation_ids,
+    metadata=metadata,
+    metadata_id_column="id",
+    metadata_alignment="partial",
+)
+print(features_with_metadata.metadata)
+print(features_with_metadata.alignment_report)
+```
 
-- missing values: represented as Polars `null` (or float `NaN` in source floating-point series);
-- present but non-finite numeric values such as `+inf` and `-inf`.
+## Missing values and data preservation
 
-In numeric descriptive analyses, both Polars `null` and float `NaN` count as missing (`n_missing`), while `+inf`/`-inf` are recorded under `n_non_finite`. Result tables use Polars `null` exclusively for missing values and never output `NaN`.
+Polars `null` and floating-point `NaN` count as missing. Positive and negative
+infinity are counted separately as present but non-finite. Numerical analyses
+use the eligible finite observations and report sample counts or exclusions;
+they do not modify the source dataset. Result tables use nulls for unavailable
+values; see [results and exclusions](RESULTS_AND_PROVENANCE.md).
 
-Numeric analysis generally uses finite observations only, while missing/non-finite counts remain separate in outputs.
-
-For `FeatureMatrix` analyses that require complete finite rows, excluded rows are recorded in a Polars DataFrame with:
-
-- `observation_id` (preserving the dataset's observation ID dtype);
-- `source_row` index;
-- `stage`;
-- `reason`.
-
-## Labeled and square matrix contracts
-
-Square matrices (covariance, Pearson/Spearman correlation matrices, pairwise counts, variation matrix, Aitchison distances) and projection tables (scores, loadings, coordinates) are represented as Polars DataFrames:
-- The first column is named `feature` (for feature-by-feature matrices) or `observation_id` (for observation-indexed matrices).
-- The first column retains the dataset's or matrix's label/ID dtype.
-- The remaining columns contain matrix values and are named `str(label)`.
-- Exporting to CSV via `write_table` or the CLI outputs this table directly without writing an unnamed index column.
-
-## Immutability and non-destructive behavior
-
-The scientific input is immutable by contract:
-
-- constructors copy caller-owned data (Polars frames are immutable; pandas inputs are deep-copied on ingestion);
-- public data accessors return Polars frames;
-- analyses return new result objects containing Polars result tables;
-- outlier/anomaly analyses never mutate the input;
-- transformed compositional/PCA spaces are returned as new feature matrices.
-
-This makes it possible to trace every derived object back to an unchanged input state.
-
-## Statistical engine boundaries
-
-Ruddy prepares model data in Polars and converts it explicitly to pandas at one
-boundary per module in `factorial/models.py`, `factorial/marginal_means.py`,
-`factorial/mixed_effects.py`, and `multivariate/manova.py` before calling
-statsmodels/Patsy. Complete-case exclusions are determined and recorded before
-that conversion. Model outputs are converted back to Ruddy's Polars/NumPy
-contracts; pandas result objects are not exposed through the public API.
-
-NumPy/SciPy, scikit-learn, statsmodels/Patsy and optional umap-learn remain the
-numerical engines. The migration changes tabular storage and public result
-contracts without replacing these engines.
+Treat `dataset.frame` and any Polars frame supplied to it as read-only after
+construction. The accessor exposes the stored frame, so in-place mutations can
+invalidate the recorded schema and IDs. To transform data, create a new table
+and a new dataset, preserving or explicitly updating its observation IDs.
+Outlier and anomaly analyses flag observations without removing or editing them.

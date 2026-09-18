@@ -159,7 +159,7 @@ def _safe_model_frame(
     model_frame: pl.DataFrame,
     design: FactorialDesign,
 ) -> tuple[pd.DataFrame, dict[str, str], dict[str, str], dict[str, str]]:
-    # pandas boundary: statsmodels/Patsy consume pandas; see docs/DATA_CONTRACTS.md
+    # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
     pandas_frame = model_frame.to_pandas()
     safe = pd.DataFrame(index=pandas_frame.index)
     safe["Y"] = pd.to_numeric(pandas_frame[design.response], errors="raise").astype(float)

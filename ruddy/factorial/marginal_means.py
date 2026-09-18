@@ -89,7 +89,7 @@ def _safe_model(
         complete &= valid.fill_null(False).to_numpy()
     model_frame = frame.filter(pl.Series(complete))
 
-    # pandas boundary: statsmodels/Patsy consume pandas; see docs/DATA_CONTRACTS.md
+    # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
     pandas_frame = model_frame.to_pandas()
     safe = pd.DataFrame(index=pandas_frame.index)
     safe["Y"] = pd.to_numeric(pandas_frame[design.response], errors="raise").astype(float)

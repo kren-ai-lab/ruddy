@@ -228,7 +228,7 @@ def analyze_manova(
             provenance=provenance,
         )
 
-    # pandas boundary: statsmodels/Patsy consume pandas; see docs/DATA_CONTRACTS.md
+    # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
     pandas_frame = model_frame.to_pandas()
     safe = pd.DataFrame(index=pandas_frame.index)
     response_map: dict[str, str] = {}
