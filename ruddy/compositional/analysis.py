@@ -2,23 +2,34 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
-import pandas as pd
+import polars as pl
+from polars._typing import PolarsDataType
 from scipy.linalg import helmert
 from scipy.spatial.distance import pdist, squareform
 
 from ruddy.data import FeatureMatrix
+from ruddy.multivariate.covariance import square_table
 from ruddy.results import AnalysisProvenance
+
+ZERO_REPLACEMENT_SCHEMA: dict[str, PolarsDataType] = {
+    "source_row_index": pl.Int64,
+    "zero_count": pl.Int64,
+    "delta": pl.Float64,
+    "replaced": pl.Boolean,
+}
 
 
 @dataclass(frozen=True, slots=True)
 class CompositionalResult:
     transformed: FeatureMatrix
-    variation_matrix: pd.DataFrame
-    aitchison_distances: pd.DataFrame
-    zero_replacement: pd.DataFrame
+    variation_matrix: pl.DataFrame
+    aitchison_distances: pl.DataFrame
+    zero_replacement: pl.DataFrame
     provenance: AnalysisProvenance
 
 
@@ -41,7 +52,7 @@ def multiplicative_zero_replacement(
     *,
     fraction: float = 0.65,
     total: float = 1.0,
-) -> tuple[np.ndarray, pd.DataFrame]:
+) -> tuple[np.ndarray, pl.DataFrame]:
     if not 0 < fraction < 1:
         raise ValueError("zero_replacement_fraction must lie strictly between 0 and 1.")
     x = closure(array, total=total)
@@ -63,7 +74,7 @@ def multiplicative_zero_replacement(
         out[i, zeros] = delta
         out[i, ~zeros] = row[~zeros] * scale
         rows.append({"source_row_index": i, "zero_count": m, "delta": delta, "replaced": True})
-    return out, pd.DataFrame(rows)
+    return out, pl.DataFrame(rows, schema=ZERO_REPLACEMENT_SCHEMA)
 
 
 def clr_transform(array: np.ndarray) -> np.ndarray:
@@ -99,7 +110,7 @@ def ilr_transform(array: np.ndarray) -> np.ndarray:
     return clr @ basis
 
 
-def variation_matrix(array: np.ndarray, feature_names: tuple[str, ...]) -> pd.DataFrame:
+def variation_matrix(array: np.ndarray, feature_names: Sequence[str]) -> pl.DataFrame:
     x = closure(array)
     if (x <= 0).any():
         raise ValueError("Variation matrix requires strictly positive compositions.")
@@ -109,13 +120,13 @@ def variation_matrix(array: np.ndarray, feature_names: tuple[str, ...]) -> pd.Da
     for i in range(d):
         for j in range(d):
             out[i, j] = float(np.var(logx[:, i] - logx[:, j], ddof=1)) if x.shape[0] > 1 else 0.0
-    return pd.DataFrame(out, index=pd.Index(feature_names), columns=pd.Index(feature_names))
+    return square_table(out, feature_names, label_column="feature")
 
 
-def aitchison_distance_matrix(array: np.ndarray, observation_ids: pd.Index) -> pd.DataFrame:
+def aitchison_distance_matrix(array: np.ndarray, observation_ids: Sequence[Any]) -> pl.DataFrame:
     clr = clr_transform(array)
     dist = squareform(pdist(clr, metric="euclidean"))
-    return pd.DataFrame(dist, index=observation_ids, columns=observation_ids)
+    return square_table(dist, observation_ids, label_column="observation_id")
 
 
 def analyze_composition(
@@ -139,13 +150,14 @@ def analyze_composition(
         prepared, replacement = multiplicative_zero_replacement(closed, fraction=zero_replacement_fraction)
     else:
         prepared = closed
-        replacement = pd.DataFrame(
+        replacement = pl.DataFrame(
             {
-                "source_row_index": np.arange(features.n_observations),
-                "zero_count": (closed == 0).sum(axis=1),
-                "delta": 0.0,
-                "replaced": False,
-            }
+                "source_row_index": pl.Series("source_row_index", np.arange(features.n_observations), dtype=pl.Int64),
+                "zero_count": pl.Series("zero_count", (closed == 0).sum(axis=1), dtype=pl.Int64),
+                "delta": pl.Series("delta", np.zeros(features.n_observations, dtype=float), dtype=pl.Float64),
+                "replaced": pl.Series("replaced", np.zeros(features.n_observations, dtype=bool), dtype=pl.Boolean),
+            },
+            schema=ZERO_REPLACEMENT_SCHEMA,
         )
         if (prepared <= 0).any():
             raise ValueError(
@@ -170,7 +182,7 @@ def analyze_composition(
         raise ValueError("transform must be one of: clr, alr, ilr.")
     transformed = FeatureMatrix(
         transformed_array,
-        observation_ids=features.observation_ids,
+        observation_ids=features.observation_id_tuple,
         feature_names=names,
         provenance={
             "derived_from": "compositional_log_ratio",
@@ -197,7 +209,7 @@ def analyze_composition(
     return CompositionalResult(
         transformed=transformed,
         variation_matrix=variation_matrix(prepared, features.feature_names),
-        aitchison_distances=aitchison_distance_matrix(prepared, features.observation_ids),
+        aitchison_distances=aitchison_distance_matrix(prepared, features.observation_id_tuple),
         zero_replacement=replacement,
         provenance=provenance,
     )

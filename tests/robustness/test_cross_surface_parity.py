@@ -72,10 +72,10 @@ def test_unified_representation_matches_standalone_exactly(robust_tabular):
     )
     unified = analyze(robust_tabular, config=cfg, features=a, comparison_features=b).representation
     assert unified is not None
-    pd.testing.assert_frame_equal(standalone.cka, unified.cka)
-    pd.testing.assert_frame_equal(standalone.mantel, unified.mantel)
+    pl_testing.assert_frame_equal(standalone.cka, unified.cka)
+    pl_testing.assert_frame_equal(standalone.mantel, unified.mantel)
     assert unified.cca is not None
-    pd.testing.assert_frame_equal(standalone.cca.correlations, unified.cca.correlations)
+    pl_testing.assert_frame_equal(standalone.cca.correlations, unified.cca.correlations)
 
 
 def test_cli_writer_preserves_unified_component_tables(tmp_path, robust_tabular):

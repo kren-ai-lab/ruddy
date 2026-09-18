@@ -12,7 +12,11 @@ def test_compositional_scale_invariance_under_closure():
     a = analyze_composition(FeatureMatrix(x, observation_ids=range(30)), transform="clr")
     b = analyze_composition(FeatureMatrix(x * scales, observation_ids=range(30)), transform="clr")
     np.testing.assert_allclose(a.transformed.to_array(), b.transformed.to_array(), atol=1e-12)
-    np.testing.assert_allclose(a.aitchison_distances, b.aitchison_distances, atol=1e-12)
+    np.testing.assert_allclose(
+        a.aitchison_distances.drop("observation_id").to_numpy(),
+        b.aitchison_distances.drop("observation_id").to_numpy(),
+        atol=1e-12,
+    )
 
 
 def test_ilr_distance_geometry_matches_aitchison_for_many_pairs():
@@ -21,7 +25,7 @@ def test_ilr_distance_geometry_matches_aitchison_for_many_pairs():
     r = analyze_composition(FeatureMatrix(x, observation_ids=range(20)), transform="ilr")
     z = r.transformed.to_array()
     euclidean = np.linalg.norm(z[:, None, :] - z[None, :, :], axis=2)
-    np.testing.assert_allclose(euclidean, r.aitchison_distances.to_numpy(), atol=1e-11)
+    np.testing.assert_allclose(euclidean, r.aitchison_distances.drop("observation_id").to_numpy(), atol=1e-11)
 
 
 def test_zero_replacement_preserves_positive_closed_compositions():
