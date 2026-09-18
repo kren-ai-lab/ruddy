@@ -9,13 +9,14 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy.stats import studentized_range
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
 from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 
-PAIRWISE_SCHEMA_BASE: dict[str, pl.DataType] = {
+PAIRWISE_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "response": pl.String,
     "factor": pl.String,
     "method": pl.String,

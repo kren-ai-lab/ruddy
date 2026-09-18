@@ -95,7 +95,7 @@ class FeatureMatrix:
             default_index = (
                 isinstance(data.index, pd.RangeIndex) and data.index.start == 0 and data.index.step == 1
             )
-            inferred_ids = None if default_index else data.index.copy()
+            inferred_ids = None if default_index else tuple(data.index)
             return matrix, inferred_ids, tuple(str(c) for c in data.columns)
 
         if sparse.issparse(data):

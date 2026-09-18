@@ -8,13 +8,14 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod, PAdjustMethod
 from ruddy.data import TabularDataset
 from ruddy.statistics import apply_multiple_testing
 
-CORRELATION_SCHEMA: dict[str, pl.DataType] = {
+CORRELATION_SCHEMA: dict[str, PolarsDataType] = {
     "method": pl.String,
     "column_x": pl.String,
     "column_y": pl.String,

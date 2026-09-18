@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.data import TabularDataset
@@ -58,9 +59,9 @@ def numeric_statistics_columns(quantiles: tuple[float, ...]) -> tuple[str, ...]:
     return (*prefix, *quantile_columns, *suffix)
 
 
-def numeric_statistics_schema(quantiles: tuple[float, ...]) -> dict[str, pl.DataType]:
+def numeric_statistics_schema(quantiles: tuple[float, ...]) -> dict[str, PolarsDataType]:
     """Return the Polars schema dictionary for numerical statistics."""
-    schema: dict[str, pl.DataType] = {}
+    schema: dict[str, PolarsDataType] = {}
     for col in numeric_statistics_columns(quantiles):
         if col in {"column", "role", "status", "reason"}:
             schema[col] = pl.String

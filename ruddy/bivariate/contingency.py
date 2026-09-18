@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
@@ -16,7 +17,7 @@ from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing, bias_corrected_cramers_v, expected_count_diagnostics
 
-SUMMARY_SCHEMA: dict[str, pl.DataType] = {
+SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
     "column_x": pl.String,
     "column_y": pl.String,
     "n_total": pl.Int64,
@@ -39,7 +40,7 @@ SUMMARY_SCHEMA: dict[str, pl.DataType] = {
 }
 SUMMARY_COLUMNS: tuple[str, ...] = tuple(SUMMARY_SCHEMA)
 
-CELL_SCHEMA: dict[str, pl.DataType] = {
+CELL_SCHEMA: dict[str, PolarsDataType] = {
     "column_x": pl.String,
     "column_y": pl.String,
     "level_x": pl.String,

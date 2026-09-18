@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.bivariate.associations import _eligible_categorical
@@ -26,7 +27,7 @@ from ruddy.statistics import (
 from ruddy.univariate.categorical import _category_label
 from ruddy.univariate.diagnostics import _eligible_numeric
 
-COMPARISON_SCHEMA: dict[str, pl.DataType] = {
+COMPARISON_SCHEMA: dict[str, PolarsDataType] = {
     "group_column": pl.String,
     "group_role": pl.String,
     "scope": pl.String,

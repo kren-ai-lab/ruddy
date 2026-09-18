@@ -10,6 +10,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 
 from ruddy.bivariate.associations import (
     ASSOCIATION_SCHEMA,
@@ -26,7 +27,7 @@ from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
 
-GROUP_COVERAGE_SCHEMA: dict[str, pl.DataType] = {
+GROUP_COVERAGE_SCHEMA: dict[str, PolarsDataType] = {
     "group_column": pl.String,
     "group_role": pl.String,
     "data_kind": pl.String,
@@ -41,7 +42,7 @@ GROUP_COVERAGE_SCHEMA: dict[str, pl.DataType] = {
 }
 GROUP_COVERAGE_COLUMNS: tuple[str, ...] = tuple(GROUP_COVERAGE_SCHEMA)
 
-RESPONSE_CATALOG_SCHEMA: dict[str, pl.DataType] = {
+RESPONSE_CATALOG_SCHEMA: dict[str, PolarsDataType] = {
     "response": pl.String,
     "declared_role": pl.String,
     "data_kind": pl.String,
@@ -55,7 +56,7 @@ RESPONSE_CATALOG_SCHEMA: dict[str, pl.DataType] = {
 }
 RESPONSE_CATALOG_COLUMNS: tuple[str, ...] = tuple(RESPONSE_CATALOG_SCHEMA)
 
-NUMERIC_GROUP_SUMMARY_SCHEMA: dict[str, pl.DataType] = {
+NUMERIC_GROUP_SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
     "group_column": pl.String,
     "group_level": pl.String,
     "response": pl.String,
@@ -79,7 +80,7 @@ NUMERIC_GROUP_SUMMARY_SCHEMA: dict[str, pl.DataType] = {
 }
 NUMERIC_GROUP_SUMMARY_COLUMNS: tuple[str, ...] = tuple(NUMERIC_GROUP_SUMMARY_SCHEMA)
 
-CATEGORICAL_GROUP_SUMMARY_SCHEMA: dict[str, pl.DataType] = {
+CATEGORICAL_GROUP_SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
     "group_column": pl.String,
     "group_level": pl.String,
     "response": pl.String,
@@ -96,7 +97,7 @@ CATEGORICAL_GROUP_SUMMARY_SCHEMA: dict[str, pl.DataType] = {
 }
 CATEGORICAL_GROUP_SUMMARY_COLUMNS: tuple[str, ...] = tuple(CATEGORICAL_GROUP_SUMMARY_SCHEMA)
 
-ANNOTATION_COVERAGE_SCHEMA: dict[str, pl.DataType] = {
+ANNOTATION_COVERAGE_SCHEMA: dict[str, PolarsDataType] = {
     "source_name": pl.String,
     "coverage": pl.String,
     "base_count": pl.Int64,
@@ -109,7 +110,7 @@ ANNOTATION_COVERAGE_SCHEMA: dict[str, pl.DataType] = {
 }
 ANNOTATION_COVERAGE_COLUMNS: tuple[str, ...] = tuple(ANNOTATION_COVERAGE_SCHEMA)
 
-_GROUPED_NUMERIC_COMPARISON_SCHEMA: dict[str, pl.DataType] = {
+_GROUPED_NUMERIC_COMPARISON_SCHEMA: dict[str, PolarsDataType] = {
     "response": pl.String,
     "n_dataset": pl.Int64,
     "n_group_present": pl.Int64,
@@ -118,7 +119,7 @@ _GROUPED_NUMERIC_COMPARISON_SCHEMA: dict[str, pl.DataType] = {
 }
 _GROUPED_NUMERIC_COMPARISON_COLUMNS: tuple[str, ...] = tuple(_GROUPED_NUMERIC_COMPARISON_SCHEMA)
 
-_GROUPED_CATEGORICAL_COMPARISON_SCHEMA: dict[str, pl.DataType] = {
+_GROUPED_CATEGORICAL_COMPARISON_SCHEMA: dict[str, PolarsDataType] = {
     "response": pl.String,
     "group_column": pl.String,
     "n_dataset": pl.Int64,

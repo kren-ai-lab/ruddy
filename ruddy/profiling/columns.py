@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 import polars as pl
+from polars._typing import PolarsDataType
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data import TabularDataset
 
-COLUMN_PROFILE_SCHEMA: dict[str, pl.DataType] = {
+COLUMN_PROFILE_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
     "dtype": pl.String,
     "role": pl.String,

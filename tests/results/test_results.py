@@ -46,6 +46,7 @@ def test_advisories_and_provenance_are_serializable() -> None:
 def test_result_table_validates_global_columns_and_statuses() -> None:
     frame = pd.DataFrame({"status": ["ok", "degenerate"], "reason": [None, "constant"], "x": [1, 2]})
     validated = validate_result_table(frame, required_columns=["x"])
+    assert isinstance(validated, pd.DataFrame)
     pd.testing.assert_frame_equal(validated, frame)
 
     with pytest.raises(ResultContractError):

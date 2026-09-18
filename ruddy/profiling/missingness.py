@@ -7,10 +7,11 @@ from itertools import combinations_with_replacement
 from typing import Any
 
 import polars as pl
+from polars._typing import PolarsDataType
 
 from ruddy.data import TabularDataset
 
-MISSINGNESS_SCHEMA: dict[str, pl.DataType] = {
+MISSINGNESS_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
     "role": pl.String,
     "data_kind": pl.String,
@@ -26,7 +27,7 @@ MISSINGNESS_SCHEMA: dict[str, pl.DataType] = {
 
 MISSINGNESS_COLUMNS: tuple[str, ...] = tuple(MISSINGNESS_SCHEMA)
 
-PAIRWISE_COMPLETENESS_SCHEMA: dict[str, pl.DataType] = {
+PAIRWISE_COMPLETENESS_SCHEMA: dict[str, PolarsDataType] = {
     "column_x": pl.String,
     "column_y": pl.String,
     "n_total": pl.Int64,
@@ -37,7 +38,7 @@ PAIRWISE_COMPLETENESS_SCHEMA: dict[str, pl.DataType] = {
 
 PAIRWISE_COMPLETENESS_COLUMNS: tuple[str, ...] = tuple(PAIRWISE_COMPLETENESS_SCHEMA)
 
-MISSINGNESS_PATTERN_SCHEMA: dict[str, pl.DataType] = {
+MISSINGNESS_PATTERN_SCHEMA: dict[str, PolarsDataType] = {
     "rank": pl.Int64,
     "missing_columns": pl.String,
     "n_missing_columns": pl.Int64,

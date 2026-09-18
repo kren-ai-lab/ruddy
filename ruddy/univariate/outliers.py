@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 
 from ruddy.core.enums import OutlierMethod, ResultStatus
 from ruddy.core.types import ObservationID
@@ -21,7 +22,7 @@ from ruddy.statistics.robust import (
     tukey_fences,
 )
 
-NUMERIC_QUALITY_SCHEMA: dict[str, pl.DataType] = {
+NUMERIC_QUALITY_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
     "role": pl.String,
     "n_total": pl.Int64,
@@ -43,7 +44,7 @@ NUMERIC_QUALITY_SCHEMA: dict[str, pl.DataType] = {
 }
 NUMERIC_QUALITY_COLUMNS: tuple[str, ...] = tuple(NUMERIC_QUALITY_SCHEMA)
 
-OUTLIER_SUMMARY_SCHEMA: dict[str, pl.DataType] = {
+OUTLIER_SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
     "role": pl.String,
     "method": pl.String,
@@ -64,7 +65,7 @@ OUTLIER_SUMMARY_SCHEMA: dict[str, pl.DataType] = {
 }
 OUTLIER_SUMMARY_COLUMNS: tuple[str, ...] = tuple(OUTLIER_SUMMARY_SCHEMA)
 
-OUTLIER_FLAG_SCHEMA_BASE: dict[str, pl.DataType] = {
+OUTLIER_FLAG_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "column": pl.String,
     "role": pl.String,
     "method": pl.String,

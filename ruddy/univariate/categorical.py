@@ -9,10 +9,11 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 
 from ruddy.data import TabularDataset
 
-CATEGORICAL_STATISTICS_SCHEMA: dict[str, pl.DataType] = {
+CATEGORICAL_STATISTICS_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
     "role": pl.String,
     "n_total": pl.Int64,
@@ -35,7 +36,7 @@ CATEGORICAL_STATISTICS_SCHEMA: dict[str, pl.DataType] = {
 
 CATEGORICAL_STATISTICS_COLUMNS: tuple[str, ...] = tuple(CATEGORICAL_STATISTICS_SCHEMA)
 
-CATEGORICAL_FREQUENCIES_SCHEMA: dict[str, pl.DataType] = {
+CATEGORICAL_FREQUENCIES_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
     "role": pl.String,
     "level": pl.String,

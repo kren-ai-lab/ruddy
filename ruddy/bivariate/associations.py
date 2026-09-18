@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.core.enums import (
@@ -25,7 +26,7 @@ from ruddy.statistics import (
 )
 from ruddy.univariate.categorical import _category_label
 
-ASSOCIATION_SCHEMA: dict[str, pl.DataType] = {
+ASSOCIATION_SCHEMA: dict[str, PolarsDataType] = {
     "test": pl.String,
     "column_x": pl.String,
     "column_y": pl.String,
@@ -71,7 +72,9 @@ def _eligible_categorical(dataset: TabularDataset) -> tuple[str, ...]:
     return tuple(selected)
 
 
-def _contingency(frame: pl.DataFrame, x: str, y: str) -> tuple[list[str], list[str], np.ndarray, int]:
+def _contingency(
+    frame: pl.DataFrame | pd.DataFrame, x: str, y: str
+) -> tuple[list[str], list[str], np.ndarray, int]:
     # ponytail: temporary pandas adapter, removed in task 3F
     if isinstance(frame, pd.DataFrame):
         frame = pl.from_pandas(frame)

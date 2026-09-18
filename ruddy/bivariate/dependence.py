@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy import stats
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.metrics import mutual_info_score
@@ -18,7 +19,7 @@ from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
 
-PARTIAL_SCHEMA: dict[str, pl.DataType] = {
+PARTIAL_SCHEMA: dict[str, PolarsDataType] = {
     "method": pl.String,
     "column_x": pl.String,
     "column_y": pl.String,
@@ -39,7 +40,7 @@ PARTIAL_SCHEMA: dict[str, pl.DataType] = {
 }
 PARTIAL_COLUMNS: tuple[str, ...] = tuple(PARTIAL_SCHEMA)
 
-DEPENDENCE_SCHEMA: dict[str, pl.DataType] = {
+DEPENDENCE_SCHEMA: dict[str, PolarsDataType] = {
     "method": pl.String,
     "column_x": pl.String,
     "column_y": pl.String,
@@ -267,30 +268,24 @@ def _mutual_information(
     x_is_cat = x_kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
     y_is_cat = y_kind in {ColumnKind.CATEGORICAL, ColumnKind.BOOLEAN}
     if x_is_cat and y_is_cat:
-        return float(mutual_info_score(_encode_categorical(x), _encode_categorical(y)))
-    if not x_is_cat and y_is_cat:
+        return float(mutual_info_score(_encode_categorical(list(x)), _encode_categorical(list(y))))
+    if x_is_cat != y_is_cat:
+        numeric = np.asarray(y if x_is_cat else x, dtype=float).reshape(-1, 1)
+        codes = _encode_categorical(list(x if x_is_cat else y))
         return float(
-            mutual_info_classif(
-                x.reshape(-1, 1),
-                _encode_categorical(y),
-                n_neighbors=n_neighbors,
-                random_state=random_state,
-            )[0]
+            mutual_info_classif(numeric, codes, n_neighbors=n_neighbors, random_state=random_state)[0]
         )
-    if x_is_cat and not y_is_cat:
-        return float(
-            mutual_info_classif(
-                y.reshape(-1, 1),
-                _encode_categorical(x),
-                n_neighbors=n_neighbors,
-                random_state=random_state,
-            )[0]
-        )
+    x_arr = np.asarray(x, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
     xy = float(
-        mutual_info_regression(x.reshape(-1, 1), y, n_neighbors=n_neighbors, random_state=random_state)[0]
+        mutual_info_regression(
+            x_arr.reshape(-1, 1), y_arr, n_neighbors=n_neighbors, random_state=random_state
+        )[0]
     )
     yx = float(
-        mutual_info_regression(y.reshape(-1, 1), x, n_neighbors=n_neighbors, random_state=random_state)[0]
+        mutual_info_regression(
+            y_arr.reshape(-1, 1), x_arr, n_neighbors=n_neighbors, random_state=random_state
+        )[0]
     )
     return max(0.0, 0.5 * (xy + yx))
 
@@ -396,6 +391,8 @@ def summarize_general_dependence(
                     row["status"] = "skipped"
                     row["reason"] = "distance_correlation_requires_numeric_pair"
                 else:
+                    x_data = np.asarray(x_data, dtype=float)
+                    y_data = np.asarray(y_data, dtype=float)
                     value = distance_correlation(x_data, y_data)
                     if not np.isfinite(value):
                         row["status"] = "degenerate"

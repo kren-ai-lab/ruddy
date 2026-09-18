@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from polars._typing import PolarsDataType
 from scipy import stats
 from statsmodels.stats.diagnostic import normal_ad
 
@@ -17,7 +18,7 @@ from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
 
-NORMALITY_SCHEMA: dict[str, pl.DataType] = {
+NORMALITY_SCHEMA: dict[str, PolarsDataType] = {
     "method": pl.String,
     "column": pl.String,
     "role": pl.String,
@@ -34,7 +35,7 @@ NORMALITY_SCHEMA: dict[str, pl.DataType] = {
 }
 NORMALITY_COLUMNS: tuple[str, ...] = tuple(NORMALITY_SCHEMA)
 
-DISPERSION_SCHEMA: dict[str, pl.DataType] = {
+DISPERSION_SCHEMA: dict[str, PolarsDataType] = {
     "method": pl.String,
     "response": pl.String,
     "group": pl.String,

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import polars as pl
+from polars._typing import PolarsDataType
 
 from ruddy.data import TabularDataset
 from ruddy.profiling import ProfilingResult, profile_dataset
@@ -13,7 +15,7 @@ from ruddy.results import AnalysisProvenance
 from ruddy.univariate.categorical import summarize_categorical_statistics
 from ruddy.univariate.numeric import summarize_numeric_statistics, validate_quantiles
 
-DATETIME_STATISTICS_SCHEMA: dict[str, pl.DataType] = {
+DATETIME_STATISTICS_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
     "role": pl.String,
     "n_total": pl.Int64,
@@ -77,10 +79,10 @@ def summarize_datetime_statistics(
             status, reason = "degenerate", "constant"
             range_seconds = 0.0
         else:
-            minimum = present.min()
-            maximum = present.max()
+            minimum = cast("datetime.datetime", present.min())
+            maximum = cast("datetime.datetime", present.max())
             status, reason = "ok", None
-            range_seconds = float((maximum - minimum).total_seconds()) if minimum and maximum else None
+            range_seconds = float((maximum - minimum).total_seconds())
 
         rows.append(
             {
