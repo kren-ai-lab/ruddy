@@ -19,20 +19,20 @@ def test_none_returns_raw_pvalues() -> None:
     np.testing.assert_array_equal(adjust_pvalues(values, "none"), values)
 
 
-def test_family_adjustment_excludes_non_ok_rows_and_records_size() -> None:
+def test_family_adjustment_rejects_pandas_dataframe() -> None:
     table = pd.DataFrame(
         {
             "family_id": ["a", "a", "a", "b"],
             "status": ["ok", "degenerate", "ok", "ok"],
             "p_value": [0.01, np.nan, 0.04, 0.20],
-            "q_value": [np.nan] * 4,
             "correction": ["fdr_bh"] * 4,
         }
     )
-    result = apply_multiple_testing(table, "fdr_bh")
-    np.testing.assert_allclose(result.loc[[0, 2], "q_value"], [0.02, 0.04])
-    assert np.isnan(result.loc[1, "q_value"])  # pyrefly: ignore[no-matching-overload]
-    assert result["family_size"].tolist() == [2, 2, 2, 1]
+    with pytest.raises(TypeError, match="table must be a Polars DataFrame"):
+        apply_multiple_testing(table, "fdr_bh")  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="table must be a Polars DataFrame"):
+        family_sizes(table)  # type: ignore[arg-type]
 
 
 def test_family_adjustment_polars_excludes_non_ok_rows_and_records_size() -> None:
@@ -59,7 +59,7 @@ def test_family_adjustment_polars_excludes_non_ok_rows_and_records_size() -> Non
     assert result["family_size"].to_list() == [2, 2, 2, 1]
 
 
-def test_family_sizes_polars_and_pandas() -> None:
+def test_family_sizes_polars() -> None:
     pl_table = pl.DataFrame(
         {
             "family_id": ["b", "a", "b", "c"],

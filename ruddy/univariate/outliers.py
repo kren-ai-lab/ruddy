@@ -107,7 +107,7 @@ def _build_flags_frame(
     rows: list[dict[str, Any]],
     dataset: TabularDataset,
 ) -> pl.DataFrame:
-    id_dtype = pl.Series(dataset.observation_id_tuple).dtype
+    id_dtype = pl.Series(dataset.observation_ids).dtype
     if not rows:
         schema = {**OUTLIER_FLAG_SCHEMA_BASE, "observation_id": id_dtype}
         return pl.DataFrame(schema={col: schema[col] for col in OUTLIER_FLAG_COLUMNS})
@@ -525,7 +525,7 @@ def summarize_outliers(
         pl.col("analysis_eligible") & (pl.col("role") != "factor") & (pl.col("data_kind") == "numeric")
     )
     frame = dataset.frame
-    observation_ids = dataset.observation_id_tuple
+    observation_ids = dataset.observation_ids
     summaries: list[dict[str, Any]] = []
     flags: list[dict[str, Any]] = []
 
@@ -619,8 +619,8 @@ def analyze_outliers(
             "multivariate_outliers": False,
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_columns": dataset.n_columns,
+            "n_observations": dataset.frame.height,
+            "n_columns": dataset.frame.width,
             "id_column": dataset.id_column,
         },
     )

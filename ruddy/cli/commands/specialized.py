@@ -53,7 +53,7 @@ def write_compositional_result(result: CompositionalResult, output_dir: str | Pa
     feature_names = list(result.transformed.feature_names)
     transformed = (
         pl.DataFrame(result.transformed.to_array(), schema=feature_names)
-        .with_columns(pl.Series("observation_id", result.transformed.observation_id_tuple))
+        .with_columns(pl.Series("observation_id", result.transformed.observation_ids))
         .select("observation_id", *feature_names)
     )
     write_table(transformed, target / "compositional_transformed.csv")

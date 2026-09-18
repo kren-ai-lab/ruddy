@@ -115,7 +115,9 @@ def analyze_manova(
         raise ValueError(f"MANOVA roles overlap for columns: {sorted(overlap)}.")
 
     unknown = [
-        name for name in (*response_names, *factor_names, *covariate_names) if name not in dataset.columns
+        name
+        for name in (*response_names, *factor_names, *covariate_names)
+        if name not in dataset.frame.columns
     ]
     if unknown:
         raise ValueError(f"Unknown MANOVA columns: {unknown}.")
@@ -148,11 +150,12 @@ def analyze_manova(
     model_frame = frame.filter(pl.Series(complete))
     excluded_rows = np.flatnonzero(~complete).astype(np.int64)
     exclusions = _exclusions_table(
-        dataset.observation_id_tuple,
+        dataset.observation_ids,
         excluded_rows,
         stage="manova_complete_case",
         reason="missing_or_non_finite_model_value",
     )
+
     n = model_frame.height
 
     level_rows: list[dict[str, Any]] = []
@@ -173,7 +176,7 @@ def analyze_manova(
                         "factors": factor_names,
                         "covariates": covariate_names,
                     },
-                    input_summary={"n_observations": dataset.n_observations, "n_complete_case": n},
+                    input_summary={"n_observations": dataset.frame.height, "n_complete_case": n},
                 ),
             )
         if len(unique_levels) > max_factor_levels:
@@ -210,7 +213,7 @@ def analyze_manova(
                 "interactions": False,
             },
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "n_excluded": len(excluded_rows),
             },
@@ -251,7 +254,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "response_rank": response_rank,
             },
@@ -278,7 +281,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "exog_rank": exog_rank,
             },
@@ -301,7 +304,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "exog_rank": exog_rank,
             },
@@ -324,7 +327,7 @@ def analyze_manova(
             analysis="manova",
             parameters={"responses": response_names, "factors": factor_names, "covariates": covariate_names},
             input_summary={
-                "n_observations": dataset.n_observations,
+                "n_observations": dataset.frame.height,
                 "n_complete_case": n,
                 "exog_rank": exog_rank,
             },
@@ -388,7 +391,7 @@ def analyze_manova(
             ),
         },
         input_summary={
-            "n_observations": dataset.n_observations,
+            "n_observations": dataset.frame.height,
             "n_complete_case": int(n),
             "n_excluded": len(excluded_rows),
             "n_responses": len(response_names),

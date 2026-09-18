@@ -86,7 +86,6 @@ class FeatureMatrix:
             return matrix, None, tuple(str(c) for c in data.columns)
 
         if isinstance(data, pd.DataFrame):
-            # ponytail: temporary pandas adapter, removed in phase 5
             if not all(pd.api.types.is_numeric_dtype(dtype) for dtype in data.dtypes):
                 raise FeatureMatrixValidationError(
                     "FeatureMatrix DataFrames must contain only numeric columns."
@@ -126,12 +125,7 @@ class FeatureMatrix:
         return self.shape[1]
 
     @property
-    def observation_ids(self) -> pd.Index:
-        # ponytail: temporary pandas adapter, removed in phase 5
-        return pd.Index(self._observation_ids)
-
-    @property
-    def observation_id_tuple(self) -> tuple[ObservationID, ...]:
+    def observation_ids(self) -> tuple[ObservationID, ...]:
         return self._observation_ids
 
     @property

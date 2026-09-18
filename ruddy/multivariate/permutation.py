@@ -92,9 +92,9 @@ def _aligned_factor(
 ) -> tuple[pl.Series, AlignmentReport]:
     if factor not in dataset.frame.columns:
         raise ValueError(f"Unknown grouping factor: {factor!r}.")
-    annotations = dataset.frame.select(factor).with_columns(pl.Series("__id", dataset.observation_id_tuple))
+    annotations = dataset.frame.select(factor).with_columns(pl.Series("__id", dataset.observation_ids))
     aligned, report = align_annotations(
-        features.observation_id_tuple,
+        features.observation_ids,
         annotations,
         id_column="__id",
         mode=alignment,
@@ -184,7 +184,7 @@ def analyze_permutation_group_structure(
     valid_features = _feature_valid_rows(features)
     valid_group = group_series.is_not_null().to_numpy()
     keep = valid_features & valid_group
-    ids = features.observation_id_tuple
+    ids = features.observation_ids
     excluded_rows = np.flatnonzero(~keep).astype(np.int64)
     reasons = [
         "non_finite_feature_row" if not valid_features[row] else "missing_group_value"

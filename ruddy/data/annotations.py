@@ -6,12 +6,11 @@ from collections.abc import Iterable, Mapping
 from types import MappingProxyType
 from typing import Any
 
-import pandas as pd
 import polars as pl
 
 from ruddy.core.enums import AlignmentMode, AnnotationCoverage, ColumnKind, ColumnRole
 from ruddy.core.exceptions import RoleConflictError, UnknownColumnError
-from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides
+from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides, TableInput
 from ruddy.data.dataset import TabularDataset
 from ruddy.data.roles import infer_column_kind
 from ruddy.data.validation import AlignmentReport, align_annotations
@@ -79,11 +78,8 @@ class AlignedAnnotations:
     def available(self) -> bool:
         return self._coverage is not AnnotationCoverage.ABSENT
 
-    def to_frame(self) -> pd.DataFrame:
-        # ponytail: temporary pandas adapter, removed in phase 5
-        return self._data.to_pandas()
-
     def summary(self) -> dict[str, Any]:
+
         payload: dict[str, Any] = {
             "source_name": self.source_name,
             "coverage": self.coverage.value,
@@ -158,7 +154,7 @@ def _resolve_annotation_kinds(
 
 def align_annotation_source(
     dataset: TabularDataset,
-    annotations: pl.DataFrame | pd.DataFrame | None,
+    annotations: TableInput | None,
     *,
     source_name: str = "annotations",
     id_column: str | None = None,
@@ -180,11 +176,11 @@ def align_annotation_source(
             report=None,
             roles={},
             kinds={},
-            base_ids=dataset.observation_id_tuple,
+            base_ids=dataset.observation_ids,
         )
 
     aligned, report = align_annotations(
-        dataset.observation_id_tuple,
+        dataset.observation_ids,
         annotations,
         id_column=id_column,
         mode=resolved_mode,
@@ -207,7 +203,7 @@ def align_annotation_source(
         report=report,
         roles=roles,
         kinds=kinds,
-        base_ids=dataset.observation_id_tuple,
+        base_ids=dataset.observation_ids,
     )
 
 
@@ -245,7 +241,7 @@ def attach_annotations(
     return TabularDataset(
         base,
         id_column=dataset.id_column,
-        observation_ids=None if dataset.id_column else dataset.observation_id_tuple,
+        observation_ids=None if dataset.id_column else dataset.observation_ids,
         role_overrides=roles,
         kind_overrides=kinds,
     )

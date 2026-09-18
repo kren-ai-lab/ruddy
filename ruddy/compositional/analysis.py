@@ -186,7 +186,7 @@ def analyze_composition(
         raise ValueError("transform must be one of: clr, alr, ilr.")
     transformed = FeatureMatrix(
         transformed_array,
-        observation_ids=features.observation_id_tuple,
+        observation_ids=features.observation_ids,
         feature_names=names,
         provenance={
             "derived_from": "compositional_log_ratio",
@@ -213,7 +213,7 @@ def analyze_composition(
     return CompositionalResult(
         transformed=transformed,
         variation_matrix=variation_matrix(prepared, features.feature_names),
-        aitchison_distances=aitchison_distance_matrix(prepared, features.observation_id_tuple),
+        aitchison_distances=aitchison_distance_matrix(prepared, features.observation_ids),
         zero_replacement=replacement,
         provenance=provenance,
     )

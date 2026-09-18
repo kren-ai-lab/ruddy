@@ -48,7 +48,7 @@ def test_joint_factor_term_generates_cell_means(group_dataset):
 
 
 def test_emmeans_tracks_complete_case_exclusions(group_dataset):
-    frame = group_dataset.to_frame()
+    frame = group_dataset.frame.to_pandas()
     frame.loc[0, "y"] = np.nan
     from ruddy import TabularDataset
 

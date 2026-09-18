@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import polars as pl
+from polars.testing import assert_frame_equal
 
 from ruddy import TabularDataset, align_annotation_source, analyze_groups, resolve_responses
 
@@ -42,7 +43,7 @@ def test_partial_external_group_has_traceable_row_coverage_and_no_mutation(
         }
     )
     original_source = source.copy(deep=True)
-    original_base = response_dataset.to_frame()
+    original_base = response_dataset.frame.clone()
 
     aligned = align_annotation_source(
         response_dataset,
@@ -73,7 +74,7 @@ def test_partial_external_group_has_traceable_row_coverage_and_no_mutation(
     assert bool((result.numeric_comparisons["n_group_missing"] == 4).all())
 
     pd.testing.assert_frame_equal(source, original_source)
-    pd.testing.assert_frame_equal(response_dataset.to_frame(), original_base)
+    assert_frame_equal(response_dataset.frame, original_base)
 
 
 def test_explicit_responses_do_not_require_machine_learning_task_labels(

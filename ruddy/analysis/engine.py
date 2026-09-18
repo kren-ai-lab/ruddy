@@ -72,7 +72,7 @@ def analyze(
     if features is not None:
         _, feature_alignment = align_annotations(
             dataset.observation_ids,
-            pl.DataFrame({"__id": features.observation_id_tuple}),
+            pl.DataFrame({"__id": features.observation_ids}),
             id_column="__id",
             mode=cfg.feature_alignment,
         )
@@ -313,8 +313,8 @@ def analyze(
             "random_state": cfg.random_state,
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_columns": dataset.n_columns,
+            "n_observations": dataset.frame.height,
+            "n_columns": dataset.frame.width,
             "id_column": dataset.id_column,
             "feature_shape": None if features is None else features.shape,
             "comparison_feature_shape": None if comparison_features is None else comparison_features.shape,

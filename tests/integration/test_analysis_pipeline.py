@@ -125,7 +125,7 @@ def test_partial_feature_alignment_is_observable(pipeline_dataset, pipeline_feat
     config = AnalysisConfig(enabled_blocks=("pca",), feature_alignment="partial")
     result = analyze(pipeline_dataset, config=config, features=partial)
     assert result.feature_alignment is not None
-    assert result.feature_alignment.covered_count == pipeline_dataset.n_observations - 3
+    assert result.feature_alignment.covered_count == pipeline_dataset.frame.height - 3
     assert len(result.feature_alignment.missing_ids) == 3
 
 

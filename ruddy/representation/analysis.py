@@ -178,7 +178,7 @@ def align_feature_matrices(
             "Representation comparison currently requires dense inputs; Ruddy will not silently densify sparse matrices."
         )
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
-    x_ids, y_ids = x.observation_id_tuple, y.observation_id_tuple
+    x_ids, y_ids = x.observation_ids, y.observation_ids
     x_set, y_set = set(x_ids), set(y_ids)
     missing = tuple(value for value in x_ids if value not in y_set)
     unmatched = tuple(value for value in y_ids if value not in x_set)

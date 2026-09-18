@@ -17,3 +17,4 @@ RoleOverrides: TypeAlias = Mapping[str, ColumnRole | str]
 KindOverrides: TypeAlias = Mapping[str, ColumnKind | str]
 ObservationIDs: TypeAlias = Sequence[ObservationID] | pd.Index | pd.Series | np.ndarray | pl.Series
 FeatureInput: TypeAlias = np.ndarray | pd.DataFrame | pl.DataFrame | spmatrix
+TableInput: TypeAlias = pl.DataFrame | pd.DataFrame

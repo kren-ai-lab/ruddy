@@ -10,7 +10,7 @@ from ruddy import ResultStatus, TabularDataset, analyze_factorial
 
 
 def _reference_table(dataset, typ: int, robust=None):
-    frame = dataset.to_frame().rename(
+    frame = dataset.frame.to_pandas().rename(
         columns={"response": "Y", "factor_a": "A", "factor_b": "B", "covariate": "X"}
     )
     model = ols("Y ~ C(A, Sum) + C(B, Sum) + X + C(A, Sum):C(B, Sum)", data=frame).fit()
@@ -75,7 +75,7 @@ def test_type_iii_is_invariant_to_factor_category_order(unbalanced_factorial_dat
     first = analyze_factorial(
         unbalanced_factorial_dataset, formula="response ~ factor_a * factor_b + covariate", ss_type=3
     )
-    frame = unbalanced_factorial_dataset.to_frame()
+    frame = unbalanced_factorial_dataset.frame.to_pandas()
     frame["factor_a"] = pd.Categorical(frame["factor_a"], categories=["A1", "A0"], ordered=True)
     frame["factor_b"] = pd.Categorical(frame["factor_b"], categories=["B2", "B1", "B0"], ordered=True)
     reordered = TabularDataset(
@@ -141,7 +141,7 @@ def test_fdr_adjustment_is_applied_only_when_requested(balanced_factorial_datase
 
 
 def test_complete_case_exclusions_are_observable(balanced_factorial_dataset):
-    frame = balanced_factorial_dataset.to_frame()
+    frame = balanced_factorial_dataset.frame.to_pandas()
     frame.loc[0, "response"] = np.nan
     frame.loc[1, "covariate"] = np.inf
     frame.loc[2, "factor_a"] = None
@@ -158,11 +158,11 @@ def test_complete_case_exclusions_are_observable(balanced_factorial_dataset):
     result = analyze_factorial(dataset, formula="response ~ factor_a * factor_b + covariate")
     assert len(result.exclusions) == 3
     assert set(result.exclusions.get_column("observation_id").to_list()) == {"obs_0", "obs_1", "obs_2"}
-    assert result.model_summary["n_complete_case"] == dataset.n_observations - 3
+    assert result.model_summary["n_complete_case"] == dataset.frame.height - 3
 
 
 def test_constant_response_is_degenerate(balanced_factorial_dataset):
-    frame = balanced_factorial_dataset.to_frame()
+    frame = balanced_factorial_dataset.frame.to_pandas()
     frame["response"] = 1.0
     dataset = TabularDataset(
         frame, id_column="id", role_overrides={"response": "response", "factor_a": "factor"}
@@ -173,7 +173,7 @@ def test_constant_response_is_degenerate(balanced_factorial_dataset):
 
 
 def test_collinear_covariates_are_degenerate(balanced_factorial_dataset):
-    frame = balanced_factorial_dataset.to_frame()
+    frame = balanced_factorial_dataset.frame.to_pandas()
     frame["covariate_2"] = frame["covariate"]
     dataset = TabularDataset(
         frame,
@@ -193,7 +193,7 @@ def test_collinear_covariates_are_degenerate(balanced_factorial_dataset):
 
 
 def test_empty_factorial_cell_with_full_interaction_is_rank_deficient(balanced_factorial_dataset):
-    frame = balanced_factorial_dataset.to_frame()
+    frame = balanced_factorial_dataset.frame.to_pandas()
     mask = (frame["factor_a"] == "A1") & (frame["factor_b"] == "B2")
     frame = frame.loc[~mask].reset_index(drop=True)
     dataset = TabularDataset(
@@ -214,7 +214,7 @@ def test_empty_factorial_cell_with_full_interaction_is_rank_deficient(balanced_f
 
 
 def test_small_cells_are_advisory_not_automatic_model_switch(balanced_factorial_dataset):
-    frame = balanced_factorial_dataset.to_frame()
+    frame = balanced_factorial_dataset.frame.to_pandas()
     keep = ~((frame["factor_a"] == "A0") & (frame["factor_b"] == "B0"))
     one = frame.index[(frame["factor_a"] == "A0") & (frame["factor_b"] == "B0")][:1]
     frame = pd.concat([frame.loc[keep], frame.loc[one]], ignore_index=True)
@@ -239,8 +239,8 @@ def test_type_ii_with_interaction_emits_advisory(balanced_factorial_dataset):
 def test_observation_influence_diagnostics_are_aligned(balanced_factorial_dataset):
     result = analyze_factorial(balanced_factorial_dataset, formula="response ~ factor_a + covariate")
     obs = result.observation_diagnostics
-    assert len(obs) == balanced_factorial_dataset.n_observations
-    assert obs.get_column("observation_id").to_list() == balanced_factorial_dataset.observation_ids.tolist()
+    assert len(obs) == balanced_factorial_dataset.frame.height
+    assert obs.get_column("observation_id").to_list() == list(balanced_factorial_dataset.observation_ids)
     assert {"studentized_residual", "leverage", "cooks_distance"} <= set(obs.columns)
 
 

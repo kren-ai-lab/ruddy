@@ -26,7 +26,7 @@ def group_dataset():
 @pytest.fixture
 def separated_features(group_dataset):
     rng = np.random.default_rng(123)
-    labels = group_dataset.select(["group"])["group"].to_numpy()
+    labels = group_dataset.frame["group"].to_numpy()
     matrix = rng.normal(scale=0.4, size=(len(labels), 5))
     matrix[labels == "B", 0] += 2.0
     matrix[labels == "C", 0] += 4.0

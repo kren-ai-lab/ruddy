@@ -81,16 +81,25 @@ def test_polars_annotations_without_id_column_raises_value_error() -> None:
         align_annotations(["a", "b"], annotations)
 
 
-def test_pandas_annotations_with_index_identity_works() -> None:
-    # ponytail: temporary pandas adapter, removed in phase 5
+def test_pandas_annotations_without_id_column_raises() -> None:
     annotations = pd.DataFrame({"group": [10, 20]}, index=["a", "b"])
 
-    aligned, report = align_annotations(["a", "b"], annotations)
+    with pytest.raises(
+        ValueError,
+        match=r"Annotations require id_column; a pandas index is not an identity",
+    ):
+        align_annotations(["a", "b"], annotations)
+
+
+def test_pandas_annotations_with_explicit_id_column() -> None:
+    annotations = pd.DataFrame({"id": ["a", "b"], "group": [10, 20]})
+
+    aligned, report = align_annotations(["a", "b"], annotations, id_column="id")
 
     assert isinstance(aligned, pl.DataFrame)
     assert report.complete
     assert aligned["group"].to_list() == [10, 20]
-    assert "id" not in aligned.columns
+    assert "id" in aligned.columns
 
 
 def test_validate_observation_ids_error_and_return_cases() -> None:

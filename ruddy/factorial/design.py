@@ -103,7 +103,7 @@ def _parse_formula(
             "Formula syntax accepts simple column names only; use the programmatic API "
             "for column names containing spaces or operators."
         )
-    if lhs not in dataset.columns:
+    if lhs not in dataset.frame.columns:
         raise ValueError(f"Unknown factorial response column: {lhs!r}.")
 
     atomic: list[str] = []
@@ -114,7 +114,7 @@ def _parse_formula(
             raise ValueError(
                 f"Formula syntax accepts only direct column names and '+', ':', '*'; invalid token={name!r}."
             )
-        if name not in dataset.columns:
+        if name not in dataset.frame.columns:
             raise ValueError(f"Unknown factorial predictor column: {name!r}.")
         if name == lhs:
             raise ValueError("The response cannot also appear as a factorial predictor.")
@@ -216,7 +216,7 @@ def build_factorial_design(
             covariate_names = dataset.columns_with_role(ColumnRole.COVARIATE)
         interaction_names = tuple(tuple(str(value) for value in term) for term in interactions)
 
-    if response_name not in dataset.columns:
+    if response_name not in dataset.frame.columns:
         raise ValueError(f"Unknown factorial response column: {response_name!r}.")
     if dataset.kind_of(response_name) is not ColumnKind.NUMERIC:
         raise ValueError("Factorial ANOVA/ANCOVA requires a numeric response.")
@@ -233,7 +233,7 @@ def build_factorial_design(
     if response_name in set(factor_names) | set(covariate_names):
         raise ValueError("The response cannot also be a predictor.")
 
-    unknown = [name for name in (*factor_names, *covariate_names) if name not in dataset.columns]
+    unknown = [name for name in (*factor_names, *covariate_names) if name not in dataset.frame.columns]
     if unknown:
         raise ValueError(f"Unknown factorial predictor columns: {unknown}.")
     for factor in factor_names:

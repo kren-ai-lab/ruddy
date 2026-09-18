@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pandas as pd
@@ -50,7 +50,8 @@ class TabularDataset:
                 )
             input_backend = "pandas"
             try:
-                self._frame = pl.from_pandas(data, include_index=False)
+                # Deep-copy first: from_pandas may share numeric buffers with the caller's frame.
+                self._frame = pl.from_pandas(data.copy(deep=True), include_index=False)
             except (pa.ArrowNotImplementedError, pa.ArrowInvalid, TypeError) as exc:
                 raise TypeError(
                     "pandas DataFrame contains a dtype Polars cannot represent (e.g. complex); "
@@ -92,7 +93,7 @@ class TabularDataset:
             raw_ids = range(n)
             id_source = "generated"
 
-        self._observation_id_tuple = validate_observation_ids(raw_ids)
+        self._observation_ids = validate_observation_ids(raw_ids)
 
         self._schema = build_schema(
             self._frame,
@@ -110,13 +111,8 @@ class TabularDataset:
         return self._frame
 
     @property
-    def observation_ids(self) -> pd.Index:
-        # ponytail: temporary pandas adapter, removed in phase 5
-        return pd.Index(self._observation_id_tuple)
-
-    @property
-    def observation_id_tuple(self) -> tuple[ObservationID, ...]:
-        return self._observation_id_tuple
+    def observation_ids(self) -> tuple[ObservationID, ...]:
+        return self._observation_ids
 
     @property
     def id_column(self) -> str | None:
@@ -144,42 +140,8 @@ class TabularDataset:
         wanted = {kind if isinstance(kind, ColumnKind) else ColumnKind(kind) for kind in kinds}
         return tuple(column for column in self._frame.columns if self._kinds[column] in wanted)
 
-    def select(self, columns: Iterable[str]) -> pd.DataFrame:
-        # ponytail: temporary pandas adapter, removed in phase 5
-        df = self._frame.select(list(columns)).to_pandas()
-        if self._id_column is None:
-            df.index = pd.Index(self._observation_id_tuple)
-        return df
-
-    def to_frame(self) -> pd.DataFrame:
-        """Return the stored table as pandas."""
-        # ponytail: temporary pandas adapter, removed in phase 5
-        df = self._frame.to_pandas()
-        if self._id_column is None:
-            df.index = pd.Index(self._observation_id_tuple)
-        return df
-
-    # ponytail: temporary pandas adapter, removed in phase 5
-    @property
-    def n_observations(self) -> int:
-        return self._frame.height
-
-    # ponytail: temporary pandas adapter, removed in phase 5
-    @property
-    def n_columns(self) -> int:
-        return self._frame.width
-
-    # ponytail: temporary pandas adapter, removed in phase 5
-    @property
-    def columns(self) -> tuple[str, ...]:
-        return tuple(self._frame.columns)
-
-    # ponytail: temporary pandas adapter, removed in phase 5
-    def __len__(self) -> int:
-        return self._frame.height
-
     def __repr__(self) -> str:
         return (
-            f"TabularDataset(n_observations={self.n_observations}, "
-            f"n_columns={self.n_columns}, id_column={self.id_column!r})"
+            f"TabularDataset(n_observations={self._frame.height}, "
+            f"n_columns={self._frame.width}, id_column={self.id_column!r})"
         )

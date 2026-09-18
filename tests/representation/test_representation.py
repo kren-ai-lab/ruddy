@@ -99,7 +99,7 @@ def test_nonfinite_joint_rows_are_reported():
     x, y = _pair(n=20)
     arr = y.to_array()
     arr[2, 0] = np.nan
-    y = FeatureMatrix(arr, observation_ids=y.observation_id_tuple)
+    y = FeatureMatrix(arr, observation_ids=y.observation_ids)
     r = analyze_representation_similarity(x, y, cca_components=1, mantel_permutations=0)
     assert r.exclusions.height == 1 and r.exclusions.item(0, "observation_id") == "o2"
     assert r.exclusions.schema["observation_id"] == pl.String

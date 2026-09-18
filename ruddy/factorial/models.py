@@ -234,7 +234,7 @@ def _make_provenance(
             "diagnostic_alpha": float(diagnostic_alpha),
         },
         input_summary={
-            "n_observations": dataset.n_observations,
+            "n_observations": dataset.frame.height,
             "n_complete_case": int(n_complete),
             "n_excluded": int(n_excluded),
         },
@@ -310,7 +310,7 @@ def analyze_factorial(
 
     source_rows = np.flatnonzero(complete).astype(np.int64)
     excluded_rows = np.flatnonzero(~complete).astype(np.int64)
-    ids = dataset.observation_id_tuple
+    ids = dataset.observation_ids
     exclusions = _exclusions_table(
         ids,
         excluded_rows,
@@ -670,7 +670,7 @@ def analyze_factorial(
         "ss_type": design.ss_type,
         "factor_contrasts": "sum_to_zero",
         "robust_covariance": robust,
-        "n_observations": dataset.n_observations,
+        "n_observations": dataset.frame.height,
         "n_complete_case": n,
         "n_excluded": len(excluded_rows),
         "n_design_columns": n_design_columns,

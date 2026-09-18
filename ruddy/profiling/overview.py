@@ -31,7 +31,7 @@ class ProfilingResult:
 
 
 def _identifier_summary(dataset: TabularDataset) -> dict[str, Any]:
-    ids = dataset.observation_id_tuple
+    ids = dataset.observation_ids
     source = "column" if dataset.id_column is not None else dataset.provenance["id_source"]
     n_present = len(ids)
     return {
@@ -170,8 +170,8 @@ def profile_dataset(
             "numeric_non_finite_policy": "count_separately_from_missing",
         },
         input_summary={
-            "n_observations": dataset.n_observations,
-            "n_columns": dataset.n_columns,
+            "n_observations": dataset.frame.height,
+            "n_columns": dataset.frame.width,
             "id_column": dataset.id_column,
         },
     )

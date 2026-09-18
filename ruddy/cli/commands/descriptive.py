@@ -7,7 +7,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pandas as pd
 import polars as pl
 
 from ruddy.analysis import AnalysisConfig
@@ -240,7 +239,7 @@ def load_dataset(path: str | Path, config: AnalysisConfig) -> TabularDataset:
     return dataset
 
 
-def _write_tables(output_dir: Path, tables: Iterable[tuple[str, pl.DataFrame | pd.DataFrame]]) -> None:
+def _write_tables(output_dir: Path, tables: Iterable[tuple[str, pl.DataFrame]]) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     for name, table in tables:
         write_table(table, output_dir / f"{name}.csv")

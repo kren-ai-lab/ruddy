@@ -55,7 +55,7 @@ def load_feature_matrix(
             if ids is not None:
                 msg = "Use either --id-column or --ids-file, not both."
                 raise ValueError(msg)
-            ids = frame[id_column].tolist()
+            ids = frame[id_column].to_list()
         selected = list(feature_columns)
         if not selected:
             selected = [column for column in frame.columns if column != id_column]
@@ -65,7 +65,7 @@ def load_feature_matrix(
             raise ValueError(msg)
         return _recorded(
             FeatureMatrix(
-                frame[selected],
+                frame.select(selected),
                 observation_ids=ids,
                 feature_names=selected,
             )

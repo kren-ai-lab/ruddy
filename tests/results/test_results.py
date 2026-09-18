@@ -44,21 +44,24 @@ def test_advisories_and_provenance_are_serializable() -> None:
 
 
 def test_result_table_validates_global_columns_and_statuses() -> None:
-    frame = pd.DataFrame({"status": ["ok", "degenerate"], "reason": [None, "constant"], "x": [1, 2]})
+    frame = pl.DataFrame({"status": ["ok", "degenerate"], "reason": [None, "constant"], "x": [1, 2]})
     validated = validate_result_table(frame, required_columns=["x"])
-    assert isinstance(validated, pd.DataFrame)
-    pd.testing.assert_frame_equal(validated, frame)
+    assert isinstance(validated, pl.DataFrame)
+    assert validated is frame
+
+    with pytest.raises(TypeError, match="Result tables must be Polars DataFrames"):
+        validate_result_table(pd.DataFrame({"status": ["ok"], "reason": [None]}))  # pyrefly: ignore[bad-argument-type]
 
     with pytest.raises(ResultContractError):
-        validate_result_table(pd.DataFrame({"status": ["weird"], "reason": [None]}))
+        validate_result_table(pl.DataFrame({"status": ["weird"], "reason": [None]}))
 
 
 def test_result_table_enforces_status_reason_consistency() -> None:
     with pytest.raises(ResultContractError, match="status/reason consistency"):
-        validate_result_table(pd.DataFrame({"status": ["ok"], "reason": ["constant"]}))
+        validate_result_table(pl.DataFrame({"status": ["ok"], "reason": ["constant"]}))
 
     with pytest.raises(ResultContractError, match="status/reason consistency"):
-        validate_result_table(pd.DataFrame({"status": ["skipped"], "reason": [None]}))
+        validate_result_table(pl.DataFrame({"status": ["skipped"], "reason": [None]}))
 
 
 def test_polars_result_table_contract() -> None:

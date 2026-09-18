@@ -128,7 +128,7 @@ def analyze_mixed_effects(
     Ruddy intentionally does not provide a general mixed-model DSL here. Random effects
     are one grouping factor, a random intercept, and optional numeric random slopes.
     """
-    if group not in dataset.columns:
+    if group not in dataset.frame.columns:
         raise ValueError(f"Unknown mixed-effects grouping column: {group!r}.")
     if not 0.0 < confidence_level < 1.0:
         raise ValueError("confidence_level must lie in (0, 1).")
@@ -173,7 +173,7 @@ def analyze_mixed_effects(
     model_frame = frame.filter(pl.Series(complete))
     excluded_rows = np.flatnonzero(~complete).astype(np.int64)
     exclusions = _exclusions_table(
-        dataset.observation_id_tuple,
+        dataset.observation_ids,
         excluded_rows,
         stage="mixed_effects_complete_case",
         reason="missing_or_non_finite_model_value",
@@ -197,7 +197,7 @@ def analyze_mixed_effects(
             "confidence_level": confidence_level,
         },
         input_summary={
-            "n_observations": dataset.n_observations,
+            "n_observations": dataset.frame.height,
             "n_complete_case": int(complete.sum()),
             "n_excluded": int((~complete).sum()),
             "n_groups": len(group_counts),

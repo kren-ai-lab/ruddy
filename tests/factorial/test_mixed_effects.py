@@ -53,7 +53,7 @@ def test_random_slope_must_be_numeric_covariate(random_intercept_dataset):
 def test_mixed_model_tracks_exclusions(random_intercept_dataset):
     from ruddy import TabularDataset
 
-    frame = random_intercept_dataset.to_frame()
+    frame = random_intercept_dataset.frame.to_pandas()
     frame.loc[0, "x"] = np.nan
     ds = TabularDataset(
         frame,

@@ -89,8 +89,12 @@ def align_annotations(
     mode = mode if isinstance(mode, AlignmentMode) else AlignmentMode(mode)
 
     if isinstance(annotations, pd.DataFrame):
-        # ponytail: temporary pandas adapter, removed in phase 5: a pandas index is the identity
-        annotation_id_values = annotations.index if id_column is None else annotations.get(id_column)
+        if id_column is None:
+            raise ValueError(
+                "Annotations require id_column; a pandas index is not an identity. "
+                "Pass frame.reset_index() with the ID as a column."
+            )
+        annotation_id_values = annotations.get(id_column)
         annotations = pl.from_pandas(annotations, include_index=False)
     elif isinstance(annotations, pl.DataFrame):
         if id_column is None:
@@ -98,6 +102,7 @@ def align_annotations(
         annotation_id_values = annotations.get_column(id_column, default=None)
     else:
         raise TypeError("annotations must be a Polars or pandas DataFrame.")
+
     if annotation_id_values is None:
         raise UnknownColumnError(f"Unknown annotation ID column: {id_column!r}.")
 

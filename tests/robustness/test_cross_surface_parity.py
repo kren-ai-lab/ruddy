@@ -21,7 +21,7 @@ from ruddy.cli.commands.analyze import write_unified_result
 def test_unified_pca_matches_standalone_exactly(robust_tabular):
     rng = np.random.default_rng(61)
     f = FeatureMatrix(
-        rng.normal(size=(robust_tabular.n_observations, 8)),
+        rng.normal(size=(robust_tabular.frame.height, 8)),
         observation_ids=robust_tabular.observation_ids,
     )
     standalone = analyze_pca(f, n_components=4, scaling="standard", random_state=5)
@@ -41,7 +41,7 @@ def test_unified_pca_matches_standalone_exactly(robust_tabular):
 def test_unified_anomaly_matches_standalone_exactly(robust_tabular):
     rng = np.random.default_rng(62)
     f = FeatureMatrix(
-        rng.normal(size=(robust_tabular.n_observations, 5)),
+        rng.normal(size=(robust_tabular.frame.height, 5)),
         observation_ids=robust_tabular.observation_ids,
     )
     standalone = analyze_anomalies(f, methods=("isolation_forest",), random_state=9)
@@ -58,7 +58,7 @@ def test_unified_anomaly_matches_standalone_exactly(robust_tabular):
 
 def test_unified_representation_matches_standalone_exactly(robust_tabular):
     rng = np.random.default_rng(63)
-    latent = rng.normal(size=(robust_tabular.n_observations, 3))
+    latent = rng.normal(size=(robust_tabular.frame.height, 3))
     a = FeatureMatrix(latent @ rng.normal(size=(3, 7)), observation_ids=robust_tabular.observation_ids)
     b = FeatureMatrix(latent @ rng.normal(size=(3, 5)), observation_ids=robust_tabular.observation_ids)
     standalone = analyze_representation_similarity(
@@ -81,7 +81,7 @@ def test_unified_representation_matches_standalone_exactly(robust_tabular):
 def test_cli_writer_preserves_unified_component_tables(tmp_path, robust_tabular):
     rng = np.random.default_rng(64)
     f = FeatureMatrix(
-        rng.normal(size=(robust_tabular.n_observations, 6)),
+        rng.normal(size=(robust_tabular.frame.height, 6)),
         observation_ids=robust_tabular.observation_ids,
     )
     cfg = AnalysisConfig(
@@ -108,7 +108,7 @@ def test_cli_writer_preserves_unified_component_tables(tmp_path, robust_tabular)
 
 
 def test_feature_alignment_never_uses_row_position(robust_tabular):
-    ids = list(robust_tabular.observation_id_tuple)
+    ids = list(robust_tabular.observation_ids)
     rng = np.random.default_rng(65)
     x = rng.normal(size=(len(ids), 4))
     order = np.arange(len(ids))[::-1]

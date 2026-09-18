@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import polars as pl
+from polars.testing import assert_frame_equal
 
 from ruddy import (
     TabularDataset,
@@ -99,10 +100,10 @@ def test_complete_case_collapse_is_explicit_in_factorial():
 
 
 def test_analyses_do_not_mutate_input_dataframe(robust_tabular):
-    before = robust_tabular.to_frame()
+    before = robust_tabular.frame.clone()
     analyze_univariate(robust_tabular)
     analyze_bivariate(robust_tabular)
     analyze_distribution_diagnostics(robust_tabular, responses=("y",), groups=("group",))
     analyze_outliers(robust_tabular, include_flags=True)
-    after = robust_tabular.to_frame()
-    pd.testing.assert_frame_equal(before, after)
+    after = robust_tabular.frame.clone()
+    assert_frame_equal(before, after)

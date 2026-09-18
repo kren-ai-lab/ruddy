@@ -39,9 +39,9 @@ def test_tabular_dataset_does_not_mutate_input() -> None:
 
     pd.testing.assert_frame_equal(frame, original)
 
-    external = dataset.to_frame()
-    external.loc[0, "value"] = 999.0
-    pd.testing.assert_frame_equal(dataset.to_frame(), original)
+    assert dataset.frame.shape == (3, 5)
+    frame.loc[0, "value"] = 999.0
+    assert dataset.frame["value"][0] == 1.0
 
 
 def test_duplicate_ids_fail_explicitly() -> None:
@@ -148,7 +148,7 @@ def test_pandas_input_non_default_index_no_id() -> None:
 def test_observation_ids_argument_sets_identity() -> None:
     df = pl.DataFrame({"a": [1, 2]})
     dataset = TabularDataset(df, observation_ids=["x", "y"])
-    assert dataset.observation_id_tuple == ("x", "y")
+    assert dataset.observation_ids == ("x", "y")
     assert dataset.provenance["id_source"] == "argument"
 
 
@@ -167,7 +167,7 @@ def test_observation_ids_with_id_column_fails() -> None:
 def test_generated_ids() -> None:
     df = pl.DataFrame({"a": [1, 2]})
     dataset = TabularDataset(df)
-    assert dataset.observation_id_tuple == (0, 1)
+    assert dataset.observation_ids == (0, 1)
     assert dataset.provenance["id_source"] == "generated"
 
 
@@ -202,3 +202,22 @@ def test_validate_observation_ids_polars_series_with_null_and_nan() -> None:
         validate_observation_ids(pl.Series(["a", None]))
     with pytest.raises(MissingObservationIDError):
         validate_observation_ids(pl.Series([1.0, float("nan")]))
+
+
+def test_deleted_dataset_contract_members() -> None:
+    df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
+    dataset = TabularDataset(df)
+    with pytest.raises(AttributeError):
+        _ = dataset.to_frame  # pyrefly: ignore[missing-attribute]
+    with pytest.raises(AttributeError):
+        _ = dataset.select  # pyrefly: ignore[missing-attribute]
+    with pytest.raises(AttributeError):
+        _ = dataset.n_observations  # pyrefly: ignore[missing-attribute]
+    with pytest.raises(AttributeError):
+        _ = dataset.n_columns  # pyrefly: ignore[missing-attribute]
+    with pytest.raises(AttributeError):
+        _ = dataset.columns  # pyrefly: ignore[missing-attribute]
+    with pytest.raises(AttributeError):
+        _ = dataset.observation_id_tuple  # pyrefly: ignore[missing-attribute]
+    with pytest.raises(TypeError):
+        _ = len(dataset)  # pyrefly: ignore[bad-argument-type]

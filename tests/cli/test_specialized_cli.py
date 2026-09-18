@@ -202,7 +202,7 @@ def test_bayesian_cli_writes_artifacts(tmp_path):
     ds, _, _ = _bundle()
     p = tmp_path / "d.csv"
     out = tmp_path / "b"
-    ds.to_frame().to_csv(p, index=False)
+    ds.frame.write_csv(p)
     code = main(
         [
             "analyze",

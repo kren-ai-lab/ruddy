@@ -117,7 +117,7 @@ def summarize_normality_diagnostics(
                 "method": method,
                 "column": column,
                 "role": dataset.role_of(column).value,
-                "n_total": dataset.n_observations,
+                "n_total": dataset.frame.height,
                 "n_finite": int(x.size),
                 "statistic": None,
                 "p_value": None,
@@ -206,7 +206,7 @@ def summarize_dispersion_diagnostics(
                     "method": method,
                     "response": response,
                     "group": group,
-                    "n_total": dataset.n_observations,
+                    "n_total": dataset.frame.height,
                     "n_used": int(values.size),
                     "n_groups": len(levels),
                     "group_sizes_json": json.dumps(sizes, sort_keys=True),
@@ -282,6 +282,6 @@ def analyze_distribution_diagnostics(
             "max_shapiro_n": max_shapiro_n,
             "automatic_test_selection": False,
         },
-        input_summary={"n_observations": dataset.n_observations, "n_columns": dataset.n_columns},
+        input_summary={"n_observations": dataset.frame.height, "n_columns": dataset.frame.width},
     )
     return DistributionDiagnosticsResult(normality=normality, dispersion=dispersion, provenance=provenance)

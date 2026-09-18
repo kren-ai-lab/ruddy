@@ -279,7 +279,7 @@ def analyze_marginal_means(
             contrast_rows.extend(family_rows)
 
     exclusions_idx = np.flatnonzero(~complete).astype(np.int64)
-    ids = dataset.observation_id_tuple
+    ids = dataset.observation_ids
     exclusions = _exclusions_table(
         ids,
         exclusions_idx,
@@ -301,7 +301,7 @@ def analyze_marginal_means(
             "p_adjust": correction.value,
         },
         input_summary={
-            "n_observations": dataset.n_observations,
+            "n_observations": dataset.frame.height,
             "n_complete_case": int(complete.sum()),
             "n_excluded": int((~complete).sum()),
         },

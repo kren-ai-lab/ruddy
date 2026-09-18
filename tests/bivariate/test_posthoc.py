@@ -12,8 +12,8 @@ def test_tukey_matches_statsmodels(group_dataset):
     result = analyze_posthoc(
         group_dataset, response="y", factor="group", methods=("tukey_hsd",), min_group_n=2
     )
-    frame = group_dataset.select(["y", "group"])
-    reference = pairwise_tukeyhsd(frame["y"], frame["group"])
+    frame = group_dataset.frame
+    reference = pairwise_tukeyhsd(frame["y"].to_numpy(), frame["group"].to_numpy())
     table = result.comparisons.sort(["group_a", "group_b"])
     assert np.allclose(table["mean_difference"].to_numpy(), reference.meandiffs, atol=1e-12)  # pyrefly: ignore[bad-argument-type]
     assert np.allclose(table["p_value"].to_numpy(), reference.pvalues, atol=1e-10)  # pyrefly: ignore[bad-argument-type]

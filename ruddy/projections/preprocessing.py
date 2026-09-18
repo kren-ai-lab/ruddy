@@ -157,7 +157,7 @@ def prepare_features(
     valid_mask = _finite_row_mask(matrix)
     source_rows = np.flatnonzero(valid_mask).astype(np.int64)
     excluded_rows = np.flatnonzero(~valid_mask).astype(np.int64)
-    ids = features.observation_id_tuple
+    ids = features.observation_ids
     exclusions = _exclusions_table(ids, excluded_rows)
     if int(valid_mask.sum()) < minimum_observations:
         raise ValueError(

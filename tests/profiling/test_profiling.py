@@ -52,7 +52,7 @@ def test_profile_columns_preserves_order_and_separates_role_from_kind() -> None:
     columns = profile_columns(dataset)
 
     assert tuple(columns.columns) == COLUMN_PROFILE_COLUMNS
-    assert columns["column"].to_list() == list(dataset.columns)
+    assert columns["column"].to_list() == list(dataset.frame.columns)
     assert _row(columns, "id")["role"] == "identifier"
     assert _row(columns, "id")["data_kind"] == "categorical"
     assert _row(columns, "response")["role"] == "response"
@@ -104,7 +104,8 @@ def test_profile_dataset_is_non_destructive_and_has_provenance() -> None:
     assert result.provenance.analysis == "profiling"
     assert result.provenance.parameters["missingness_policy"] == "null_or_nan_missing_values"
     assert result.provenance.parameters["numeric_non_finite_policy"] == "count_separately_from_missing"
-    assert result.pairwise_completeness.height == len(dataset.columns) * (len(dataset.columns) + 1) // 2
+    n_columns = dataset.frame.width
+    assert result.pairwise_completeness.height == n_columns * (n_columns + 1) // 2
     assert result.missingness_patterns.height > 0
 
 

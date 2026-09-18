@@ -58,7 +58,7 @@ def record_dataset(dataset: TabularDataset) -> None:
         (
             "dataset",
             (
-                f"{dataset.n_observations} observations, {dataset.n_columns} columns "
+                f"{dataset.frame.height} observations, {dataset.frame.width} columns "
                 f"({len(dataset.columns_with_kind('numeric'))} numeric, "
                 f"{len(dataset.columns_with_kind('categorical'))} categorical)"
             ),

@@ -38,7 +38,7 @@ def test_permutation_analysis_is_deterministic(group_dataset, separated_features
 
 def test_zero_distance_space_is_degenerate(group_dataset):
     matrix = FeatureMatrix(
-        np.ones((group_dataset.n_observations, 3)), observation_ids=group_dataset.observation_ids
+        np.ones((group_dataset.frame.height, 3)), observation_ids=group_dataset.observation_ids
     )
     result = analyze_permutation_group_structure(matrix, group_dataset, factor="group", n_permutations=9)
     assert result.status.value == "degenerate"
