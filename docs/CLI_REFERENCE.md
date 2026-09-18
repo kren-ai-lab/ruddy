@@ -196,7 +196,9 @@ The CLI should not be treated as permission to rely on row order when identities
 
 ## Structured artifacts
 
-The CLI writes CSV and JSON files. Major artifact families currently include:
+The CLI writes CSV and JSON files via Polars without row indices (`ruddy.core.io.write_table`). Square and labeled matrices (such as `covariance_matrix.csv`, `pearson_matrix.csv`, `spearman_matrix.csv`, `pairwise_counts.csv`, `variation_matrix.csv`, `aitchison_distances.csv`, and projection tables like `pca_scores.csv` / `projection_coordinates.csv`) now include an explicit `feature` or `observation_id` first column preserving row labels and observation ID dtypes, instead of an unlabelled pandas index.
+
+Major artifact families currently include:
 
 ### Profiling
 

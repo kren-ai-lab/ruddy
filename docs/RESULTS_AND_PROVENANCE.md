@@ -453,7 +453,7 @@ to access components programmatically. `components` is an immutable mapping cont
 
 ## Why results are tables instead of hidden model objects
 
-Most scientific outputs are exposed as pandas DataFrames rather than requiring callers to understand internal SciPy/statsmodels/sklearn result classes. This gives downstream tools a stable, tabular contract for:
+Most scientific outputs are exposed as Polars DataFrames (`pl.DataFrame`) rather than requiring callers to understand internal SciPy/statsmodels/sklearn result classes. This gives downstream tools a stable, tabular contract for:
 
 - visualization;
 - export;

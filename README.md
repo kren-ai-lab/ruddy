@@ -61,7 +61,7 @@ Ruddy currently targets Python 3.11–3.14.
 python -m pip install -e .
 ```
 
-Core dependencies are NumPy, pandas, SciPy, scikit-learn, statsmodels, Typer and Rich.
+Core dependencies are NumPy, Polars, pyarrow, SciPy, scikit-learn, statsmodels, Typer and Rich. pandas is accepted as an input format and retained transitively through statsmodels.
 
 UMAP is optional:
 
@@ -78,10 +78,10 @@ uv sync --group examples
 ## Minimal tabular workflow
 
 ```python
-import pandas as pd
+import polars as pl
 from ruddy import TabularDataset, analyze_univariate, analyze_bivariate
 
-frame = pd.read_csv("data.csv")
+frame = pl.read_csv("data.csv")
 
 dataset = TabularDataset(
     frame,
@@ -101,16 +101,19 @@ print(univariate.numeric_statistics.head())
 print(bivariate.correlations.head())
 ```
 
+Result tables are returned as Polars DataFrames (`pl.DataFrame`). pandas `DataFrame` objects are also accepted directly as inputs to `TabularDataset` and `FeatureMatrix`.
+
 The statistical role of a column is separate from its observed data kind. A numerically encoded batch column can therefore be explicitly declared as a factor and will be treated categorically by grouped/factorial methods.
 
 ## Minimal feature-space workflow
 
 ```python
 import numpy as np
+import polars as pl
 from ruddy import FeatureMatrix, analyze_pca, analyze_multivariate
 
 matrix = np.load("embedding.npy")
-ids = pd.read_csv("ids.csv")["id"]
+ids = pl.read_csv("ids.csv")["id"]
 
 features = FeatureMatrix(matrix, observation_ids=ids)
 
@@ -250,6 +253,19 @@ The current gallery covers distributions by group, nonlinear dependence, post-ho
 
 See [examples/README.md](examples/README.md) and [docs/VISUALIZATION_EXAMPLES.md](docs/VISUALIZATION_EXAMPLES.md).
 
+## Breaking changes (Polars migration)
+
+Ruddy migrated its internal tabular engine and public result tables to Polars:
+- **Polars result tables**: Every analysis returns Polars DataFrames (`pl.DataFrame`) with declared schemas.
+- **`TabularDataset` surface**: Stored table is exposed via `.frame` (`pl.DataFrame`); legacy adapter methods (frame export, `select()`, `n_observations`, `n_columns`, `columns`, `__len__`, and `observation_id_tuple`) were removed in favor of `dataset.frame.height`, `dataset.frame.width`, `dataset.frame.columns`, and `dataset.frame.select(...)`.
+- **pandas index is never identity**: A pandas DataFrame with a non-default index requires explicit `observation_ids` or `reset_index()`. In `align_annotations`, `id_column` is strictly required.
+- **Complex dtypes rejected**: Unsupported complex dtypes raise `TypeError` at dataset construction.
+- **Null instead of NaN**: Missing values in result tables are represented as Polars `null`, never float `NaN`.
+- **Labeled matrix layout**: Square and labeled matrices contain row labels in the first column (`feature` or `observation_id`) retaining label/ID dtypes, exported without an index column.
+- **`ColumnSpec.dtype` strings**: Schema metadata records Polars type names (e.g., `"Int64"`, `"Float64"`, `"String"`).
+
+See [docs/CHANGELOG_POLARS.md](docs/CHANGELOG_POLARS.md) for full details.
+
 ## Documentation
 
 Detailed technical documentation is available in [`docs/`](docs/README.md):
@@ -266,6 +282,7 @@ Detailed technical documentation is available in [`docs/`](docs/README.md):
 - [Visualization examples](docs/VISUALIZATION_EXAMPLES.md)
 - [Testing and feature freeze](docs/TESTING_AND_REPRODUCIBILITY.md)
 - [Public Python API inventory](docs/PUBLIC_API.md)
+- [Polars migration changelog](docs/CHANGELOG_POLARS.md)
 
 ## Validation
 

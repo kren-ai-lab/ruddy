@@ -158,7 +158,7 @@ Acts as a visual catalog for future local-application design. It maps result typ
 
 ## Visualization design principle
 
-Every figure should be traceable to a Ruddy result object/table. The downstream visualization layer should not recompute the underlying statistics.
+Every figure should be traceable to a Ruddy result object/table. The downstream visualization layer should not recompute the underlying statistics. Result tables are returned as Polars DataFrames (`pl.DataFrame`), which can be consumed directly or converted via `.to_pandas()` / `.to_numpy()` at the visualization boundary when plotting libraries expect pandas or NumPy inputs.
 
 Examples:
 

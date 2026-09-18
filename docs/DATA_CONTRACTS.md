@@ -19,7 +19,7 @@ dataset = TabularDataset(
 )
 ```
 
-`TabularDataset` copies the input `DataFrame` and exposes defensive copies. Constructing a dataset does not coerce values, impute data or remove observations.
+`TabularDataset` stores tabular data internally as a Polars DataFrame (`pl.DataFrame`) exposed via the `.frame` property. Inputs may be either Polars or pandas DataFrames. When constructed from pandas, the frame is deep-copied and converted via Arrow without index. Constructing a dataset does not coerce values, impute data or silently remove observations. Temporary adapter methods (frame export, `select()`, `n_observations`, `n_columns`, `columns`, `__len__`, `observation_id_tuple`) have been removed; callers access `dataset.frame.height`, `dataset.frame.width`, `dataset.frame.columns`, and `dataset.frame.select(...)`.
 
 ### Column roles
 
@@ -59,9 +59,16 @@ Roles and kinds are distinct. A factor may have numeric kind, and a response may
 
 ### Identity requirements
 
-Observation identifiers must be non-missing and unique. If `id_column` is not supplied, the DataFrame index is used as observation identity.
+Observation identifiers must be non-missing and unique. Identity can be established in three ways:
+1. `id_column`: Specified column from the table.
+2. `observation_ids`: Explicit sequence of identifiers matching `frame.height`.
+3. Generated integer IDs: When neither is provided, default IDs `0..n-1` are generated (`range(n)`).
 
-Ruddy also requires unique string column names so schemas remain stable across serialization and downstream tooling.
+**A pandas index is never treated as identity.** If a pandas DataFrame with a non-default index is passed without `id_column` or `observation_ids`, Ruddy raises a `ValueError` requiring the caller to explicitly provide `observation_ids=frame.index` or call `frame.reset_index()`.
+
+Observation IDs are exposed as an immutable tuple via `dataset.observation_ids`.
+
+Ruddy requires unique string column names so schemas remain stable across serialization and downstream tooling. Columns with complex number dtypes (e.g. `complex64`, `complex128`) are rejected with a `TypeError`.
 
 ## `FeatureMatrix`
 
@@ -80,10 +87,11 @@ features = FeatureMatrix(
 Accepted inputs include:
 
 - NumPy 2D arrays;
+- numeric Polars DataFrames;
 - numeric pandas DataFrames;
 - SciPy sparse matrices.
 
-A DataFrame supplied to `FeatureMatrix` must contain numeric columns only.
+A DataFrame supplied to `FeatureMatrix` must contain numeric columns only. Observation IDs are exposed as an immutable tuple via `features.observation_ids` (`observation_id_tuple` has been removed). Optional metadata is stored as a Polars DataFrame (`features.metadata`).
 
 ### Feature names
 
@@ -167,31 +175,43 @@ aligned = align_annotation_source(
 extended = attach_annotations(dataset, aligned)
 ```
 
+`align_annotations` and `align_annotation_source` require an explicit `id_column`. A pandas DataFrame without `id_column` raises `ValueError("Annotations require id_column; a pandas index is not an identity. Pass frame.reset_index() with the ID as a column.")`. Aligned annotations store data as a Polars DataFrame (`aligned.frame`).
+
 Annotation coverage is represented as `complete`, `partial` or `absent` and can be summarized as a table for reporting.
 
-## Non-finite values
+## Non-finite values and missingness
 
 Ruddy distinguishes:
 
-- missing values such as `NaN`;
+- missing values: represented as Polars `null` (or float `NaN` in source floating-point series);
 - present but non-finite numeric values such as `+inf` and `-inf`.
+
+In numeric descriptive analyses, both Polars `null` and float `NaN` count as missing (`n_missing`), while `+inf`/`-inf` are recorded under `n_non_finite`. Result tables use Polars `null` exclusively for missing values and never output `NaN`.
 
 Numeric analysis generally uses finite observations only, while missing/non-finite counts remain separate in outputs.
 
-For `FeatureMatrix` analyses that require complete finite rows, excluded rows are recorded with:
+For `FeatureMatrix` analyses that require complete finite rows, excluded rows are recorded in a Polars DataFrame with:
 
-- observation ID;
-- source row index;
-- analysis stage;
-- exclusion reason.
+- `observation_id` (preserving the dataset's observation ID dtype);
+- `source_row` index;
+- `stage`;
+- `reason`.
+
+## Labeled and square matrix contracts
+
+Square matrices (covariance, Pearson/Spearman correlation matrices, pairwise counts, variation matrix, Aitchison distances) and projection tables (scores, loadings, coordinates) are represented as Polars DataFrames:
+- The first column is named `feature` (for feature-by-feature matrices) or `observation_id` (for observation-indexed matrices).
+- The first column retains the dataset's or matrix's label/ID dtype.
+- The remaining columns contain matrix values and are named `str(label)`.
+- Exporting to CSV via `write_table` or the CLI outputs this table directly without writing an unnamed index column.
 
 ## Immutability and non-destructive behavior
 
 The scientific input is immutable by contract:
 
-- constructors copy caller-owned data;
-- public data accessors return copies;
-- analyses return new result objects;
+- constructors copy caller-owned data (Polars frames are immutable; pandas inputs are deep-copied on ingestion);
+- public data accessors return Polars frames;
+- analyses return new result objects containing Polars result tables;
 - outlier/anomaly analyses never mutate the input;
 - transformed compositional/PCA spaces are returned as new feature matrices.
 

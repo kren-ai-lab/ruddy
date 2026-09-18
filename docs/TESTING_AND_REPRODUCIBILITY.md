@@ -18,7 +18,7 @@ uv run pytest -q
 | --- | --- |
 | `tests/integration` | Unified `analyze()` blocks versus their standalone APIs |
 | `tests/robustness` | Pathological data, high-dimensional guards and invariants (see below) |
-| `tests/parity` | Frozen numerical references for univariate and bivariate statistics |
+| `tests/parity` | Frozen numerical references and Polars input parity |
 
 ## What the robustness suite targets
 

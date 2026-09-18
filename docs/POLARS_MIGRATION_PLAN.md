@@ -1,7 +1,7 @@
 Plan de migración de pandas a Polars
 ===================================
 
-Estado: en ejecución en la rama `feat/polars-migration`. Análisis inicial del 17 de septiembre de
+Estado: ejecutado; pendiente revisión final. Análisis inicial del 17 de septiembre de
 2026 sobre el commit `f332721`; ajustado el mismo día tras verificar qué
 dependencias aceptan Polars. Deben conservarse los métodos científicos
 existentes y las invariantes de `AGENTS.md`.

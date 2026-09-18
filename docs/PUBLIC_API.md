@@ -13,7 +13,7 @@ Non-fatal scientific diagnostic attached to a result.
 ## `AlignedAnnotations`
 
 ```python
-AlignedAnnotations(*, source_name: 'str', data: 'pd.DataFrame', coverage: 'AnnotationCoverage', report: 'AlignmentReport | None', roles: 'Mapping[str, ColumnRole]', kinds: 'Mapping[str, ColumnKind]') -> 'None'
+AlignedAnnotations(*, source_name: 'str', data: 'pl.DataFrame', coverage: 'AnnotationCoverage', report: 'AlignmentReport | None', roles: 'Mapping[str, ColumnRole]', kinds: 'Mapping[str, ColumnKind]', base_ids: 'tuple[ObservationID, ...]') -> 'None'
 ```
 
 One external annotation source aligned to a base observation index.
@@ -21,50 +21,50 @@ One external annotation source aligned to a base observation index.
 ## `AlignedRepresentationPair`
 
 ```python
-AlignedRepresentationPair(x: 'np.ndarray', y: 'np.ndarray', observation_ids: 'pd.Index', source_rows_x: 'np.ndarray', source_rows_y: 'np.ndarray', exclusions: 'pd.DataFrame', alignment: 'AlignmentReport') -> None
+AlignedRepresentationPair(x: 'np.ndarray', y: 'np.ndarray', observation_ids: 'tuple[ObservationID, ...]', source_rows_x: 'np.ndarray', source_rows_y: 'np.ndarray', exclusions: 'pl.DataFrame', alignment: 'AlignmentReport') -> None
 ```
 
-AlignedRepresentationPair(x: 'np.ndarray', y: 'np.ndarray', observation_ids: 'pd.Index', source_rows_x: 'np.ndarray', source_rows_y: 'np.ndarray', exclusions: 'pd.DataFrame', alignment: 'AlignmentReport')
+Aligned pair of numerical representations with shared observation IDs and row exclusions.
 
 ## `AnomalyResult`
 
 ```python
-AnomalyResult(scores: 'pd.DataFrame', methods: 'pd.DataFrame', exclusions: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+AnomalyResult(scores: 'pl.DataFrame', methods: 'pl.DataFrame', exclusions: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-AnomalyResult(scores: 'pd.DataFrame', methods: 'pd.DataFrame', exclusions: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+AnomalyResult(scores: 'pl.DataFrame', methods: 'pl.DataFrame', exclusions: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `BayesianEDAResult`
 
 ```python
-BayesianEDAResult(means: 'pd.DataFrame', mean_differences: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+BayesianEDAResult(means: 'pl.DataFrame', mean_differences: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-BayesianEDAResult(means: 'pd.DataFrame', mean_differences: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+BayesianEDAResult(means: 'pl.DataFrame', mean_differences: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `CCAResult`
 
 ```python
-CCAResult(status: 'ResultStatus', reason: 'str | None', correlations: 'pd.DataFrame', x_weights: 'pd.DataFrame', y_weights: 'pd.DataFrame', x_loadings: 'pd.DataFrame', y_loadings: 'pd.DataFrame', x_scores: 'pd.DataFrame', y_scores: 'pd.DataFrame', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
+CCAResult(status: 'ResultStatus', reason: 'str | None', correlations: 'pl.DataFrame', x_weights: 'pl.DataFrame', y_weights: 'pl.DataFrame', x_loadings: 'pl.DataFrame', y_loadings: 'pl.DataFrame', x_scores: 'pl.DataFrame', y_scores: 'pl.DataFrame', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
 ```
 
-CCAResult(status: 'ResultStatus', reason: 'str | None', correlations: 'pd.DataFrame', x_weights: 'pd.DataFrame', y_weights: 'pd.DataFrame', x_loadings: 'pd.DataFrame', y_loadings: 'pd.DataFrame', x_scores: 'pd.DataFrame', y_scores: 'pd.DataFrame', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance')
+CCAResult(status: 'ResultStatus', reason: 'str | None', correlations: 'pl.DataFrame', x_weights: 'pl.DataFrame', y_weights: 'pl.DataFrame', x_loadings: 'pl.DataFrame', y_loadings: 'pl.DataFrame', x_scores: 'pl.DataFrame', y_scores: 'pl.DataFrame', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance')
 
 ## `CompositionalResult`
 
 ```python
-CompositionalResult(transformed: 'FeatureMatrix', variation_matrix: 'pd.DataFrame', aitchison_distances: 'pd.DataFrame', zero_replacement: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+CompositionalResult(transformed: 'FeatureMatrix', variation_matrix: 'pl.DataFrame', aitchison_distances: 'pl.DataFrame', zero_replacement: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-CompositionalResult(transformed: 'FeatureMatrix', variation_matrix: 'pd.DataFrame', aitchison_distances: 'pd.DataFrame', zero_replacement: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+CompositionalResult(transformed: 'FeatureMatrix', variation_matrix: 'pl.DataFrame', aitchison_distances: 'pl.DataFrame', zero_replacement: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `RepresentationComparisonResult`
 
 ```python
-RepresentationComparisonResult(cca: 'CCAResult', cka: 'pd.DataFrame', procrustes: 'pd.DataFrame', distance_similarity: 'pd.DataFrame', mantel: 'pd.DataFrame', exclusions: 'pd.DataFrame', alignment: 'AlignmentReport', provenance: 'AnalysisProvenance') -> None
+RepresentationComparisonResult(cca: 'CCAResult', cka: 'pl.DataFrame', procrustes: 'pl.DataFrame', distance_similarity: 'pl.DataFrame', mantel: 'pl.DataFrame', exclusions: 'pl.DataFrame', alignment: 'AlignmentReport', provenance: 'AnalysisProvenance') -> None
 ```
 
-RepresentationComparisonResult(cca: 'CCAResult', cka: 'pd.DataFrame', procrustes: 'pd.DataFrame', distance_similarity: 'pd.DataFrame', mantel: 'pd.DataFrame', exclusions: 'pd.DataFrame', alignment: 'AlignmentReport', provenance: 'AnalysisProvenance')
+RepresentationComparisonResult(cca: 'CCAResult', cka: 'pl.DataFrame', procrustes: 'pl.DataFrame', distance_similarity: 'pl.DataFrame', mantel: 'pl.DataFrame', exclusions: 'pl.DataFrame', alignment: 'AlignmentReport', provenance: 'AnalysisProvenance')
 
 ## `AlignmentMode`
 
@@ -157,10 +157,10 @@ Numeric correlation methods supported by Ruddy.
 ## `FeatureMatrix`
 
 ```python
-FeatureMatrix(data: 'FeatureInput', *, observation_ids: 'ObservationIDs | None' = None, feature_names: 'list[str] | tuple[str, ...] | None' = None, metadata: 'pd.DataFrame | None' = None, metadata_id_column: 'str | None' = None, metadata_alignment: 'AlignmentMode | str' = <AlignmentMode.STRICT: 'strict'>, provenance: 'Mapping[str, Any] | None' = None) -> 'None'
+FeatureMatrix(data: 'FeatureInput', *, observation_ids: 'ObservationIDs | None' = None, feature_names: 'list[str] | tuple[str, ...] | None' = None, metadata: 'pl.DataFrame | None' = None, metadata_id_column: 'str | None' = None, metadata_alignment: 'AlignmentMode | str' = <AlignmentMode.STRICT: 'strict'>, provenance: 'Mapping[str, Any] | None' = None) -> 'None'
 ```
 
-Validated numeric observations × features matrix with explicit identity.
+Validated numeric observations × features matrix with explicit identity. Metadata accepts a Polars or pandas DataFrame.
 
 ## `FactorialDesign`
 
@@ -173,7 +173,7 @@ Resolved, domain-agnostic factorial model specification.
 ## `FactorialResult`
 
 ```python
-FactorialResult(status: 'ResultStatus', reason: 'str | None', design: 'FactorialDesign', design_terms: 'pd.DataFrame', effects: 'pd.DataFrame', coefficients: 'pd.DataFrame', diagnostics: 'pd.DataFrame', observation_diagnostics: 'pd.DataFrame', cells: 'pd.DataFrame', exclusions: 'pd.DataFrame', model_summary: 'dict[str, Any]', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
+FactorialResult(status: 'ResultStatus', reason: 'str | None', design: 'FactorialDesign', design_terms: 'pl.DataFrame', effects: 'pl.DataFrame', coefficients: 'pl.DataFrame', diagnostics: 'pl.DataFrame', observation_diagnostics: 'pl.DataFrame', cells: 'pl.DataFrame', exclusions: 'pl.DataFrame', model_summary: 'dict[str, Any]', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
 ```
 
 Structured result for one univariate factorial ANOVA/ANCOVA model.
@@ -189,7 +189,7 @@ One main or interaction term in a hierarchical factorial design.
 ## `MarginalMeansResult`
 
 ```python
-MarginalMeansResult(means: 'pd.DataFrame', contrasts: 'pd.DataFrame', exclusions: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+MarginalMeansResult(means: 'pl.DataFrame', contrasts: 'pl.DataFrame', exclusions: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
 Estimated marginal means plus pairwise contrasts for requested factor terms.
@@ -197,7 +197,7 @@ Estimated marginal means plus pairwise contrasts for requested factor terms.
 ## `MixedEffectsResult`
 
 ```python
-MixedEffectsResult(status: 'ResultStatus', reason: 'str | None', fixed_effects: 'pd.DataFrame', variance_components: 'pd.DataFrame', random_effects: 'pd.DataFrame', exclusions: 'pd.DataFrame', model_summary: 'dict[str, object]', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
+MixedEffectsResult(status: 'ResultStatus', reason: 'str | None', fixed_effects: 'pl.DataFrame', variance_components: 'pl.DataFrame', random_effects: 'pl.DataFrame', exclusions: 'pl.DataFrame', model_summary: 'dict[str, object]', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
 ```
 
 Structured random-intercept / numeric random-slope mixed-model result.
@@ -205,7 +205,7 @@ Structured random-intercept / numeric random-slope mixed-model result.
 ## `BivariateResult`
 
 ```python
-BivariateResult(correlations: 'pd.DataFrame', comparisons: 'pd.DataFrame', categorical_associations: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+BivariateResult(correlations: 'pl.DataFrame', comparisons: 'pl.DataFrame', categorical_associations: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
 Complete mixed-type bivariate output.
@@ -221,31 +221,31 @@ Compact bootstrap result without retaining the full resample distribution.
 ## `ConfidenceIntervalResult`
 
 ```python
-ConfidenceIntervalResult(means: 'pd.DataFrame', correlations: 'pd.DataFrame', mean_differences: 'pd.DataFrame', effect_sizes: 'pd.DataFrame', odds_ratios: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+ConfidenceIntervalResult(means: 'pl.DataFrame', correlations: 'pl.DataFrame', mean_differences: 'pl.DataFrame', effect_sizes: 'pl.DataFrame', odds_ratios: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-ConfidenceIntervalResult(means: 'pd.DataFrame', correlations: 'pd.DataFrame', mean_differences: 'pd.DataFrame', effect_sizes: 'pd.DataFrame', odds_ratios: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+ConfidenceIntervalResult(means: 'pl.DataFrame', correlations: 'pl.DataFrame', mean_differences: 'pl.DataFrame', effect_sizes: 'pl.DataFrame', odds_ratios: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `ContingencyDiagnosticsResult`
 
 ```python
-ContingencyDiagnosticsResult(summary: 'pd.DataFrame', cells: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+ContingencyDiagnosticsResult(summary: 'pl.DataFrame', cells: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-ContingencyDiagnosticsResult(summary: 'pd.DataFrame', cells: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+ContingencyDiagnosticsResult(summary: 'pl.DataFrame', cells: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `DependenceResult`
 
 ```python
-DependenceResult(partial_correlations: 'pd.DataFrame', distance_correlations: 'pd.DataFrame', mutual_information: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+DependenceResult(partial_correlations: 'pl.DataFrame', distance_correlations: 'pl.DataFrame', mutual_information: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-DependenceResult(partial_correlations: 'pd.DataFrame', distance_correlations: 'pd.DataFrame', mutual_information: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+DependenceResult(partial_correlations: 'pl.DataFrame', distance_correlations: 'pl.DataFrame', mutual_information: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `PosthocResult`
 
 ```python
-PosthocResult(comparisons: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+PosthocResult(comparisons: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
 Structured Tukey HSD / Games-Howell comparisons.
@@ -253,15 +253,15 @@ Structured Tukey HSD / Games-Howell comparisons.
 ## `DistributionDiagnosticsResult`
 
 ```python
-DistributionDiagnosticsResult(normality: 'pd.DataFrame', dispersion: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+DistributionDiagnosticsResult(normality: 'pl.DataFrame', dispersion: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-DistributionDiagnosticsResult(normality: 'pd.DataFrame', dispersion: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+DistributionDiagnosticsResult(normality: 'pl.DataFrame', dispersion: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `GroupAnalysisResult`
 
 ```python
-GroupAnalysisResult(response_catalog: 'pd.DataFrame', group_coverage: 'pd.DataFrame', numeric_summaries: 'pd.DataFrame', categorical_summaries: 'pd.DataFrame', numeric_comparisons: 'pd.DataFrame', categorical_comparisons: 'pd.DataFrame', annotation_coverage: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+GroupAnalysisResult(response_catalog: 'pl.DataFrame', group_coverage: 'pl.DataFrame', numeric_summaries: 'pl.DataFrame', categorical_summaries: 'pl.DataFrame', numeric_comparisons: 'pl.DataFrame', categorical_comparisons: 'pl.DataFrame', annotation_coverage: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
 Complete response-centric grouped analysis output.
@@ -269,7 +269,7 @@ Complete response-centric grouped analysis output.
 ## `CollinearityResult`
 
 ```python
-CollinearityResult(status: 'ResultStatus', reason: 'str | None', features: 'pd.DataFrame', condition_spectrum: 'pd.DataFrame', summary: 'dict[str, Any]', exclusions: 'pd.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
+CollinearityResult(status: 'ResultStatus', reason: 'str | None', features: 'pl.DataFrame', condition_spectrum: 'pl.DataFrame', summary: 'dict[str, Any]', exclusions: 'pl.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
 ```
 
 VIF/tolerance plus standardized design-rank diagnostics.
@@ -277,7 +277,7 @@ VIF/tolerance plus standardized design-rank diagnostics.
 ## `CovarianceResult`
 
 ```python
-CovarianceResult(status: 'ResultStatus', reason: 'str | None', covariance: 'pd.DataFrame', pearson: 'pd.DataFrame', spearman: 'pd.DataFrame', pairwise_counts: 'pd.DataFrame', feature_diagnostics: 'pd.DataFrame', condition_spectrum: 'pd.DataFrame', summary: 'dict[str, Any]', exclusions: 'pd.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
+CovarianceResult(status: 'ResultStatus', reason: 'str | None', covariance: 'pl.DataFrame', pearson: 'pl.DataFrame', spearman: 'pl.DataFrame', pairwise_counts: 'pl.DataFrame', feature_diagnostics: 'pl.DataFrame', condition_spectrum: 'pl.DataFrame', summary: 'dict[str, Any]', exclusions: 'pl.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
 ```
 
 Structured covariance/correlation output for a feature matrix.
@@ -285,7 +285,7 @@ Structured covariance/correlation output for a feature matrix.
 ## `MANOVAResult`
 
 ```python
-MANOVAResult(status: 'ResultStatus', reason: 'str | None', tests: 'pd.DataFrame', factor_levels: 'pd.DataFrame', exclusions: 'pd.DataFrame', model_summary: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
+MANOVAResult(status: 'ResultStatus', reason: 'str | None', tests: 'pl.DataFrame', factor_levels: 'pl.DataFrame', exclusions: 'pl.DataFrame', model_summary: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
 ```
 
 Structured MANOVA statistics with complete-case accounting.
@@ -293,7 +293,7 @@ Structured MANOVA statistics with complete-case accounting.
 ## `MahalanobisResult`
 
 ```python
-MahalanobisResult(status: 'ResultStatus', reason: 'str | None', distances: 'pd.DataFrame', methods: 'pd.DataFrame', exclusions: 'pd.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
+MahalanobisResult(status: 'ResultStatus', reason: 'str | None', distances: 'pl.DataFrame', methods: 'pl.DataFrame', exclusions: 'pl.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
 ```
 
 Observation-level classical/robust Mahalanobis diagnostics.
@@ -309,7 +309,7 @@ Combined covariance, collinearity, and multivariate-distance diagnostics.
 ## `PermutationGroupResult`
 
 ```python
-PermutationGroupResult(status: 'ResultStatus', reason: 'str | None', summary: 'pd.DataFrame', groups: 'pd.DataFrame', distances_to_centroid: 'pd.DataFrame', exclusions: 'pd.DataFrame', alignment: 'AlignmentReport', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
+PermutationGroupResult(status: 'ResultStatus', reason: 'str | None', summary: 'pl.DataFrame', groups: 'pl.DataFrame', distances_to_centroid: 'pl.DataFrame', exclusions: 'pl.DataFrame', alignment: 'AlignmentReport', advisories: 'tuple[Advisory, ...]', provenance: 'AnalysisProvenance') -> None
 ```
 
 PERMANOVA + PERMDISP result for one grouping factor.
@@ -341,7 +341,7 @@ Multiple-testing correction policies.
 ## `PCAResult`
 
 ```python
-PCAResult(status: 'ResultStatus', reason: 'str | None', scores: 'pd.DataFrame', loadings: 'pd.DataFrame', variance: 'pd.DataFrame', exclusions: 'pd.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
+PCAResult(status: 'ResultStatus', reason: 'str | None', scores: 'pl.DataFrame', loadings: 'pl.DataFrame', variance: 'pl.DataFrame', exclusions: 'pl.DataFrame', preprocessing: 'dict[str, Any]', provenance: 'AnalysisProvenance') -> None
 ```
 
 Structured PCA output with scores, loadings, variance, and provenance.
@@ -349,7 +349,7 @@ Structured PCA output with scores, loadings, variance, and provenance.
 ## `PreparedFeatures`
 
 ```python
-PreparedFeatures(matrix: 'Any', observation_ids: 'pd.Index', feature_names: 'tuple[str, ...]', source_row_indices: 'np.ndarray', exclusions: 'pd.DataFrame', metadata: 'dict[str, Any]') -> None
+PreparedFeatures(matrix: 'Any', observation_ids: 'tuple[ObservationID, ...]', feature_names: 'tuple[str, ...]', source_row_indices: 'np.ndarray', exclusions: 'pl.DataFrame', metadata: 'dict[str, Any]') -> None
 ```
 
 Finite-row feature matrix prepared with explicitly requested scaling.
@@ -365,7 +365,7 @@ Supported nonlinear exploratory projection methods.
 ## `ProjectionResult`
 
 ```python
-ProjectionResult(status: 'ResultStatus', reason: 'str | None', method: 'ProjectionMethod', coordinates: 'pd.DataFrame', exclusions: 'pd.DataFrame', preprocessing: 'dict[str, Any]', parameters: 'dict[str, Any]', warnings: 'tuple[str, ...]', provenance: 'AnalysisProvenance', exploratory: 'bool' = True, inferential_allowed: 'bool' = False) -> None
+ProjectionResult(status: 'ResultStatus', reason: 'str | None', method: 'ProjectionMethod', coordinates: 'pl.DataFrame', exclusions: 'pl.DataFrame', preprocessing: 'dict[str, Any]', parameters: 'dict[str, Any]', warnings: 'tuple[str, ...]', provenance: 'AnalysisProvenance', exploratory: 'bool' = True, inferential_allowed: 'bool' = False) -> None
 ```
 
 Structured exploratory coordinates with explicit non-inferential semantics.
@@ -373,7 +373,7 @@ Structured exploratory coordinates with explicit non-inferential semantics.
 ## `ProfilingResult`
 
 ```python
-ProfilingResult(overview: 'dict[str, Any]', columns: 'pd.DataFrame', missingness: 'pd.DataFrame', pairwise_completeness: 'pd.DataFrame', missingness_patterns: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+ProfilingResult(overview: 'dict[str, Any]', columns: 'pl.DataFrame', missingness: 'pl.DataFrame', pairwise_completeness: 'pl.DataFrame', missingness_patterns: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
 Complete descriptive profiling output.
@@ -397,15 +397,27 @@ Explicit feature scaling policies for projection analyses.
 ## `TabularDataset`
 
 ```python
-TabularDataset(data: 'pd.DataFrame', *, id_column: 'str | None' = None, role_overrides: 'RoleOverrides | None' = None, kind_overrides: 'KindOverrides | None' = None) -> 'None'
+TabularDataset(data: 'pl.DataFrame', *, id_column: 'str | None' = None, observation_ids: 'Sequence[ObservationID] | None' = None, role_overrides: 'RoleOverrides | None' = None, kind_overrides: 'KindOverrides | None' = None) -> 'None'
 ```
 
-Immutable-by-contract wrapper around a pandas DataFrame.
+Immutable-by-contract wrapper around a Polars DataFrame. Accepts a Polars DataFrame or a pandas DataFrame (converted automatically on construction).
+
+### Properties and Methods
+
+- `frame: pl.DataFrame` — Read-only property returning the stored Polars DataFrame.
+- `observation_ids: tuple[ObservationID, ...]` — Observation identifiers as an immutable tuple.
+- `id_column: str | None` — The identifier column name, if defined from a column.
+- `schema: tuple[ColumnSpec, ...]` — Ordered immutable schema metadata.
+- `provenance: Mapping[str, Any]` — Construction provenance (`input_backend`, `id_source`).
+- `role_of(column: str) -> ColumnRole` — Retrieve the resolved statistical role for a column.
+- `kind_of(column: str) -> ColumnKind` — Retrieve the resolved data kind for a column.
+- `columns_with_role(*roles: ColumnRole | str) -> tuple[str, ...]` — Filter columns by statistical role.
+- `columns_with_kind(*kinds: ColumnKind | str) -> tuple[str, ...]` — Filter columns by data kind.
 
 ## `OutlierResult`
 
 ```python
-OutlierResult(summaries: 'pd.DataFrame', flags: 'pd.DataFrame', quality: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+OutlierResult(summaries: 'pl.DataFrame', flags: 'pl.DataFrame', quality: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
 Complete univariate outlier and quality output.
@@ -413,26 +425,34 @@ Complete univariate outlier and quality output.
 ## `UnivariateResult`
 
 ```python
-UnivariateResult(profiling: 'ProfilingResult', numeric_statistics: 'pd.DataFrame', categorical_statistics: 'pd.DataFrame', categorical_frequencies: 'pd.DataFrame', datetime_statistics: 'pd.DataFrame', provenance: 'AnalysisProvenance') -> None
+UnivariateResult(profiling: 'ProfilingResult', numeric_statistics: 'pl.DataFrame', categorical_statistics: 'pl.DataFrame', categorical_frequencies: 'pl.DataFrame', datetime_statistics: 'pl.DataFrame', provenance: 'AnalysisProvenance') -> None
 ```
 
-UnivariateResult(profiling: 'ProfilingResult', numeric_statistics: 'pd.DataFrame', categorical_statistics: 'pd.DataFrame', categorical_frequencies: 'pd.DataFrame', datetime_statistics: 'pd.DataFrame', provenance: 'AnalysisProvenance')
+UnivariateResult(profiling: 'ProfilingResult', numeric_statistics: 'pl.DataFrame', categorical_statistics: 'pl.DataFrame', categorical_frequencies: 'pl.DataFrame', datetime_statistics: 'pl.DataFrame', provenance: 'AnalysisProvenance')
 
 ## `UnivariateTables`
 
 ```python
-UnivariateTables(numeric_statistics: 'pd.DataFrame', categorical_statistics: 'pd.DataFrame', categorical_frequencies: 'pd.DataFrame', datetime_statistics: 'pd.DataFrame') -> None
+UnivariateTables(numeric_statistics: 'pl.DataFrame', categorical_statistics: 'pl.DataFrame', categorical_frequencies: 'pl.DataFrame', datetime_statistics: 'pl.DataFrame') -> None
 ```
 
-UnivariateTables(numeric_statistics: 'pd.DataFrame', categorical_statistics: 'pd.DataFrame', categorical_frequencies: 'pd.DataFrame', datetime_statistics: 'pd.DataFrame')
+UnivariateTables(numeric_statistics: 'pl.DataFrame', categorical_statistics: 'pl.DataFrame', categorical_frequencies: 'pl.DataFrame', datetime_statistics: 'pl.DataFrame')
+
+## `align_annotations`
+
+```python
+align_annotations(base_ids: 'Any', annotations: 'pl.DataFrame', *, id_column: 'str | None' = None, mode: 'AlignmentMode | str' = <AlignmentMode.STRICT: 'strict'>) -> 'tuple[pl.DataFrame, AlignmentReport]'
+```
+
+Align external metadata to base IDs without silently dropping mismatches. Annotations may be a Polars or pandas DataFrame; requires an explicit `id_column` (a pandas index is not an identity; Polars has no row index).
 
 ## `align_annotation_source`
 
 ```python
-align_annotation_source(dataset: 'TabularDataset', annotations: 'pd.DataFrame | None', *, source_name: 'str' = 'annotations', id_column: 'str | None' = None, mode: 'AlignmentMode | str' = <AlignmentMode.STRICT: 'strict'>, role_overrides: 'RoleOverrides | None' = None, kind_overrides: 'KindOverrides | None' = None) -> 'AlignedAnnotations'
+align_annotation_source(dataset: 'TabularDataset', annotations: 'pl.DataFrame | None', *, source_name: 'str' = 'annotations', id_column: 'str | None' = None, mode: 'AlignmentMode | str' = <AlignmentMode.STRICT: 'strict'>, role_overrides: 'RoleOverrides | None' = None, kind_overrides: 'KindOverrides | None' = None) -> 'AlignedAnnotations'
 ```
 
-Align one optional external annotation source to a dataset.
+Align one optional external annotation source to a dataset. Annotations may be a Polars or pandas DataFrame; requires `id_column` if annotations are provided.
 
 ## `analyze`
 
@@ -661,7 +681,7 @@ Run profiling and complete univariate descriptive analysis.
 ## `pairwise_completeness`
 
 ```python
-pairwise_completeness(dataset: 'TabularDataset', *, columns: 'tuple[str, ...] | None' = None, max_columns: 'int' = 200) -> 'pd.DataFrame'
+pairwise_completeness(dataset: 'TabularDataset', *, columns: 'tuple[str, ...] | None' = None, max_columns: 'int' = 200) -> 'pl.DataFrame'
 ```
 
 Return upper-triangular pairwise non-missing completeness statistics.
@@ -701,7 +721,7 @@ Fisher-z confidence interval for Pearson's correlation.
 ## `profile_columns`
 
 ```python
-profile_columns(dataset: 'TabularDataset') -> 'pd.DataFrame'
+profile_columns(dataset: 'TabularDataset') -> 'pl.DataFrame'
 ```
 
 Profile every dataset column without transforming source values.
@@ -733,7 +753,7 @@ Run the complete descriptive profiling block.
 ## `summarize_annotation_coverage`
 
 ```python
-summarize_annotation_coverage(sources: 'Iterable[AlignedAnnotations]') -> 'pd.DataFrame'
+summarize_annotation_coverage(sources: 'Iterable[AlignedAnnotations]') -> 'pl.DataFrame'
 ```
 
 Return one traceable coverage row per external annotation source.
@@ -741,7 +761,7 @@ Return one traceable coverage row per external annotation source.
 ## `summarize_categorical_associations`
 
 ```python
-summarize_categorical_associations(dataset: 'TabularDataset', *, tests: 'tuple[ComparisonTest | str, ...]' = (<ComparisonTest.CHI_SQUARE: 'chi_square'>, <ComparisonTest.FISHER_EXACT: 'fisher_exact'>), pairs: 'tuple[tuple[str, str], ...] | None' = None, max_category_levels: 'int' = 50, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pd.DataFrame'
+summarize_categorical_associations(dataset: 'TabularDataset', *, tests: 'tuple[ComparisonTest | str, ...]' = (<ComparisonTest.CHI_SQUARE: 'chi_square'>, <ComparisonTest.FISHER_EXACT: 'fisher_exact'>), pairs: 'tuple[tuple[str, str], ...] | None' = None, max_category_levels: 'int' = 50, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pl.DataFrame'
 ```
 
 Compute selected or all unordered categorical-categorical associations.
@@ -749,7 +769,7 @@ Compute selected or all unordered categorical-categorical associations.
 ## `summarize_categorical_statistics`
 
 ```python
-summarize_categorical_statistics(dataset: 'TabularDataset', columns: 'pd.DataFrame', *, max_category_levels: 'int' = 50) -> 'tuple[pd.DataFrame, pd.DataFrame]'
+summarize_categorical_statistics(dataset: 'TabularDataset', columns: 'pl.DataFrame', *, max_category_levels: 'int' = 50) -> 'tuple[pl.DataFrame, pl.DataFrame]'
 ```
 
 Summarize eligible categorical, boolean, and factor variables.
@@ -757,7 +777,7 @@ Summarize eligible categorical, boolean, and factor variables.
 ## `summarize_group_coverage`
 
 ```python
-summarize_group_coverage(dataset: 'TabularDataset', groups: 'Iterable[str] | None' = None, *, max_group_levels: 'int' = 20) -> 'pd.DataFrame'
+summarize_group_coverage(dataset: 'TabularDataset', groups: 'Iterable[str] | None' = None, *, max_group_levels: 'int' = 20) -> 'pl.DataFrame'
 ```
 
 Describe observation coverage for each grouping variable.
@@ -765,7 +785,7 @@ Describe observation coverage for each grouping variable.
 ## `summarize_grouped_categorical_responses`
 
 ```python
-summarize_grouped_categorical_responses(dataset: 'TabularDataset', responses: 'Iterable[str] | None' = None, groups: 'Iterable[str] | None' = None, *, max_group_levels: 'int' = 20) -> 'pd.DataFrame'
+summarize_grouped_categorical_responses(dataset: 'TabularDataset', responses: 'Iterable[str] | None' = None, groups: 'Iterable[str] | None' = None, *, max_group_levels: 'int' = 20) -> 'pl.DataFrame'
 ```
 
 Compute within-group frequency summaries for categorical responses.
@@ -773,7 +793,7 @@ Compute within-group frequency summaries for categorical responses.
 ## `summarize_grouped_numeric_responses`
 
 ```python
-summarize_grouped_numeric_responses(dataset: 'TabularDataset', responses: 'Iterable[str] | None' = None, groups: 'Iterable[str] | None' = None, *, max_group_levels: 'int' = 20) -> 'pd.DataFrame'
+summarize_grouped_numeric_responses(dataset: 'TabularDataset', responses: 'Iterable[str] | None' = None, groups: 'Iterable[str] | None' = None, *, max_group_levels: 'int' = 20) -> 'pl.DataFrame'
 ```
 
 Compute descriptive summaries for numeric responses within groups.
@@ -781,7 +801,7 @@ Compute descriptive summaries for numeric responses within groups.
 ## `summarize_correlations`
 
 ```python
-summarize_correlations(dataset: 'TabularDataset', *, methods: 'tuple[CorrelationMethod | str, ...]' = (<CorrelationMethod.PEARSON: 'pearson'>, <CorrelationMethod.SPEARMAN: 'spearman'>, <CorrelationMethod.KENDALL: 'kendall'>), min_complete_pairs: 'int' = 3, max_columns: 'int' = 100, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pd.DataFrame'
+summarize_correlations(dataset: 'TabularDataset', *, methods: 'tuple[CorrelationMethod | str, ...]' = (<CorrelationMethod.PEARSON: 'pearson'>, <CorrelationMethod.SPEARMAN: 'spearman'>, <CorrelationMethod.KENDALL: 'kendall'>), min_complete_pairs: 'int' = 3, max_columns: 'int' = 100, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pl.DataFrame'
 ```
 
 Compute all unordered numeric-numeric correlations.
@@ -789,7 +809,7 @@ Compute all unordered numeric-numeric correlations.
 ## `summarize_datetime_statistics`
 
 ```python
-summarize_datetime_statistics(dataset: 'TabularDataset', columns: 'pd.DataFrame') -> 'pd.DataFrame'
+summarize_datetime_statistics(dataset: 'TabularDataset', columns: 'pl.DataFrame') -> 'pl.DataFrame'
 ```
 
 Summarize eligible datetime variables without time-series interpretation.
@@ -797,7 +817,7 @@ Summarize eligible datetime variables without time-series interpretation.
 ## `summarize_dispersion_diagnostics`
 
 ```python
-summarize_dispersion_diagnostics(dataset: 'TabularDataset', *, responses: 'tuple[str, ...]', groups: 'tuple[str, ...]', methods: 'tuple[str, ...]' = ('brown_forsythe', 'fligner_killeen'), min_group_n: 'int' = 2, max_group_levels: 'int' = 20, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pd.DataFrame'
+summarize_dispersion_diagnostics(dataset: 'TabularDataset', *, responses: 'tuple[str, ...]', groups: 'tuple[str, ...]', methods: 'tuple[str, ...]' = ('brown_forsythe', 'fligner_killeen'), min_group_n: 'int' = 2, max_group_levels: 'int' = 20, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pl.DataFrame'
 ```
 
 Assess grouped dispersion using explicit robust tests.
@@ -805,7 +825,7 @@ Assess grouped dispersion using explicit robust tests.
 ## `summarize_general_dependence`
 
 ```python
-summarize_general_dependence(dataset: 'TabularDataset', *, methods: 'tuple[str, ...]' = ('distance_correlation', 'mutual_information'), pairs: 'tuple[tuple[str, str], ...] | None' = None, min_complete_pairs: 'int' = 5, max_columns: 'int' = 50, n_permutations: 'int' = 199, mutual_information_neighbors: 'int' = 3, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>, random_state: 'int' = 0) -> 'tuple[pd.DataFrame, pd.DataFrame]'
+summarize_general_dependence(dataset: 'TabularDataset', *, methods: 'tuple[str, ...]' = ('distance_correlation', 'mutual_information'), pairs: 'tuple[tuple[str, str], ...] | None' = None, min_complete_pairs: 'int' = 5, max_columns: 'int' = 50, n_permutations: 'int' = 199, mutual_information_neighbors: 'int' = 3, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>, random_state: 'int' = 0) -> 'tuple[pl.DataFrame, pl.DataFrame]'
 ```
 
 Compute nonlinear/general dependence with permutation inference.
@@ -813,7 +833,7 @@ Compute nonlinear/general dependence with permutation inference.
 ## `summarize_missingness`
 
 ```python
-summarize_missingness(columns: 'pd.DataFrame') -> 'pd.DataFrame'
+summarize_missingness(columns: 'pl.DataFrame') -> 'pl.DataFrame'
 ```
 
 Build deterministic per-column missingness output from column profiles.
@@ -821,7 +841,7 @@ Build deterministic per-column missingness output from column profiles.
 ## `summarize_missingness_patterns`
 
 ```python
-summarize_missingness_patterns(dataset: 'TabularDataset', *, max_patterns: 'int' = 20) -> 'pd.DataFrame'
+summarize_missingness_patterns(dataset: 'TabularDataset', *, max_patterns: 'int' = 20) -> 'pl.DataFrame'
 ```
 
 Summarize common row-level missingness patterns with bounded output.
@@ -829,7 +849,7 @@ Summarize common row-level missingness patterns with bounded output.
 ## `summarize_numeric_categorical_comparisons`
 
 ```python
-summarize_numeric_categorical_comparisons(dataset: 'TabularDataset', *, tests: 'tuple[ComparisonTest | str, ...]' = (<ComparisonTest.WELCH_T: 'welch_t'>, <ComparisonTest.MANN_WHITNEY: 'mann_whitney'>, <ComparisonTest.WELCH_ANOVA: 'welch_anova'>, <ComparisonTest.KRUSKAL_WALLIS: 'kruskal_wallis'>), features: 'tuple[str, ...] | None' = None, group_columns: 'tuple[str, ...] | None' = None, min_group_n: 'int' = 3, max_group_levels: 'int' = 20, pairwise: 'bool' = False, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pd.DataFrame'
+summarize_numeric_categorical_comparisons(dataset: 'TabularDataset', *, tests: 'tuple[ComparisonTest | str, ...]' = (<ComparisonTest.WELCH_T: 'welch_t'>, <ComparisonTest.MANN_WHITNEY: 'mann_whitney'>, <ComparisonTest.WELCH_ANOVA: 'welch_anova'>, <ComparisonTest.KRUSKAL_WALLIS: 'kruskal_wallis'>), features: 'tuple[str, ...] | None' = None, group_columns: 'tuple[str, ...] | None' = None, min_group_n: 'int' = 3, max_group_levels: 'int' = 20, pairwise: 'bool' = False, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pl.DataFrame'
 ```
 
 Compare selected numeric features across selected categorical group variables.
@@ -837,7 +857,7 @@ Compare selected numeric features across selected categorical group variables.
 ## `summarize_normality_diagnostics`
 
 ```python
-summarize_normality_diagnostics(dataset: 'TabularDataset', *, methods: 'tuple[str, ...]' = ('shapiro', 'dagostino', 'anderson_darling'), columns: 'tuple[str, ...] | None' = None, max_shapiro_n: 'int' = 5000, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pd.DataFrame'
+summarize_normality_diagnostics(dataset: 'TabularDataset', *, methods: 'tuple[str, ...]' = ('shapiro', 'dagostino', 'anderson_darling'), columns: 'tuple[str, ...] | None' = None, max_shapiro_n: 'int' = 5000, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pl.DataFrame'
 ```
 
 Compute explicit normality diagnostics without altering downstream test choice.
@@ -845,7 +865,7 @@ Compute explicit normality diagnostics without altering downstream test choice.
 ## `summarize_partial_correlations`
 
 ```python
-summarize_partial_correlations(dataset: 'TabularDataset', *, covariates: 'tuple[str, ...]', methods: 'tuple[CorrelationMethod | str, ...]' = (<CorrelationMethod.PEARSON: 'pearson'>, <CorrelationMethod.SPEARMAN: 'spearman'>), pairs: 'tuple[tuple[str, str], ...] | None' = None, min_complete_pairs: 'int' = 5, max_columns: 'int' = 100, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pd.DataFrame'
+summarize_partial_correlations(dataset: 'TabularDataset', *, covariates: 'tuple[str, ...]', methods: 'tuple[CorrelationMethod | str, ...]' = (<CorrelationMethod.PEARSON: 'pearson'>, <CorrelationMethod.SPEARMAN: 'spearman'>), pairs: 'tuple[tuple[str, str], ...] | None' = None, min_complete_pairs: 'int' = 5, max_columns: 'int' = 100, p_adjust: 'PAdjustMethod | str' = <PAdjustMethod.FDR_BH: 'fdr_bh'>) -> 'pl.DataFrame'
 ```
 
 Compute Pearson/Spearman partial correlations controlling numeric covariates.
@@ -853,7 +873,7 @@ Compute Pearson/Spearman partial correlations controlling numeric covariates.
 ## `summarize_numeric_quality`
 
 ```python
-summarize_numeric_quality(dataset: 'TabularDataset', columns: 'pd.DataFrame | None' = None, *, min_numeric_n: 'int' = 3) -> 'pd.DataFrame'
+summarize_numeric_quality(dataset: 'TabularDataset', columns: 'pl.DataFrame | None' = None, *, min_numeric_n: 'int' = 3) -> 'pl.DataFrame'
 ```
 
 Summarize numeric data-quality states without changing source values.
@@ -861,7 +881,7 @@ Summarize numeric data-quality states without changing source values.
 ## `summarize_numeric_statistics`
 
 ```python
-summarize_numeric_statistics(dataset: 'TabularDataset', columns: 'pd.DataFrame', *, quantiles: 'tuple[float, ...]' = (0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99), min_numeric_n: 'int' = 3) -> 'pd.DataFrame'
+summarize_numeric_statistics(dataset: 'TabularDataset', columns: 'pl.DataFrame', *, quantiles: 'tuple[float, ...]' = (0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99), min_numeric_n: 'int' = 3) -> 'pl.DataFrame'
 ```
 
 Summarize eligible numerical variables using finite observations only.
@@ -869,7 +889,7 @@ Summarize eligible numerical variables using finite observations only.
 ## `summarize_outliers`
 
 ```python
-summarize_outliers(dataset: 'TabularDataset', columns: 'pd.DataFrame | None' = None, *, methods: 'Iterable[OutlierMethod | str]' = (<OutlierMethod.IQR: 'iqr'>, <OutlierMethod.ROBUST_Z: 'robust_z'>), min_numeric_n: 'int' = 3, iqr_multiplier: 'float' = 1.5, robust_z_threshold: 'float' = 3.5, include_flags: 'bool' = False) -> 'tuple[pd.DataFrame, pd.DataFrame]'
+summarize_outliers(dataset: 'TabularDataset', columns: 'pl.DataFrame | None' = None, *, methods: 'Iterable[OutlierMethod | str]' = (<OutlierMethod.IQR: 'iqr'>, <OutlierMethod.ROBUST_Z: 'robust_z'>), min_numeric_n: 'int' = 3, iqr_multiplier: 'float' = 1.5, robust_z_threshold: 'float' = 3.5, include_flags: 'bool' = False) -> 'tuple[pl.DataFrame, pl.DataFrame]'
 ```
 
 Compute deterministic univariate outlier summaries and optional row flags.
@@ -877,7 +897,7 @@ Compute deterministic univariate outlier summaries and optional row flags.
 ## `summarize_overview`
 
 ```python
-summarize_overview(dataset: 'TabularDataset', columns: 'pd.DataFrame') -> 'dict[str, Any]'
+summarize_overview(dataset: 'TabularDataset', columns: 'pl.DataFrame') -> 'dict[str, Any]'
 ```
 
 Create a structured dataset overview from source data and column profiles.
@@ -885,7 +905,7 @@ Create a structured dataset overview from source data and column profiles.
 ## `summarize_response_catalog`
 
 ```python
-summarize_response_catalog(dataset: 'TabularDataset', responses: 'Iterable[str] | None' = None) -> 'pd.DataFrame'
+summarize_response_catalog(dataset: 'TabularDataset', responses: 'Iterable[str] | None' = None) -> 'pl.DataFrame'
 ```
 
 Describe selected response variables and their usable observations.
@@ -893,7 +913,7 @@ Describe selected response variables and their usable observations.
 ## `summarize_univariate`
 
 ```python
-summarize_univariate(dataset: 'TabularDataset', columns: 'pd.DataFrame', *, quantiles: 'tuple[float, ...]' = (0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99), min_numeric_n: 'int' = 3, max_category_levels: 'int' = 50) -> 'UnivariateTables'
+summarize_univariate(dataset: 'TabularDataset', columns: 'pl.DataFrame', *, quantiles: 'tuple[float, ...]' = (0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99), min_numeric_n: 'int' = 3, max_category_levels: 'int' = 50) -> 'UnivariateTables'
 ```
 
 Compute all univariate descriptive tables.
@@ -909,7 +929,7 @@ Welch interval for mean(x) - mean(y).
 ## `aitchison_distance_matrix`
 
 ```python
-aitchison_distance_matrix(array: 'np.ndarray', observation_ids: 'pd.Index') -> 'pd.DataFrame'
+aitchison_distance_matrix(array: 'np.ndarray', observation_ids: 'Sequence[Any]') -> 'pl.DataFrame'
 ```
 
 ## `align_feature_matrices`
@@ -987,11 +1007,27 @@ Linear centered-kernel alignment for two observation-aligned matrices.
 ## `multiplicative_zero_replacement`
 
 ```python
-multiplicative_zero_replacement(array: 'np.ndarray', *, fraction: 'float' = 0.65, total: 'float' = 1.0) -> 'tuple[np.ndarray, pd.DataFrame]'
+multiplicative_zero_replacement(array: 'np.ndarray', *, fraction: 'float' = 0.65, total: 'float' = 1.0) -> 'tuple[np.ndarray, pl.DataFrame]'
 ```
 
 ## `variation_matrix`
 
 ```python
-variation_matrix(array: 'np.ndarray', feature_names: 'tuple[str, ...]') -> 'pd.DataFrame'
+variation_matrix(array: 'np.ndarray', feature_names: 'Sequence[str]') -> 'pl.DataFrame'
 ```
+
+## `read_table`
+
+```python
+read_table(path: 'str | Path') -> 'pl.DataFrame'
+```
+
+Read a tabular file into a Polars DataFrame, dispatching on extension (`.csv`, `.parquet`, `.tsv`, `.txt`). Retains any pandas index column in Parquet files as a regular data column.
+
+## `write_table`
+
+```python
+write_table(frame: 'pl.DataFrame', path: 'str | Path') -> 'Path'
+```
+
+Write a Polars DataFrame, dispatching on extension (`.csv`, `.parquet`, `.tsv`, `.txt`) and creating parent directories without writing a row index.

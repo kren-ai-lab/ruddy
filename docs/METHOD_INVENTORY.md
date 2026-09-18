@@ -6,13 +6,13 @@ This document is the compact capability map of the current Ruddy scientific MVP.
 
 | Capability | Public entry point | Input | Main output |
 | --- | --- | --- | --- |
-| Tabular data contract | `TabularDataset` | pandas DataFrame | immutable-by-contract tabular dataset |
-| Feature-space contract | `FeatureMatrix` | NumPy / pandas / SciPy sparse | observation-aligned numeric matrix |
+| Tabular data contract | `TabularDataset` | Polars / pandas DataFrame | immutable-by-contract tabular dataset |
+| Feature-space contract | `FeatureMatrix` | NumPy / Polars / pandas / SciPy sparse | observation-aligned numeric matrix |
 | External annotation alignment | `align_annotation_source()` | dataset + annotation table | `AlignedAnnotations` + coverage |
 | Attach annotations | `attach_annotations()` | dataset + aligned annotations | new `TabularDataset` |
 | Dataset profiling | `profile_dataset()` | `TabularDataset` | `ProfilingResult` |
-| Column profiling | `profile_columns()` | `TabularDataset` | column-level DataFrame |
-| Missingness summary | `summarize_missingness()` | column profiles | DataFrame |
+| Column profiling | `profile_columns()` | `TabularDataset` | column-level Polars DataFrame |
+| Missingness summary | `summarize_missingness()` | column profiles | Polars DataFrame |
 | Missingness patterns | `summarize_missingness_patterns()` | `TabularDataset` | pattern table |
 | Pairwise completeness | `pairwise_completeness()` | `TabularDataset` | pairwise completeness table |
 

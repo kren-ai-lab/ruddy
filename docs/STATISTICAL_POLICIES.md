@@ -4,7 +4,7 @@ This document collects the cross-cutting rules that apply across Ruddy. These po
 
 ## 1. No silent type coercion
 
-`TabularDataset` does not reinterpret numeric-looking strings as numbers. Statistical kind inference follows the observed pandas dtype unless the caller explicitly provides a kind override.
+`TabularDataset` does not reinterpret numeric-looking strings as numbers. Statistical kind inference follows the observed Polars dtype unless the caller explicitly provides a kind override.
 
 This prevents accidental changes such as treating identifiers or coded categories as continuous measurements.
 
@@ -38,10 +38,10 @@ Where row-level exclusion is relevant, Ruddy returns an exclusions table contain
 
 For numeric data:
 
-- `NaN`/missing is counted as missing;
-- `+inf`/`-inf` is present but non-finite.
+- Polars `null` or float `NaN` is counted as missing (`n_missing`);
+- `+inf`/`-inf` is present but non-finite (`n_non_finite`).
 
-Most numerical statistics use finite values only while retaining separate counts of missing and non-finite observations.
+In result tables, missing values are represented exclusively as Polars `null`, never `NaN`. Most numerical statistics use finite values only while retaining separate counts of missing and non-finite observations.
 
 ## 6. No automatic imputation
 
@@ -239,3 +239,13 @@ When a requested result cannot be interpreted, Ruddy attempts to provide an expl
 - optional advisory.
 
 A missing numerical field therefore has contextual metadata explaining why it is missing whenever the result contract supports that behavior.
+
+## 31. Bias-corrected univariate skewness and kurtosis
+
+Univariate skewness and kurtosis use SciPy bias-corrected estimators matching the adjusted Fisher–Pearson $G_1$ and unbiased excess $G_2$ definitions:
+- Skewness: `scipy.stats.skew(values, bias=False)` (requires $n \ge 3$ finite observations and non-constant data).
+- Kurtosis: `scipy.stats.kurtosis(values, bias=False)` (requires $n \ge 4$ finite observations and non-constant data).
+
+## 32. Spearman correlation via average ranks
+
+Spearman rank correlation is computed from complete-case observations using average ranks for tied values (`scipy.stats.rankdata(matrix, axis=0)` with default `method="average"`), followed by Pearson correlation on the resulting ranks.

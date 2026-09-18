@@ -2,6 +2,15 @@
 
 This document inventories the stable tabular column schemas explicitly declared by the current Ruddy implementation. It is intended for downstream visualization/export/application work. Some result objects also contain dictionaries, matrices or tables whose columns are constructed dynamically; those are documented in `RESULTS_AND_PROVENANCE.md` and `METHODS.md`.
 
+## Tabular conventions
+
+All tabular outputs across Ruddy follow these core invariants:
+
+- **Polars DataFrames with declared schemas**: Every result table is returned as a `polars.DataFrame` (`pl.DataFrame`). Empty result tables and tables with null entries retain their fully typed column schemas.
+- **Missing values as `null`, never `NaN`**: Missing values in Polars tables are represented as `null`. Float `NaN` is treated as missing on input but normalized to `null` in results.
+- **Observation ID dtype preservation**: Columns containing observation identifiers (such as `observation_id` in exclusions tables, outlier flags, and projection scores) dynamically preserve the dataset's or feature matrix's original observation ID dtype (e.g., `pl.Int64`, `pl.String`), rather than coercing them to a single hardcoded type.
+- **Labeled and square matrix layout**: Square matrices (covariance, correlation, pairwise counts, variation matrix, Aitchison distances) and coordinate tables place the row label in the first column (`feature` or `observation_id`) preserving its original dtype, followed by value columns named `str(label)`. Export to CSV writes the table directly without writing an index column.
+
 ## `ruddy/bivariate/associations.py`
 
 ### `ASSOCIATION_COLUMNS`
