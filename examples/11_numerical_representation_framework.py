@@ -150,12 +150,12 @@ def _(AB, AC, BC, finish, np, pl, plt, show):
         {'pair': 'Descriptor–Structure', 'CKA': BC.cka.item(0, 'cka'), 'Distance similarity': BC.distance_similarity.item(0, 'coefficient'), 'Mantel': BC.mantel.item(0, 'correlation')},
     ])
     _fig, _ax = plt.subplots(figsize=(8, 4.6))
-    metrics = ['CKA', 'Distance similarity', 'Mantel']
-    x_pos = np.arange(sim.height)
-    width = 0.25
-    for _i, met in enumerate(metrics):
-        _ax.bar(x_pos + (_i - 1) * width, sim.get_column(met).to_numpy(), width, label=met)
-    _ax.set_xticks(x_pos, sim.get_column('pair').to_list())
+    _metrics = ['CKA', 'Distance similarity', 'Mantel']
+    _x_pos = np.arange(sim.height)
+    _width = 0.25
+    for _i, _met in enumerate(_metrics):
+        _ax.bar(_x_pos + (_i - 1) * _width, sim.get_column(_met).to_numpy(), _width, label=_met)
+    _ax.set_xticks(_x_pos, sim.get_column('pair').to_list())
     _ax.set_ylim(-0.1, 1.05)
     _ax.set_title('Cross-space geometry similarity')
     _ax.tick_params(axis='x', rotation=15)
@@ -183,12 +183,12 @@ def _(anoms, finish, np, pl, plt, show):
     flag = pl.DataFrame(_rows)
     pivot = flag.pivot(index='space', on='method', values='n_flagged')
     _fig, _ax = plt.subplots(figsize=(7.5, 4.4))
-    methods = [c for c in pivot.columns if c != 'space']
-    x_pos = np.arange(pivot.height)
-    width = 0.35
-    for _i, met in enumerate(methods):
-        _ax.bar(x_pos + (_i - 0.5) * width, pivot.get_column(met).to_numpy(), width, label=met)
-    _ax.set_xticks(x_pos, pivot.get_column('space').to_list())
+    _methods = [c for c in pivot.columns if c != 'space']
+    _x_pos = np.arange(pivot.height)
+    _width = 0.35
+    for _i, _met in enumerate(_methods):
+        _ax.bar(_x_pos + (_i - 0.5) * _width, pivot.get_column(_met).to_numpy(), _width, label=_met)
+    _ax.set_xticks(_x_pos, pivot.get_column('space').to_list())
     _ax.set_ylabel('Flagged observations')
     _ax.set_title('Anomaly detection depends on representation geometry')
     _ax.tick_params(axis='x', rotation=15)
