@@ -3,20 +3,24 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import sparse, stats
 from sklearn.covariance import EmpiricalCovariance, MinCovDet
 
 from ruddy.core.enums import ResultStatus, ScalingMethod
-from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import FeatureMatrix
 
 MAHALANOBIS_DISTANCE_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "source_row_index": pl.Int64,

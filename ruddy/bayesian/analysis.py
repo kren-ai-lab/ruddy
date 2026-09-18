@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 MEANS_SCHEMA: dict[str, PolarsDataType] = {
     "variable": pl.String,
@@ -225,10 +228,7 @@ def analyze_bayesian_eda(
             if group not in frame.columns:
                 raise ValueError(f"Unknown Bayesian grouping column: {group!r}.")
             g = frame.get_column(group)
-            if g.dtype.is_float():
-                non_missing = g.filter(~g.is_null() & ~g.is_nan())
-            else:
-                non_missing = g.drop_nulls()
+            non_missing = g.filter(~g.is_null() & ~g.is_nan()) if g.dtype.is_float() else g.drop_nulls()
             levels = list(dict.fromkeys(non_missing.to_list()))
             if len(levels) != 2:
                 diff_rows.append(

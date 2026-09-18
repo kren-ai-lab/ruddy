@@ -5,16 +5,14 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.bootstrap import bootstrap_confidence_interval
 from ruddy.statistics.confidence_intervals import (
@@ -25,6 +23,11 @@ from ruddy.statistics.confidence_intervals import (
 )
 from ruddy.statistics.effect_sizes import hedges_g
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 MEANS_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,

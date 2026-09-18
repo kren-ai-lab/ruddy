@@ -4,19 +4,22 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 from statsmodels.stats.diagnostic import normal_ad
 
 from ruddy.core.enums import ColumnKind, ColumnRole, PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 NORMALITY_SCHEMA: dict[str, PolarsDataType] = {
     "method": pl.String,

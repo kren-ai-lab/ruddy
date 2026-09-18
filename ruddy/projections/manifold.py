@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
 from dataclasses import dataclass
 from inspect import signature
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
@@ -14,9 +13,13 @@ from sklearn.manifold import TSNE
 
 from ruddy.core.enums import ProjectionMethod, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import OptionalDependencyError
-from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from ruddy.data import FeatureMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,14 +69,18 @@ def analyze_tsne(
 ) -> ProjectionResult:
     """Run deterministic t-SNE under a fixed random seed."""
     if n_components not in (2, 3):
-        raise ValueError("t-SNE supports n_components of 2 or 3 in Ruddy.")
+        msg = "t-SNE supports n_components of 2 or 3 in Ruddy."
+        raise ValueError(msg)
     if perplexity <= 0:
-        raise ValueError("perplexity must be greater than zero.")
+        msg = "perplexity must be greater than zero."
+        raise ValueError(msg)
     if max_iter < 250:
-        raise ValueError("max_iter must be at least 250.")
+        msg = "max_iter must be at least 250."
+        raise ValueError(msg)
     prepared = prepare_features(features, scaling=scaling, minimum_observations=3)
     if perplexity >= prepared.n_observations:
-        raise ValueError("t-SNE perplexity must be smaller than the number of finite input observations.")
+        msg = "t-SNE perplexity must be smaller than the number of finite input observations."
+        raise ValueError(msg)
     scale = scaling if isinstance(scaling, ScalingMethod) else ScalingMethod(scaling)
     parameters = {
         "n_components": int(n_components),
@@ -141,19 +148,26 @@ def analyze_umap(
 ) -> ProjectionResult:
     """Run UMAP when the optional ``umap-learn`` dependency is installed."""
     try:
-        import umap
+        # Local import: umap-learn is an optional extra, so importing it at module
+        # level would make ruddy.projections unimportable without it.
+        import umap  # noqa: PLC0415
     except Exception as exc:  # pragma: no cover - environment dependent
-        raise OptionalDependencyError("UMAP requires the optional 'umap-learn' dependency.") from exc
+        msg = "UMAP requires the optional 'umap-learn' dependency."
+        raise OptionalDependencyError(msg) from exc
 
     if n_components < 2:
-        raise ValueError("UMAP n_components must be at least 2.")
+        msg = "UMAP n_components must be at least 2."
+        raise ValueError(msg)
     if n_neighbors < 2:
-        raise ValueError("UMAP n_neighbors must be at least 2.")
+        msg = "UMAP n_neighbors must be at least 2."
+        raise ValueError(msg)
     if not 0.0 <= min_dist <= 1.0:
-        raise ValueError("UMAP min_dist must be between 0 and 1.")
+        msg = "UMAP min_dist must be between 0 and 1."
+        raise ValueError(msg)
     prepared = prepare_features(features, scaling=scaling, minimum_observations=4)
     if n_neighbors >= prepared.n_observations:
-        raise ValueError("UMAP n_neighbors must be smaller than the number of finite input observations.")
+        msg = "UMAP n_neighbors must be smaller than the number of finite input observations."
+        raise ValueError(msg)
     scale = scaling if isinstance(scaling, ScalingMethod) else ScalingMethod(scaling)
     parameters = {
         "n_components": int(n_components),
@@ -177,9 +191,11 @@ def analyze_umap(
         warnings.simplefilter("always")
         values = np.asarray(estimator.fit_transform(prepared.matrix), dtype=np.float64)
     if values.shape != (prepared.n_observations, int(n_components)):
-        raise ValueError("UMAP returned coordinates with an unexpected shape.")
+        msg = "UMAP returned coordinates with an unexpected shape."
+        raise ValueError(msg)
     if not np.isfinite(values).all():
-        raise ValueError("UMAP returned non-finite coordinates.")
+        msg = "UMAP returned non-finite coordinates."
+        raise ValueError(msg)
     coordinates = _coordinate_table(
         values,
         observation_ids=prepared.observation_ids,
@@ -222,4 +238,5 @@ def analyze_projection(
         return analyze_umap(features, **kwargs)
     if normalized is ProjectionMethod.TSNE:
         return analyze_tsne(features, **kwargs)
-    raise ValueError("Use analyze_pca() for PCA so its linear/inferential semantics remain explicit.")
+    msg = "Use analyze_pca() for PCA so its linear/inferential semantics remain explicit."
+    raise ValueError(msg)

@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
-import datetime
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import polars as pl
-from polars._typing import PolarsDataType
 
-from ruddy.data import TabularDataset
 from ruddy.profiling import ProfilingResult, profile_dataset
 from ruddy.results import AnalysisProvenance
 from ruddy.univariate.categorical import summarize_categorical_statistics
 from ruddy.univariate.numeric import summarize_numeric_statistics, validate_quantiles
+
+if TYPE_CHECKING:
+    import datetime
+
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 DATETIME_STATISTICS_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,

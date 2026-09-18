@@ -6,22 +6,25 @@ import json
 import math
 from dataclasses import dataclass
 from itertools import combinations, product
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 import polars as pl
 from patsy import build_design_matrices, dmatrices  # pyrefly: ignore[missing-module-attribute]
-from polars._typing import PolarsDataType
 from scipy.stats import t as student_t
 from statsmodels.api import OLS
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, build_factorial_design
 from ruddy.projections.preprocessing import EXCLUSION_COLUMNS, _exclusions_table
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 MEAN_SCHEMA: dict[str, PolarsDataType] = {
     "response": pl.String,

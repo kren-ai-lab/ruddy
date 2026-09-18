@@ -4,20 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.metrics import mutual_info_score
 
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod, PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 PARTIAL_SCHEMA: dict[str, PolarsDataType] = {
     "method": pl.String,

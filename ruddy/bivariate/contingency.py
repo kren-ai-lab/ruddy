@@ -4,18 +4,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
 from ruddy.core.enums import PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing, bias_corrected_cramers_v, expected_count_diagnostics
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
     "column_x": pl.String,

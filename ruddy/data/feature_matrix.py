@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from types import MappingProxyType
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
@@ -13,12 +12,16 @@ from scipy import sparse
 
 from ruddy.core.enums import AlignmentMode
 from ruddy.core.exceptions import FeatureMatrixValidationError
-from ruddy.core.types import FeatureInput, ObservationID, ObservationIDs
 from ruddy.data.validation import (
     AlignmentReport,
     align_annotations,
     validate_observation_ids,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from ruddy.core.types import FeatureInput, ObservationID, ObservationIDs
 
 
 class FeatureMatrix:

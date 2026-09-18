@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ruddy._version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,10 +25,12 @@ class AnalysisProvenance:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
+        """Freeze provenance mappings to prevent mutation."""
         object.__setattr__(self, "parameters", MappingProxyType(dict(self.parameters)))
         object.__setattr__(self, "input_summary", MappingProxyType(dict(self.input_summary)))
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the provenance record serialized as a native dictionary."""
         return {
             "analysis": self.analysis,
             "parameters": dict(self.parameters),

@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 
 from ruddy.bivariate.associations import (
     ASSOCIATION_SCHEMA,
@@ -26,6 +24,11 @@ from ruddy.data import AlignedAnnotations, TabularDataset, attach_annotations
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from polars._typing import PolarsDataType
 
 GROUP_COVERAGE_SCHEMA: dict[str, PolarsDataType] = {
     "group_column": pl.String,

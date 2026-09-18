@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-import polars as pl
+from typing import TYPE_CHECKING
 
 from ruddy.bivariate.associations import summarize_categorical_associations
 from ruddy.bivariate.comparisons import summarize_numeric_categorical_comparisons
 from ruddy.bivariate.correlations import summarize_correlations
 from ruddy.core.enums import ComparisonTest, CorrelationMethod, PAdjustMethod
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    import polars as pl
+
+    from ruddy.data import TabularDataset
 
 
 @dataclass(frozen=True, slots=True)

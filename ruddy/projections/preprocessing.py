@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import sparse
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import ScalingMethod
-from ruddy.core.types import ObservationID
-from ruddy.data import FeatureMatrix
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from polars._typing import PolarsDataType
+
+    from ruddy.core.types import ObservationID
+    from ruddy.data import FeatureMatrix
 
 EXCLUSIONS_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "source_row_index": pl.Int64,
@@ -53,7 +57,7 @@ def _exclusions_table(
             "stage": stg,
             "reason": rsn,
         }
-        for idx, oid, stg, rsn in zip(indices, obs_ids, stages, reasons)
+        for idx, oid, stg, rsn in zip(indices, obs_ids, stages, reasons, strict=False)
     ]
     frame = pl.DataFrame(rows, schema_overrides=EXCLUSIONS_SCHEMA_BASE)
     return frame.select(list(EXCLUSION_COLUMNS))

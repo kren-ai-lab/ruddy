@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial.distance import pdist, squareform
@@ -17,10 +15,16 @@ from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import AlignmentMode, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import AlignmentError
-from ruddy.core.types import ObservationID
-from ruddy.data import FeatureMatrix
 from ruddy.data.validation import AlignmentReport
 from ruddy.results import Advisory, AnalysisProvenance
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from polars._typing import PolarsDataType
+
+    from ruddy.core.types import ObservationID
+    from ruddy.data import FeatureMatrix
 
 REPRESENTATION_EXCLUSIONS_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "source_row_x": pl.Int64,

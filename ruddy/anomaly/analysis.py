@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 
 from ruddy.core.enums import ScalingMethod
-from ruddy.core.types import ObservationID
-from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.core.types import ObservationID
+    from ruddy.data import FeatureMatrix
 
 ANOMALY_SCORE_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "source_row_index": pl.Int64,
@@ -83,10 +86,7 @@ def analyze_anomalies(
     if not normalized or any(m not in allowed for m in normalized):
         raise ValueError("methods must contain isolation_forest and/or lof.")
     prepared = prepare_features(features, scaling=scaling, minimum_observations=3)
-    if prepared.is_sparse:
-        x = prepared.matrix.tocsr()
-    else:
-        x = np.asarray(prepared.matrix, dtype=float)
+    x = prepared.matrix.tocsr() if prepared.is_sparse else np.asarray(prepared.matrix, dtype=float)
     n = prepared.n_observations
     rows, method_rows = [], []
     if "isolation_forest" in normalized:
@@ -96,7 +96,7 @@ def analyze_anomalies(
         pred = model.fit_predict(x)
         anomaly = -model.score_samples(x)
         for idx, oid, score, flag in zip(
-            prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1
+            prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1, strict=False
         ):
             rows.append(
                 {
@@ -138,7 +138,7 @@ def analyze_anomalies(
             pred = model.fit_predict(x)
             anomaly = -model.negative_outlier_factor_
             for idx, oid, score, flag in zip(
-                prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1
+                prepared.source_row_indices, prepared.observation_ids, anomaly, pred == -1, strict=False
             ):
                 rows.append(
                     {

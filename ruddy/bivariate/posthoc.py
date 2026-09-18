@@ -5,16 +5,19 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy.stats import studentized_range
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 PAIRWISE_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "response": pl.String,
@@ -159,10 +162,7 @@ def _tukey_rows(
             )
             continue
         se_q = np.sqrt(0.5 * mse * (1.0 / len(xa) + 1.0 / len(xb)))
-        if se_q == 0.0:
-            q = np.inf if diff != 0.0 else 0.0
-        else:
-            q = abs(diff) / se_q
+        q = (np.inf if diff != 0.0 else 0.0) if se_q == 0.0 else abs(diff) / se_q
         p_value = float(studentized_range.sf(q, k, df_error))
         half = qcrit * se_q
         rows.append(

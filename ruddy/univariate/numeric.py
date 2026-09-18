@@ -5,15 +5,18 @@ Skewness and kurtosis use the adjusted Fisher–Pearson G1 and unbiased excess G
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 
-from ruddy.data import TabularDataset
 from ruddy.univariate.categorical import _safe_float
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 NUMERIC_STATISTICS_BASE_COLUMNS: tuple[str, ...] = (
     "column",

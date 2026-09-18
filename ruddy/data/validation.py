@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import polars as pl
@@ -16,7 +16,9 @@ from ruddy.core.exceptions import (
     MissingObservationIDError,
     UnknownColumnError,
 )
-from ruddy.core.types import ObservationID
+
+if TYPE_CHECKING:
+    from ruddy.core.types import ObservationID
 
 
 def validate_observation_ids(values: Any, *, source: str = "observations") -> tuple[ObservationID, ...]:

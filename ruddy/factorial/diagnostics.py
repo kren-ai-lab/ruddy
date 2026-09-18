@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
 from itertools import product
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import jarque_bera
 
 from ruddy.core.enums import ResultStatus
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from polars._typing import PolarsDataType
 
 CELL_SCHEMA_BASE: dict[str, PolarsDataType] = {
     "n": pl.Int64,
@@ -124,16 +127,13 @@ def build_factorial_cells(
     rows: list[dict[str, Any]] = []
     nonempty_counts: list[int] = []
     for combo in product(*levels):
-        if len(factor_names) == 1:
-            key = combo[0]
-        else:
-            key = tuple(combo)
+        key = combo[0] if len(factor_names) == 1 else tuple(combo)
         count = observed_counts.get(key, 0)
         empty = count == 0
         small = 0 < count < min_cell_n
         if not empty:
             nonempty_counts.append(count)
-        row = {factor: level for factor, level in zip(factor_names, combo, strict=True)}
+        row = dict(zip(factor_names, combo, strict=True))
         row.update(
             n=count,
             is_empty=empty,

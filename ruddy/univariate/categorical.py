@@ -5,13 +5,15 @@ from __future__ import annotations
 import collections
 import datetime
 import math
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 
-from ruddy.data import TabularDataset
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 CATEGORICAL_STATISTICS_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,

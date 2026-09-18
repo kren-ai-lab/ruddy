@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import polars as pl
 import pyarrow as pa
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides
 from ruddy.data.roles import ColumnSpec, build_schema, resolve_kinds, resolve_roles
 from ruddy.data.validation import validate_observation_ids
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides
 
 
 class TabularDataset:

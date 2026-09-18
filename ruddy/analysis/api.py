@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from ruddy.analysis.engine import analyze
 from ruddy.bivariate.groups import GroupAnalysisResult, analyze_grouped_responses
 from ruddy.core.enums import ComparisonTest, PAdjustMethod
-from ruddy.data import AlignedAnnotations, TabularDataset
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.data import AlignedAnnotations, TabularDataset
 
 __all__ = ["analyze", "analyze_groups"]
 

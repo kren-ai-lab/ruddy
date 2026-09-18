@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import combinations
+from typing import TYPE_CHECKING
 
 from ruddy.core.enums import ColumnKind, ColumnRole
-from ruddy.data import TabularDataset
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from ruddy.data import TabularDataset
 
 _SIMPLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 

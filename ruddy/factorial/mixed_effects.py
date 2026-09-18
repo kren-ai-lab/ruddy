@@ -4,19 +4,22 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 import polars as pl
-from polars._typing import PolarsDataType
 from statsmodels.formula.api import mixedlm
 
 from ruddy.core.enums import ColumnKind, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, build_factorial_design
 from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 FIXED_SCHEMA: dict[str, PolarsDataType] = {
     "parameter": pl.String,
@@ -91,9 +94,7 @@ def _safe_fixed_frame(
             random_names[name] = safe_name
     rhs = " + ".join(":".join(expression[name] for name in term.columns) for term in design.terms)
     fixed_formula = f"Y ~ {rhs}"
-    re_formula = (
-        "1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes)
-    )
+    ("1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes))
     return safe, fixed_formula, expression, random_names
 
 

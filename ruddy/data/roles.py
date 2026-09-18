@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -12,7 +13,9 @@ from ruddy.core.exceptions import (
     RoleConflictError,
     UnknownColumnError,
 )
-from ruddy.core.types import KindOverrides, RoleOverrides
+
+if TYPE_CHECKING:
+    from ruddy.core.types import KindOverrides, RoleOverrides
 
 
 @dataclass(frozen=True, slots=True)

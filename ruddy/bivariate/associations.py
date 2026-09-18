@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import json
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.core.enums import (
@@ -17,13 +16,17 @@ from ruddy.core.enums import (
     ComparisonTest,
     PAdjustMethod,
 )
-from ruddy.data import TabularDataset
 from ruddy.statistics import (
     apply_multiple_testing,
     bias_corrected_cramers_v,
     expected_count_diagnostics,
 )
 from ruddy.univariate.categorical import _category_label
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 ASSOCIATION_SCHEMA: dict[str, PolarsDataType] = {
     "test": pl.String,

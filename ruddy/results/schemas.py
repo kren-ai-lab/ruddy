@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from ruddy.core.enums import ResultStatus
 from ruddy.core.exceptions import ResultContractError
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 RESULT_STATUS_COLUMN = "status"
 RESULT_REASON_COLUMN = "reason"

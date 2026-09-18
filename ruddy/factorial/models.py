@@ -5,25 +5,29 @@ from __future__ import annotations
 import json
 import math
 import warnings
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 import polars as pl
-from polars._typing import PolarsDataType
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.data import TabularDataset
 from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design
 from ruddy.factorial.diagnostics import _finite_or_none, build_factorial_cells, model_diagnostics
 from ruddy.factorial.effects import factorial_effect_sizes
 from ruddy.projections.preprocessing import EXCLUSION_COLUMNS, _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 EFFECT_SCHEMA: dict[str, PolarsDataType] = {
     "term": pl.String,

@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy.linalg import helmert
 from scipy.spatial.distance import pdist, squareform
 
 from ruddy.data import FeatureMatrix
 from ruddy.multivariate.covariance import square_table
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from polars._typing import PolarsDataType
 
 ZERO_REPLACEMENT_SCHEMA: dict[str, PolarsDataType] = {
     "source_row_index": pl.Int64,

@@ -106,20 +106,27 @@ ignore = [
     "CPY001",
     "D203",
     "D213",
-    "N802",
     "N803",
     "N806",
     "PLR0913",
+    # Deliberate exceptions, not pending work.
+    "TRY003",  # a raise names the offending data, not a class per failure mode
+    "EM101",
+    "EM102",
+    "ANN401",  # coercion helpers take anything; `object` only moves it to pyrefly
+    "PLR2004", # `if n < 3` reads better than a named constant
+    "C901",    # estimators branch on diagnostics; splitting them hides the numerical path
+    "PLR0911",
+    "PLR0912",
+    "PLR0915",
+    "PLR0917",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "ruddy/cli/*" = [
     "A002",    # `input` is the documented positional argument of every command
-    "B008",    # typer.Option() in function defaults is the intended pattern
     "FBT001",  # bool flags are standard in CLI functions
-    "FBT002",
     "FBT003",
-    "PLR0917", # a command signature exposes one parameter per CLI option
     "T201",    # commands print machine-readable JSON to stdout by contract
     "TC001",   # typer resolves annotations at runtime, so they stay imported
     "TC002",
@@ -130,60 +137,14 @@ ignore = [
     "D",       # docstrings are not required in tests
     "INP001",  # test packages are intentionally implicit namespaces
     "PLC0415",
-    "PLR2004", # tests compare against literal expected values by design
     "PT011",
     "PT017",
     "PT018",
     "S101",    # assert is how a test asserts
     "TC003",   # pytest resolves fixture annotations at runtime
 ]
-# Transitional. The rules below are not enforced in the scientific modules
-# yet; they come off this list in later passes, one package at a time.
-"ruddy/{analysis,anomaly,bayesian,bivariate,compositional,data,factorial,multivariate,profiling,projections,representation,results,statistics,univariate}/*" = [
-    "ANN001",
-    "ANN202",
-    "ANN401",
-    "ARG001",
-    "B023",
-    "B905",
-    "BLE001",
-    "C416",
-    "C901",
-    "D101",
-    "D102",
-    "D103",
-    "D105",
-    "D107",
-    "E501",
-    "E721",
-    "EM101",
-    "EM102",
-    "F841",
-    "FBT003",
-    "PD101",
-    "PERF401",
-    "PLC0415",
-    "PLR0911",
-    "PLR0912",
-    "PLR0915",
-    "PLR0917",
-    "PLR2004",
-    "PLR5501",
-    "RUF002",
-    "RUF059",
-    "SIM103",
-    "SIM108",
-    "TC001",
-    "TC002",
-    "TC003",
-    "TRY003",
-    "TRY004",
-]
 "examples/*" = [
     "INP001",  # example scripts are intentionally standalone modules
-    "PLR2004", # small referential scripts can compare against literal sizes
-    "S101",    # lightweight runtime checks are fine in examples
-    "S603",    # subprocess usage is explicit in CLI examples
     "T201",    # examples print result snippets by design
 ]
 

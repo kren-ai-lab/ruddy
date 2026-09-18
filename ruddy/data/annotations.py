@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
 
 from ruddy.core.enums import AlignmentMode, AnnotationCoverage, ColumnKind, ColumnRole
 from ruddy.core.exceptions import RoleConflictError, UnknownColumnError
-from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides, TableInput
 from ruddy.data.dataset import TabularDataset
 from ruddy.data.roles import infer_column_kind
 from ruddy.data.validation import AlignmentReport, align_annotations
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from ruddy.core.types import KindOverrides, ObservationID, RoleOverrides, TableInput
 
 
 class AlignedAnnotations:

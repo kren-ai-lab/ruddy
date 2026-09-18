@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 from itertools import combinations_with_replacement
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
-from polars._typing import PolarsDataType
 
-from ruddy.data import TabularDataset
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 MISSINGNESS_SCHEMA: dict[str, PolarsDataType] = {
     "column": pl.String,
@@ -69,7 +71,8 @@ def summarize_missingness(columns: pl.DataFrame) -> pl.DataFrame:
     }
     missing = sorted(required - set(columns.columns))
     if missing:
-        raise ValueError(f"Column profile is missing required fields: {missing}.")
+        msg = f"Column profile is missing required fields: {missing}."
+        raise ValueError(msg)
 
     return columns.select(
         pl.col("column").cast(pl.String),
@@ -100,14 +103,17 @@ def pairwise_completeness(
     selected = columns or tuple(dataset.frame.columns)
     unknown = sorted(set(selected) - set(dataset.frame.columns))
     if unknown:
-        raise ValueError(f"Unknown columns requested for completeness: {unknown}.")
+        msg = f"Unknown columns requested for completeness: {unknown}."
+        raise ValueError(msg)
     if max_columns < 1:
-        raise ValueError("max_columns must be at least 1.")
+        msg = "max_columns must be at least 1."
+        raise ValueError(msg)
     if len(selected) > max_columns:
-        raise ValueError(
+        msg = (
             f"Pairwise completeness requested for {len(selected)} columns, exceeding "
             f"max_columns={max_columns}."
         )
+        raise ValueError(msg)
 
     presence_masks: dict[str, pl.Series] = {}
     for column in selected:
@@ -141,7 +147,8 @@ def summarize_missingness_patterns(
 ) -> pl.DataFrame:
     """Summarize common row-level missingness patterns with bounded output."""
     if max_patterns < 1:
-        raise ValueError("max_patterns must be at least 1.")
+        msg = "max_patterns must be at least 1."
+        raise ValueError(msg)
 
     frame = dataset.frame
     n_total = frame.height

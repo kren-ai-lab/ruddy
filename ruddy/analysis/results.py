@@ -2,31 +2,34 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ruddy.analysis.intervals import ConfidenceIntervalResult
-from ruddy.anomaly import AnomalyResult
-from ruddy.bayesian import BayesianEDAResult
-from ruddy.bivariate import (
-    BivariateResult,
-    ContingencyDiagnosticsResult,
-    DependenceResult,
-    GroupAnalysisResult,
-    PosthocResult,
-)
-from ruddy.compositional import CompositionalResult
 from ruddy.core.enums import AnalysisBlock
-from ruddy.data.validation import AlignmentReport
-from ruddy.factorial import FactorialResult, MarginalMeansResult, MixedEffectsResult
-from ruddy.multivariate import MANOVAResult, MultivariateResult, PermutationGroupResult
-from ruddy.profiling import ProfilingResult
-from ruddy.projections import PCAResult, ProjectionResult
-from ruddy.representation import RepresentationComparisonResult
-from ruddy.results import AnalysisProvenance
-from ruddy.univariate import DistributionDiagnosticsResult, OutlierResult, UnivariateResult
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from ruddy.analysis.intervals import ConfidenceIntervalResult
+    from ruddy.anomaly import AnomalyResult
+    from ruddy.bayesian import BayesianEDAResult
+    from ruddy.bivariate import (
+        BivariateResult,
+        ContingencyDiagnosticsResult,
+        DependenceResult,
+        GroupAnalysisResult,
+        PosthocResult,
+    )
+    from ruddy.compositional import CompositionalResult
+    from ruddy.data.validation import AlignmentReport
+    from ruddy.factorial import FactorialResult, MarginalMeansResult, MixedEffectsResult
+    from ruddy.multivariate import MANOVAResult, MultivariateResult, PermutationGroupResult
+    from ruddy.profiling import ProfilingResult
+    from ruddy.projections import PCAResult, ProjectionResult
+    from ruddy.representation import RepresentationComparisonResult
+    from ruddy.results import AnalysisProvenance
+    from ruddy.univariate import DistributionDiagnosticsResult, OutlierResult, UnivariateResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,12 +64,14 @@ class UnifiedAnalysisResult:
     provenance: AnalysisProvenance | None = None
 
     def __post_init__(self) -> None:
+        """Normalize executed block enums and check for duplicates."""
         blocks = tuple(
             block if isinstance(block, AnalysisBlock) else AnalysisBlock(block)
             for block in self.executed_blocks
         )
         if len(set(blocks)) != len(blocks):
-            raise ValueError("executed_blocks cannot contain duplicates.")
+            msg = "executed_blocks cannot contain duplicates."
+            raise ValueError(msg)
         object.__setattr__(self, "executed_blocks", blocks)
 
     def component(self, block: AnalysisBlock | str) -> Any | None:

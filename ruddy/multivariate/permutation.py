@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy.stats import f_oneway
 from sklearn.metrics import pairwise_distances
 
 from ruddy.core.enums import AlignmentMode, ResultStatus
-from ruddy.data import FeatureMatrix, TabularDataset
 from ruddy.data.validation import AlignmentReport, align_annotations
 from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import FeatureMatrix, TabularDataset
 
 SUMMARY_SCHEMA: dict[str, PolarsDataType] = {
     "analysis": pl.String,
@@ -304,7 +308,7 @@ def analyze_permutation_group_structure(
         )
 
     permanova_f, r_squared, df_between, df_within = _permanova_statistic(distance_matrix, labels)
-    coords, eigenvalues, positive = _pcoa(distance_matrix)
+    coords, eigenvalues, _positive = _pcoa(distance_matrix)
     if coords.shape[1] == 0:
         return PermutationGroupResult(
             ResultStatus.DEGENERATE,

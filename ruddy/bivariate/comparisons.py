@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import math
 from itertools import combinations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import stats
 
 from ruddy.bivariate.associations import _eligible_categorical
@@ -16,7 +15,6 @@ from ruddy.core.enums import (
     ComparisonTest,
     PAdjustMethod,
 )
-from ruddy.data import TabularDataset
 from ruddy.statistics import (
     apply_multiple_testing,
     cliffs_delta_from_u,
@@ -26,6 +24,11 @@ from ruddy.statistics import (
 )
 from ruddy.univariate.categorical import _category_label
 from ruddy.univariate.diagnostics import _eligible_numeric
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
+
+    from ruddy.data import TabularDataset
 
 COMPARISON_SCHEMA: dict[str, PolarsDataType] = {
     "group_column": pl.String,

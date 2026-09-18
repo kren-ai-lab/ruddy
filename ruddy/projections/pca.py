@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from polars._typing import PolarsDataType
 from scipy import sparse
 from sklearn.decomposition import PCA
 
@@ -15,6 +14,9 @@ from ruddy.core.enums import ResultStatus, ScalingMethod
 from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
+
+if TYPE_CHECKING:
+    from polars._typing import PolarsDataType
 
 VARIANCE_SCHEMA: dict[str, PolarsDataType] = {
     "component": pl.String,
@@ -46,7 +48,8 @@ class PCAResult:
     def to_feature_matrix(self) -> FeatureMatrix:
         """Return PCA scores as an explicitly derived feature matrix."""
         if self.status is not ResultStatus.OK:
-            raise ValueError("Only a successful PCA result can be converted to FeatureMatrix.")
+            msg = "Only a successful PCA result can be converted to FeatureMatrix."
+            raise ValueError(msg)
         component_columns = [column for column in self.scores.columns if column.startswith("PC")]
         return FeatureMatrix(
             self.scores.select(component_columns),
@@ -97,7 +100,8 @@ def analyze_pca(
 ) -> PCAResult:
     """Run PCA with explicit scaling, row exclusion, and component provenance."""
     if n_components < 1:
-        raise ValueError("n_components must be at least 1.")
+        msg = "n_components must be at least 1."
+        raise ValueError(msg)
     prepared = prepare_features(features, scaling=scaling, minimum_observations=2)
     scale = scaling if isinstance(scaling, ScalingMethod) else ScalingMethod(scaling)
     provenance = AnalysisProvenance(
@@ -120,10 +124,11 @@ def analyze_pca(
     )
 
     if sparse.issparse(prepared.matrix):
-        raise ValueError(
+        msg = (
             "PCA currently requires dense input because centered PCA semantics are preserved; "
             "Ruddy will not silently densify sparse matrices."
         )
+        raise ValueError(msg)
 
     matrix = np.asarray(prepared.matrix, dtype=np.float64)
     centered = matrix - matrix.mean(axis=0, keepdims=True)
@@ -139,10 +144,11 @@ def analyze_pca(
             id_dtype=id_dtype,
         )
     if n_components > maximum:
-        raise ValueError(
+        msg = (
             f"PCA requested {n_components} components but at most {maximum} non-zero "
             f"components are available after centering for input shape {matrix.shape}."
         )
+        raise ValueError(msg)
 
     estimator = PCA(n_components=int(n_components), random_state=int(random_state))
     score_matrix = np.asarray(estimator.fit_transform(matrix), dtype=np.float64)
