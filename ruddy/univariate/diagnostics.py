@@ -12,6 +12,7 @@ from scipy import stats
 from statsmodels.stats.diagnostic import normal_ad
 
 from ruddy.core.enums import ColumnKind, ColumnRole, PAdjustMethod
+from ruddy.core.frames import present_mask, to_float_array
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
 from ruddy.univariate.categorical import _category_label
@@ -86,7 +87,7 @@ def _eligible_groups(dataset: TabularDataset) -> tuple[str, ...]:
 
 
 def _finite(series: pl.Series) -> np.ndarray:
-    values = series.drop_nulls().cast(pl.Float64).to_numpy()
+    values = to_float_array(series)
     return values[np.isfinite(values)]
 
 
@@ -195,9 +196,8 @@ def summarize_dispersion_diagnostics(
         for response in responses:
             family_id = f"dispersion:{method}:{response}"
             for group in groups:
-                pair = frame.select(response, group).drop_nulls(group)
-                if pair.get_column(group).dtype.is_float():
-                    pair = pair.filter(~pl.col(group).is_nan())
+                mask = present_mask(frame.get_column(group))
+                pair = frame.select(response, group).filter(mask)
                 raw_values = pair.get_column(response).cast(pl.Float64).fill_null(float("nan")).to_numpy()
                 finite_mask = np.isfinite(raw_values)
                 values = raw_values[finite_mask]

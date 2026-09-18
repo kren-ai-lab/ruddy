@@ -11,6 +11,7 @@ from scipy import sparse
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import ScalingMethod
+from ruddy.core.frames import id_dtype
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -41,9 +42,9 @@ def _exclusions_table(
     stage: str = "preprocessing",
     reason: str | Sequence[str] = "non_finite_feature_row",
 ) -> pl.DataFrame:
-    id_dtype = pl.Series(ids).dtype if len(ids) > 0 else pl.String
+    id_dt = id_dtype(ids)
     if len(excluded_rows) == 0:
-        schema = {**EXCLUSIONS_SCHEMA_BASE, "observation_id": id_dtype}
+        schema = {**EXCLUSIONS_SCHEMA_BASE, "observation_id": id_dt}
         return pl.DataFrame(schema={col: schema[col] for col in EXCLUSION_COLUMNS})
 
     indices = [int(i) for i in excluded_rows]

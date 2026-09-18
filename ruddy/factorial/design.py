@@ -7,10 +7,15 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from ruddy.core.enums import ColumnKind, ColumnRole
+from ruddy.core.frames import present_mask, to_float_array
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    import polars as pl
 
     from ruddy.data import TabularDataset
 
@@ -324,3 +329,23 @@ __all__ = [
     "FactorialTerm",
     "build_factorial_design",
 ]
+
+
+def complete_case(
+    frame: pl.DataFrame,
+    *,
+    numeric: Iterable[str],
+    categorical: Iterable[str],
+) -> tuple[pl.DataFrame, np.ndarray]:
+    """Filter frame to complete observations for the given numeric and categorical columns."""
+    complete = np.ones(frame.height, dtype=bool)
+    for name in numeric:
+        values = to_float_array(frame.get_column(name))
+        complete &= np.isfinite(values)
+    for name in categorical:
+        valid = present_mask(frame.get_column(name)).to_numpy()
+        complete &= valid
+
+    excluded_rows = np.flatnonzero(~complete).astype(np.int64)
+    model_frame = frame.filter(complete)
+    return model_frame, excluded_rows

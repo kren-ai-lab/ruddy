@@ -15,12 +15,12 @@ from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design
+from ruddy.core.frames import finite_or_none
+from ruddy.factorial.design import FactorialDesign, FactorialTerm, build_factorial_design, complete_case
 from ruddy.factorial.diagnostics import (
     CELL_SCHEMA_BASE,
     DIAGNOSTIC_SCHEMA,
     OBSERVATION_DIAGNOSTIC_SCHEMA_BASE,
-    _finite_or_none,
     build_factorial_cells,
     model_diagnostics,
 )
@@ -127,7 +127,7 @@ def _design_term_table(design: FactorialDesign) -> pl.DataFrame:
         }
         for term in design.terms
     ]
-    return pl.DataFrame(rows, schema=DESIGN_TERM_SCHEMA) if rows else pl.DataFrame(schema=DESIGN_TERM_SCHEMA)
+    return pl.DataFrame(rows, schema=DESIGN_TERM_SCHEMA)
 
 
 def _empty_result(
@@ -302,20 +302,12 @@ def analyze_factorial(
 
     selected = (design.response, *design.factors, *design.covariates)
     frame = dataset.frame.select(selected)
-    complete = np.ones(frame.height, dtype=bool)
-    numeric_columns = (design.response, *design.covariates)
-    for name in numeric_columns:
-        values = frame.get_column(name).cast(pl.Float64).fill_null(float("nan")).to_numpy()
-        complete &= np.isfinite(values)
-    for factor in design.factors:
-        series = frame.get_column(factor)
-        valid = series.is_not_null()
-        if series.dtype.is_float():
-            valid = valid & ~series.is_nan()
-        complete &= valid.fill_null(value=False).to_numpy()
-
-    source_rows = np.flatnonzero(complete).astype(np.int64)
-    excluded_rows = np.flatnonzero(~complete).astype(np.int64)
+    model_frame, excluded_rows = complete_case(
+        frame,
+        numeric=(design.response, *design.covariates),
+        categorical=design.factors,
+    )
+    source_rows = np.setdiff1d(np.arange(frame.height), excluded_rows).astype(np.int64)
     ids = dataset.observation_ids
     exclusions = _exclusions_table(
         ids,
@@ -323,7 +315,6 @@ def analyze_factorial(
         stage="factorial_complete_case",
         reason="missing_or_non_finite_model_value",
     )
-    model_frame = frame.filter(pl.Series(complete))
     n = model_frame.height
 
     provenance = _make_provenance(
@@ -541,10 +532,10 @@ def analyze_factorial(
             )
             continue
         row = anova.loc[safe_term]
-        df = _finite_or_none(row.get("df"))
-        sum_sq = _finite_or_none(row.get("sum_sq"))
-        f_value = _finite_or_none(row.get("F"))
-        p_value = _finite_or_none(row.get("PR(>F)"))
+        df = finite_or_none(row.get("df"))
+        sum_sq = finite_or_none(row.get("sum_sq"))
+        f_value = finite_or_none(row.get("F"))
+        p_value = finite_or_none(row.get("PR(>F)"))
         status = ResultStatus.OK
         reason = None
         if df is None or sum_sq is None or f_value is None or p_value is None or df <= 0.0:
@@ -593,19 +584,17 @@ def analyze_factorial(
             effect_rows[idx]["q_value"] = float(q) if q is not None and math.isfinite(q) else None
     for r in effect_rows:
         r["family_size"] = family_size
-    effects = (
-        pl.DataFrame(effect_rows, schema=EFFECT_SCHEMA) if effect_rows else pl.DataFrame(schema=EFFECT_SCHEMA)
-    )
+    effects = pl.DataFrame(effect_rows, schema=EFFECT_SCHEMA)
 
     ci = model.conf_int(alpha=diagnostic_alpha)
     coefficient_rows: list[dict[str, Any]] = []
     for parameter in model.params.index:
-        estimate = _finite_or_none(model.params[parameter])
-        std_error = _finite_or_none(model.bse[parameter])
-        t_value = _finite_or_none(model.tvalues[parameter])
-        p_value = _finite_or_none(model.pvalues[parameter])
-        ci_lower = _finite_or_none(ci.loc[parameter, 0])
-        ci_upper = _finite_or_none(ci.loc[parameter, 1])
+        estimate = finite_or_none(model.params[parameter])
+        std_error = finite_or_none(model.bse[parameter])
+        t_value = finite_or_none(model.tvalues[parameter])
+        p_value = finite_or_none(model.pvalues[parameter])
+        ci_lower = finite_or_none(ci.loc[parameter, 0])
+        ci_upper = finite_or_none(ci.loc[parameter, 1])
         ok = all(value is not None for value in (estimate, std_error, t_value, p_value, ci_lower, ci_upper))
         coefficient_rows.append(
             {
@@ -622,11 +611,7 @@ def analyze_factorial(
                 "reason": None if ok else "non_finite_coefficient_inference",
             }
         )
-    coefficients = (
-        pl.DataFrame(coefficient_rows, schema=COEFFICIENT_SCHEMA)
-        if coefficient_rows
-        else pl.DataFrame(schema=COEFFICIENT_SCHEMA)
-    )
+    coefficients = pl.DataFrame(coefficient_rows, schema=COEFFICIENT_SCHEMA)
 
     diagnostics, observation_diagnostics = model_diagnostics(
         model,
@@ -696,10 +681,10 @@ def analyze_factorial(
         "residual_ss": residual_ss,
         "residual_mse": mse,
         "corrected_total_ss": corrected_total_ss,
-        "r_squared": _finite_or_none(model.rsquared),
-        "adjusted_r_squared": _finite_or_none(model.rsquared_adj),
-        "aic": _finite_or_none(model.aic),
-        "bic": _finite_or_none(model.bic),
+        "r_squared": finite_or_none(model.rsquared),
+        "adjusted_r_squared": finite_or_none(model.rsquared_adj),
+        "aic": finite_or_none(model.aic),
+        "bic": finite_or_none(model.bic),
         **cell_summary,
     }
     return FactorialResult(

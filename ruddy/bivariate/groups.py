@@ -16,10 +16,10 @@ from ruddy.bivariate.associations import (
 )
 from ruddy.bivariate.comparisons import (
     COMPARISON_SCHEMA,
-    _safe_float,
     summarize_numeric_categorical_comparisons,
 )
 from ruddy.core.enums import ColumnKind, ColumnRole, ComparisonTest, PAdjustMethod
+from ruddy.core.frames import finite_or_none, n_missing, present_values, to_float_array
 from ruddy.data import AlignedAnnotations, TabularDataset, attach_annotations
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics import apply_multiple_testing
@@ -224,15 +224,6 @@ def resolve_groups(
     return selected
 
 
-def _n_missing(series: pl.Series) -> int:
-    count = series.null_count()
-    if series.dtype.is_float():
-        nan_sum = series.is_nan().sum()
-        if nan_sum is not None:
-            count += int(nan_sum)
-    return count
-
-
 def _normalized_group(series: pl.Series) -> list[str | None]:
     """Label each row with ``_category_label``; missing (null or float NaN) rows become ``None``."""
     return [
@@ -296,17 +287,15 @@ def summarize_response_catalog(
     rows: list[dict[str, Any]] = []
     for response in selected:
         series = frame.get_column(response)
-        n_missing = _n_missing(series)
-        n_present = n_dataset - n_missing
+        n_miss = n_missing(series)
+        n_present = n_dataset - n_miss
         kind = dataset.kind_of(response)
         n_finite: int | None = None
         n_non_finite: int | None = None
         status = "ok"
         reason = None
         if kind is ColumnKind.NUMERIC:
-            non_missing = series.drop_nulls()
-            if non_missing.dtype.is_float():
-                non_missing = non_missing.filter(~non_missing.is_nan())
+            non_missing = present_values(series)
             values = non_missing.cast(pl.Float64).to_numpy()
             finite = np.isfinite(values)
             n_finite = int(finite.sum())
@@ -324,7 +313,7 @@ def summarize_response_catalog(
                 "data_kind": kind.value,
                 "n_dataset": n_dataset,
                 "n_present": n_present,
-                "n_missing": n_missing,
+                "n_missing": n_miss,
                 "n_finite": n_finite,
                 "n_non_finite": n_non_finite,
                 "status": status,
@@ -350,28 +339,20 @@ def summarize_grouped_numeric_responses(
     selected_groups = resolve_groups(dataset, groups)
     frame = dataset.frame
     n_dataset = frame.height
-    coverage = (
-        summarize_group_coverage(dataset, selected_groups, max_group_levels=max_group_levels)
-        if selected_groups
-        else None
-    )
-    coverage_status = (
-        {row["group_column"]: row["status"] for row in coverage.iter_rows(named=True)}
-        if coverage is not None
-        else {}
-    )
+    skipped = _skipped_groups(dataset, selected_groups, max_group_levels)
     rows: list[dict[str, Any]] = []
     for group in selected_groups:
-        if coverage_status.get(group) == "skipped":
+        if group in skipped:
             continue
         group_labels = _normalized_group(frame.get_column(group))
+        labels_arr = np.asarray(group_labels, dtype=object)
         levels = sorted({label for label in group_labels if label is not None})
+        response_arrays = {resp: to_float_array(frame.get_column(resp)) for resp in selected_responses}
         for level in levels:
-            mask = np.array([label == level for label in group_labels], dtype=bool)
+            mask = labels_arr == level
             n_group = int(mask.sum())
             for response in selected_responses:
-                resp_series = frame.get_column(response)
-                raw_values = resp_series.cast(pl.Float64).fill_null(float("nan")).to_numpy()
+                raw_values = response_arrays[response]
                 values = raw_values[mask]
                 missing_mask = np.isnan(values)
                 n_missing = int(missing_mask.sum())
@@ -407,16 +388,16 @@ def summarize_grouped_numeric_responses(
                     continue
                 q25, median, q75 = np.quantile(finite, (0.25, 0.5, 0.75))
                 row.update(
-                    mean=_safe_float(np.mean(finite)),
-                    median=_safe_float(median),
-                    q25=_safe_float(q25),
-                    q75=_safe_float(q75),
-                    iqr=_safe_float(q75 - q25),
-                    min=_safe_float(np.min(finite)),
-                    max=_safe_float(np.max(finite)),
+                    mean=finite_or_none(np.mean(finite)),
+                    median=finite_or_none(median),
+                    q25=finite_or_none(q25),
+                    q75=finite_or_none(q75),
+                    iqr=finite_or_none(q75 - q25),
+                    min=finite_or_none(np.min(finite)),
+                    max=finite_or_none(np.max(finite)),
                 )
                 if len(finite) >= 2:
-                    row["std"] = _safe_float(np.std(finite, ddof=1))
+                    row["std"] = finite_or_none(np.std(finite, ddof=1))
                 else:
                     row["status"] = "degenerate"
                     row["reason"] = "single_finite_response_observation"
@@ -443,19 +424,10 @@ def summarize_grouped_categorical_responses(
     selected_groups = resolve_groups(dataset, groups)
     frame = dataset.frame
     n_dataset = frame.height
-    coverage = (
-        summarize_group_coverage(dataset, selected_groups, max_group_levels=max_group_levels)
-        if selected_groups
-        else None
-    )
-    coverage_status = (
-        {row["group_column"]: row["status"] for row in coverage.iter_rows(named=True)}
-        if coverage is not None
-        else {}
-    )
+    skipped = _skipped_groups(dataset, selected_groups, max_group_levels)
     rows: list[dict[str, Any]] = []
     for group in selected_groups:
-        if coverage_status.get(group) == "skipped":
+        if group in skipped:
             continue
         group_labels = _normalized_group(frame.get_column(group))
         group_levels = sorted({label for label in group_labels if label is not None})
@@ -535,7 +507,7 @@ def summarize_annotation_coverage(
 
 def _group_counts(dataset: TabularDataset, group: str) -> tuple[int, int]:
     frame = dataset.frame
-    missing = _n_missing(frame.get_column(group))
+    missing = n_missing(frame.get_column(group))
     present = frame.height - missing
     return present, missing
 
@@ -758,3 +730,10 @@ def analyze_grouped_responses(
         annotation_coverage=annotation_coverage,
         provenance=provenance,
     )
+
+
+def _skipped_groups(dataset: TabularDataset, groups: tuple[str, ...], max_group_levels: int) -> set[str]:
+    if not groups:
+        return set()
+    coverage = summarize_group_coverage(dataset, groups, max_group_levels=max_group_levels)
+    return {row["group_column"] for row in coverage.iter_rows(named=True) if row["status"] == "skipped"}

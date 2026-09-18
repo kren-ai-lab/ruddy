@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole
+from ruddy.core.frames import missing_expr
 from ruddy.profiling.columns import profile_columns
 from ruddy.profiling.missingness import (
     pairwise_completeness,
@@ -63,12 +64,7 @@ def summarize_overview(dataset: TabularDataset, columns: pl.DataFrame) -> dict[s
         n_duplicate_rows = 0
         n_records_in_duplicate_groups = 0
     else:
-        missing_exprs = [
-            (pl.col(col).is_null() | pl.col(col).is_nan()).alias(col)
-            if frame.schema[col].is_float()
-            else pl.col(col).is_null().alias(col)
-            for col in frame.columns
-        ]
+        missing_exprs = [missing_expr(col, frame.schema[col]) for col in frame.columns]
         mask = frame.select(missing_exprs)
         rows_with_missing = mask.select(pl.any_horizontal(pl.all()).alias("any")).get_column("any")
         n_missing_cells = int(columns.get_column("n_missing").sum() or 0)
@@ -84,38 +80,26 @@ def summarize_overview(dataset: TabularDataset, columns: pl.DataFrame) -> dict[s
             n_duplicate_rows = frame.height - frame.n_unique()
             n_records_in_duplicate_groups = int(frame.is_duplicated().sum())
 
-    if columns.height == 0:
-        role_counts = {role.value: 0 for role in ColumnRole}
-        kind_counts = {kind.value: 0 for kind in ColumnKind}
-        n_analysis_eligible = 0
-        n_excluded = 0
-        n_with_missing = 0
-        n_all_missing = 0
-        n_constant = 0
-        n_unknown_kind = 0
+    role_counts = {
+        role.value: int((columns.get_column("role") == role.value).sum() or 0) for role in ColumnRole
+    }
+    kind_counts = {
+        kind.value: int((columns.get_column("data_kind") == kind.value).sum() or 0) for kind in ColumnKind
+    }
+    n_analysis_eligible = int(columns.get_column("analysis_eligible").sum() or 0)
+    n_excluded = int(columns.get_column("excluded").sum() or 0)
+    n_with_missing = int((columns.get_column("n_missing") > 0).sum() or 0)
+    n_all_missing = int(columns.get_column("is_all_missing").sum() or 0)
+    n_constant = int(columns.get_column("is_constant").sum() or 0)
+    n_unknown_kind = int((columns.get_column("data_kind") == ColumnKind.UNKNOWN.value).sum() or 0)
+    numeric_cols = columns.filter(pl.col("data_kind") == ColumnKind.NUMERIC.value)
+    if numeric_cols.height > 0:
+        numeric_non_finite = numeric_cols.get_column("non_finite_count").fill_null(0)
+        n_with_non_finite_numeric = int((numeric_non_finite > 0).sum() or 0)
+        n_non_finite_numeric_observations = int(numeric_non_finite.sum() or 0)
+    else:
         n_with_non_finite_numeric = 0
         n_non_finite_numeric_observations = 0
-    else:
-        role_counts = {
-            role.value: int((columns.get_column("role") == role.value).sum() or 0) for role in ColumnRole
-        }
-        kind_counts = {
-            kind.value: int((columns.get_column("data_kind") == kind.value).sum() or 0) for kind in ColumnKind
-        }
-        n_analysis_eligible = int(columns.get_column("analysis_eligible").sum() or 0)
-        n_excluded = int(columns.get_column("excluded").sum() or 0)
-        n_with_missing = int((columns.get_column("n_missing") > 0).sum() or 0)
-        n_all_missing = int(columns.get_column("is_all_missing").sum() or 0)
-        n_constant = int(columns.get_column("is_constant").sum() or 0)
-        n_unknown_kind = int((columns.get_column("data_kind") == ColumnKind.UNKNOWN.value).sum() or 0)
-        numeric_cols = columns.filter(pl.col("data_kind") == ColumnKind.NUMERIC.value)
-        if numeric_cols.height > 0:
-            numeric_non_finite = numeric_cols.get_column("non_finite_count").fill_null(0)
-            n_with_non_finite_numeric = int((numeric_non_finite > 0).sum() or 0)
-            n_non_finite_numeric_observations = int(numeric_non_finite.sum() or 0)
-        else:
-            n_with_non_finite_numeric = 0
-            n_non_finite_numeric_observations = 0
 
     return {
         "n_records": n_records,

@@ -12,6 +12,7 @@ from scipy import sparse, stats
 from sklearn.covariance import EmpiricalCovariance, MinCovDet
 
 from ruddy.core.enums import ResultStatus, ScalingMethod
+from ruddy.core.frames import id_dtype
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
 
@@ -86,25 +87,23 @@ def _method_rows(
     threshold_squared = float(stats.chi2.ppf(threshold_quantile, df=df))
     values = np.asarray(squared, dtype=float)
     id_list = list(ids)
-    id_dtype = pl.Series(id_list).dtype if len(id_list) > 0 else pl.String
-    return pl.DataFrame(
+    id_dt = id_dtype(id_list)
+    df_var = pl.DataFrame(
         {
             "source_row_index": pl.Series("source_row_index", source_rows.astype(np.int64), dtype=pl.Int64),
-            "observation_id": pl.Series("observation_id", id_list, dtype=id_dtype),
-            "method": pl.Series("method", [method] * len(values), dtype=pl.String),
+            "observation_id": pl.Series("observation_id", id_list, dtype=id_dt),
             "squared_distance": pl.Series("squared_distance", values, dtype=pl.Float64),
             "distance": pl.Series("distance", np.sqrt(np.maximum(values, 0.0)), dtype=pl.Float64),
-            "degrees_of_freedom": pl.Series("degrees_of_freedom", [int(df)] * len(values), dtype=pl.Int64),
-            "threshold_quantile": pl.Series(
-                "threshold_quantile", [float(threshold_quantile)] * len(values), dtype=pl.Float64
-            ),
-            "threshold_squared": pl.Series(
-                "threshold_squared", [threshold_squared] * len(values), dtype=pl.Float64
-            ),
             "is_flagged": pl.Series("is_flagged", values > threshold_squared, dtype=pl.Boolean),
-            "status": pl.Series("status", [ResultStatus.OK.value] * len(values), dtype=pl.String),
-            "reason": pl.Series("reason", [None] * len(values), dtype=pl.String),
         }
+    )
+    return df_var.with_columns(
+        pl.lit(method, dtype=pl.String).alias("method"),
+        pl.lit(int(df), dtype=pl.Int64).alias("degrees_of_freedom"),
+        pl.lit(float(threshold_quantile), dtype=pl.Float64).alias("threshold_quantile"),
+        pl.lit(threshold_squared, dtype=pl.Float64).alias("threshold_squared"),
+        pl.lit(ResultStatus.OK.value, dtype=pl.String).alias("status"),
+        pl.lit(None, dtype=pl.String).alias("reason"),
     ).select(list(MAHALANOBIS_DISTANCE_COLUMNS))
 
 
@@ -251,18 +250,12 @@ def analyze_mahalanobis(
                 }
             )
 
-    methods = (
-        pl.DataFrame(method_records, schema=MAHALANOBIS_METHOD_SCHEMA)
-        if method_records
-        else pl.DataFrame(schema=MAHALANOBIS_METHOD_SCHEMA)
-    )
+    methods = pl.DataFrame(method_records, schema=MAHALANOBIS_METHOD_SCHEMA)
     if distance_frames:
         distances = pl.concat(distance_frames, how="vertical")
     else:
-        id_dtype = (
-            pl.Series(prepared.observation_ids).dtype if len(prepared.observation_ids) > 0 else pl.String
-        )
-        schema = {**MAHALANOBIS_DISTANCE_SCHEMA_BASE, "observation_id": id_dtype}
+        id_dt = pl.Series(prepared.observation_ids).dtype if len(prepared.observation_ids) > 0 else pl.String
+        schema = {**MAHALANOBIS_DISTANCE_SCHEMA_BASE, "observation_id": id_dt}
         distances = pl.DataFrame(schema={col: schema[col] for col in MAHALANOBIS_DISTANCE_COLUMNS})
 
     any_ok = bool((methods["status"] == ResultStatus.OK.value).any())

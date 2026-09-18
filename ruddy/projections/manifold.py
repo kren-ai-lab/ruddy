@@ -13,6 +13,7 @@ from sklearn.manifold import TSNE
 
 from ruddy.core.enums import ProjectionMethod, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import OptionalDependencyError
+from ruddy.core.frames import id_dtype
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
 
@@ -45,10 +46,10 @@ def _coordinate_table(
     observation_ids: Sequence[Any],
     source_row_indices: np.ndarray,
 ) -> pl.DataFrame:
-    id_dtype = pl.Series(observation_ids).dtype if len(observation_ids) > 0 else pl.String
+    id_dt = id_dtype(observation_ids)
     component_names = [f"component_{index + 1}" for index in range(coordinates.shape[1])]
     columns: dict[str, pl.Series] = {
-        "observation_id": pl.Series("observation_id", list(observation_ids), dtype=id_dtype),
+        "observation_id": pl.Series("observation_id", list(observation_ids), dtype=id_dt),
         "source_row_index": pl.Series("source_row_index", source_row_indices, dtype=pl.Int64),
     }
     values = np.asarray(coordinates, dtype=np.float64)

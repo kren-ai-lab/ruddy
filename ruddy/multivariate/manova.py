@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,8 @@ from patsy import dmatrices  # pyrefly: ignore[missing-module-attribute]
 from statsmodels.multivariate.manova import MANOVA
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
+from ruddy.core.frames import finite_or_none
+from ruddy.factorial.design import complete_case
 from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import AnalysisProvenance
 
@@ -33,7 +36,6 @@ MANOVA_TEST_SCHEMA: dict[str, PolarsDataType] = {
     "status": pl.String,
     "reason": pl.String,
 }
-MANOVA_TEST_COLUMNS = tuple(MANOVA_TEST_SCHEMA)
 
 FACTOR_LEVEL_SCHEMA: dict[str, PolarsDataType] = {
     "factor": pl.String,
@@ -42,7 +44,6 @@ FACTOR_LEVEL_SCHEMA: dict[str, PolarsDataType] = {
     "status": pl.String,
     "reason": pl.String,
 }
-FACTOR_LEVEL_COLUMNS = tuple(FACTOR_LEVEL_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,16 +64,6 @@ def _normalize_columns(values: Iterable[str], label: str) -> tuple[str, ...]:
     if len(set(normalized)) != len(normalized):
         raise ValueError(f"{label} cannot contain duplicates.")
     return normalized
-
-
-def _finite_or_none(value: Any) -> float | None:
-    if value is None:
-        return None
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return number if np.isfinite(number) else None
 
 
 def _empty_tests() -> pl.DataFrame:
@@ -142,18 +133,11 @@ def analyze_manova(
 
     selected = (*response_names, *factor_names, *covariate_names)
     frame = dataset.frame.select(selected)
-    complete = np.ones(frame.height, dtype=bool)
-    for name in (*response_names, *covariate_names):
-        values = frame.get_column(name).cast(pl.Float64).fill_null(float("nan")).to_numpy()
-        complete &= np.isfinite(values)
-    for name in factor_names:
-        col = frame.get_column(name)
-        mask = col.is_not_null()
-        if col.dtype.is_float():
-            mask &= ~col.is_nan()
-        complete &= mask.to_numpy()
-    model_frame = frame.filter(pl.Series(complete))
-    excluded_rows = np.flatnonzero(~complete).astype(np.int64)
+    model_frame, excluded_rows = complete_case(
+        frame,
+        numeric=(*responses, *covariates),
+        categorical=factors,
+    )
     exclusions = _exclusions_table(
         dataset.observation_ids,
         excluded_rows,
@@ -188,8 +172,7 @@ def analyze_manova(
             raise ValueError(
                 f"MANOVA factor {factor!r} has {len(unique_levels)} levels; maximum is {max_factor_levels}."
             )
-        vc = model_frame.get_column(factor).value_counts(name="__ruddy_count")
-        counts_dict = {row[factor]: int(row["__ruddy_count"]) for row in vc.iter_rows(named=True)}
+        counts_dict = dict(collections.Counter(model_frame.get_column(factor).to_list()))
         for level in unique_levels:
             count = counts_dict[level]
             level_rows.append(
@@ -356,11 +339,11 @@ def analyze_manova(
                 {
                     "term": term,
                     "statistic": str(statistic_name),
-                    "value": _finite_or_none(row["Value"]),
-                    "num_df": _finite_or_none(row["Num DF"]),
-                    "den_df": _finite_or_none(row["Den DF"]),
-                    "f_value": _finite_or_none(row["F Value"]),
-                    "p_value": _finite_or_none(row["Pr > F"]),
+                    "value": finite_or_none(row["Value"]),
+                    "num_df": finite_or_none(row["Num DF"]),
+                    "den_df": finite_or_none(row["Den DF"]),
+                    "f_value": finite_or_none(row["F Value"]),
+                    "p_value": finite_or_none(row["Pr > F"]),
                     "status": ResultStatus.OK.value,
                     "reason": None,
                 }

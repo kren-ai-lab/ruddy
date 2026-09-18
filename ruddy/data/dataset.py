@@ -6,11 +6,10 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import polars as pl
-import pyarrow as pa
 
 from ruddy.core.enums import ColumnKind, ColumnRole
 from ruddy.data.roles import ColumnSpec, build_schema, resolve_kinds, resolve_roles
-from ruddy.data.validation import validate_observation_ids
+from ruddy.data.validation import from_pandas_checked, validate_observation_ids
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -45,35 +44,8 @@ class TabularDataset:
                     "pandas DataFrame has a non-default index; "
                     "pass observation_ids=frame.index or reset_index()."
                 )
-            if not data.columns.is_unique:
-                duplicates = data.columns[data.columns.duplicated()].tolist()
-                raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
-            non_string = [column for column in data.columns if not isinstance(column, str)]
-            if non_string:
-                raise TypeError(
-                    f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
-                )
             input_backend = "pandas"
-            non_string_categoricals = [
-                column
-                for column in data.columns
-                if isinstance(data[column].dtype, pd.CategoricalDtype)
-                and not pd.api.types.is_string_dtype(data[column].cat.categories)
-            ]
-            if non_string_categoricals:
-                raise TypeError(
-                    "pandas Categorical columns with non-string categories would be reinterpreted "
-                    "as numeric by Polars; convert them to string categories or to Polars explicitly: "
-                    f"{non_string_categoricals}."
-                )
-            try:
-                # Deep-copy first: from_pandas may share numeric buffers with the caller's frame.
-                self._frame = pl.from_pandas(data.copy(deep=True), include_index=False)
-            except (pa.ArrowNotImplementedError, pa.ArrowInvalid, TypeError) as exc:
-                raise TypeError(
-                    "pandas DataFrame contains a dtype Polars cannot represent (e.g. complex); "
-                    f"drop or convert it explicitly before constructing TabularDataset: {exc}"
-                ) from exc
+            self._frame = from_pandas_checked(data)
         elif isinstance(data, pl.DataFrame):
             input_backend = "polars"
             self._frame = data

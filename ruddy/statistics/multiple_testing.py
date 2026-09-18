@@ -6,6 +6,7 @@ import numpy as np
 import polars as pl
 
 from ruddy.core.enums import PAdjustMethod
+from ruddy.core.frames import to_float_array
 
 
 def adjust_pvalues(
@@ -105,7 +106,7 @@ def apply_multiple_testing(
         raise ValueError("family_id values must be present and non-empty.")
 
     n = table.height
-    p = table.get_column(p_column).cast(pl.Float64).fill_null(float("nan")).to_numpy()
+    p = to_float_array(table.get_column(p_column))
     status = table.get_column(status_column).cast(pl.String).to_numpy()
     family = families_series.cast(pl.String).to_numpy()
     q = np.full(n, np.nan, dtype=np.float64)

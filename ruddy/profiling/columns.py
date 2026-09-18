@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 
 from ruddy.core.enums import ColumnKind, ColumnRole
+from ruddy.core.frames import present_values
 
 if TYPE_CHECKING:
     from polars._typing import PolarsDataType
@@ -45,9 +46,7 @@ _ANALYSIS_ELIGIBLE_ROLES = {
 
 def _safe_unique_count(series: pl.Series) -> int | None:
     try:
-        clean = series.drop_nulls()
-        if clean.dtype.is_float():
-            clean = clean.filter(~clean.is_nan())
+        clean = present_values(series)
         return int(clean.n_unique())
     except (pl.exceptions.PolarsError, TypeError, ValueError):
         return None
@@ -56,9 +55,7 @@ def _safe_unique_count(series: pl.Series) -> int | None:
 def _finite_counts(series: pl.Series, kind: ColumnKind) -> tuple[int | None, int | None]:
     if kind is not ColumnKind.NUMERIC:
         return None, None
-    clean = series.drop_nulls()
-    if clean.dtype.is_float():
-        clean = clean.filter(~clean.is_nan())
+    clean = present_values(series)
     if clean.len() == 0:
         return 0, 0
     values = clean.cast(pl.Float64)

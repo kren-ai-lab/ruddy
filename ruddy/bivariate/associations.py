@@ -76,26 +76,26 @@ def _eligible_categorical(dataset: TabularDataset) -> tuple[str, ...]:
 
 def _contingency(frame: pl.DataFrame, x: str, y: str) -> tuple[list[str], list[str], np.ndarray, int]:
     pair = frame.select(x, y).drop_nulls()
-    col_x = pair.get_column(x)
-    col_y = pair.get_column(y)
-    if col_x.dtype.is_float():
+    if pair.schema[x].is_float():
         pair = pair.filter(~pl.col(x).is_nan())
-    if col_y.dtype.is_float():
+    if pair.schema[y].is_float():
         pair = pair.filter(~pl.col(y).is_nan())
 
-    x_list = pair.get_column(x).to_list()
-    y_list = pair.get_column(y).to_list()
-    x_labels = [_category_label(v) for v in x_list]
-    y_labels = [_category_label(v) for v in y_list]
+    n_used = pair.height
+    counts_df = pair.group_by([x, y]).len()
+    x_labels = [_category_label(v) for v in counts_df.get_column(x).to_list()]
+    y_labels = [_category_label(v) for v in counts_df.get_column(y).to_list()]
+    lens = counts_df.get_column("len").to_list()
+
     x_levels = sorted(set(x_labels))
     y_levels = sorted(set(y_labels))
     counts = np.zeros((len(x_levels), len(y_levels)), dtype=int)
     if x_labels:
         x_idx_map = {lvl: i for i, lvl in enumerate(x_levels)}
         y_idx_map = {lvl: j for j, lvl in enumerate(y_levels)}
-        for xl, yl in zip(x_labels, y_labels, strict=True):
-            counts[x_idx_map[xl], y_idx_map[yl]] += 1
-    return x_levels, y_levels, counts, pair.height
+        for xl, yl, n in zip(x_labels, y_labels, lens, strict=True):
+            counts[x_idx_map[xl], y_idx_map[yl]] += n
+    return x_levels, y_levels, counts, n_used
 
 
 def _contingency_payload(x_levels: list[str], y_levels: list[str], counts: np.ndarray) -> str:

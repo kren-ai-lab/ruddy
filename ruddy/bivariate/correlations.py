@@ -11,6 +11,7 @@ import polars as pl
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod, PAdjustMethod
+from ruddy.core.frames import to_float_array
 from ruddy.statistics import apply_multiple_testing
 
 if TYPE_CHECKING:
@@ -50,8 +51,8 @@ def _eligible_numeric_columns(dataset: TabularDataset) -> tuple[str, ...]:
 
 
 def _pairwise_finite(left: pl.Series, right: pl.Series) -> tuple[np.ndarray, np.ndarray]:
-    x = left.cast(pl.Float64).fill_null(float("nan")).to_numpy()
-    y = right.cast(pl.Float64).fill_null(float("nan")).to_numpy()
+    x = to_float_array(left)
+    y = to_float_array(right)
     mask = np.isfinite(x) & np.isfinite(y)
     return x[mask], y[mask]
 

@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import polars as pl
 
+from ruddy.core.frames import finite_or_none, present_values
+
 if TYPE_CHECKING:
     from polars._typing import PolarsDataType
 
@@ -50,13 +52,6 @@ CATEGORICAL_FREQUENCIES_SCHEMA: dict[str, PolarsDataType] = {
 CATEGORICAL_FREQUENCY_COLUMNS: tuple[str, ...] = tuple(CATEGORICAL_FREQUENCIES_SCHEMA)
 
 
-def _safe_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    converted = float(value)
-    return converted if math.isfinite(converted) else None
-
-
 def _category_label(value: Any) -> str:
     if isinstance(value, (bool, np.bool_)):
         return "true" if bool(value) else "false"
@@ -88,9 +83,7 @@ def _profile(
             n_missing += int(nan_sum)
     n_present = n_total - n_missing
 
-    present = series.drop_nulls()
-    if present.dtype.is_float():
-        present = present.filter(~present.is_nan())
+    present = present_values(series)
 
     labels = [_category_label(v) for v in present.to_list()]
     counts = collections.Counter(labels)
@@ -116,11 +109,11 @@ def _profile(
         mode, mode_count = ordered[0]
         mode_fraction = float(mode_count / n_present)
         probabilities = np.asarray([count / n_present for _, count in ordered], dtype=np.float64)
-        entropy = _safe_float(-np.sum(probabilities * np.log2(probabilities)))
+        entropy = finite_or_none(-np.sum(probabilities * np.log2(probabilities)))
         if n_levels <= 1:
             normalized_entropy = 0.0
         elif entropy is not None:
-            normalized_entropy = _safe_float(entropy / math.log2(n_levels))
+            normalized_entropy = finite_or_none(entropy / math.log2(n_levels))
 
     n_reported = min(n_levels, max_category_levels)
     reported = ordered[:n_reported]

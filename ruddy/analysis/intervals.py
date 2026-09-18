@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from itertools import combinations
 from typing import TYPE_CHECKING, Any
@@ -12,7 +11,9 @@ import polars as pl
 from scipy import stats
 
 from ruddy.bivariate.associations import _contingency, _eligible_categorical
+from ruddy.bivariate.comparisons import _group_labels
 from ruddy.core.enums import ColumnKind, ColumnRole, CorrelationMethod
+from ruddy.core.frames import finite_or_none
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.bootstrap import bootstrap_confidence_interval
 from ruddy.statistics.confidence_intervals import (
@@ -22,7 +23,6 @@ from ruddy.statistics.confidence_intervals import (
     welch_mean_difference_confidence_interval,
 )
 from ruddy.statistics.effect_sizes import hedges_g
-from ruddy.univariate.categorical import _category_label
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -127,16 +127,6 @@ class ConfidenceIntervalResult:
     provenance: AnalysisProvenance
 
 
-def _safe_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    try:
-        converted = float(value)
-    except (TypeError, ValueError):
-        return None
-    return converted if math.isfinite(converted) else None
-
-
 def _hedges_g_or_nan(x: np.ndarray, y: np.ndarray) -> float:
     """Return Hedges' g, or NaN when it is not estimable."""
     value = hedges_g(x, y)
@@ -197,11 +187,11 @@ def analyze_confidence_intervals(
             {
                 "column": column,
                 "n": int(x.size),
-                "estimate": _safe_float(estimate) if status == "ok" else None,
-                "standard_error": _safe_float(se) if status == "ok" else None,
+                "estimate": finite_or_none(estimate) if status == "ok" else None,
+                "standard_error": finite_or_none(se) if status == "ok" else None,
                 "confidence_level": confidence_level,
-                "confidence_low": _safe_float(low) if status == "ok" else None,
-                "confidence_high": _safe_float(high) if status == "ok" else None,
+                "confidence_low": finite_or_none(low) if status == "ok" else None,
+                "confidence_high": finite_or_none(high) if status == "ok" else None,
                 "method": "student_t",
                 "status": status,
                 "reason": None if status == "ok" else "insufficient_finite_observations",
@@ -232,15 +222,15 @@ def analyze_confidence_intervals(
                 row["reason"] = "insufficient_or_constant_pair"
             else:
                 raw_estimate = _correlation_statistic(method)(values[:, 0], values[:, 1])
-                estimate = _safe_float(raw_estimate)
+                estimate = finite_or_none(raw_estimate)
                 row["estimate"] = estimate
                 if method is CorrelationMethod.PEARSON:
                     if estimate is not None:
                         low, high = pearson_confidence_interval(estimate, n, confidence_level)
                     else:
                         low, high = float("nan"), float("nan")
-                    row["confidence_low"] = _safe_float(low)
-                    row["confidence_high"] = _safe_float(high)
+                    row["confidence_low"] = finite_or_none(low)
+                    row["confidence_high"] = finite_or_none(high)
                     row["ci_method"] = "fisher_z"
                     if not np.isfinite(low):
                         row["status"] = "degenerate"
@@ -255,8 +245,8 @@ def analyze_confidence_intervals(
                         method=bootstrap_method,
                         random_state=random_state,
                     )
-                    row["confidence_low"] = _safe_float(boot.confidence_low)
-                    row["confidence_high"] = _safe_float(boot.confidence_high)
+                    row["confidence_low"] = finite_or_none(boot.confidence_low)
+                    row["confidence_high"] = finite_or_none(boot.confidence_high)
                     row["ci_method"] = f"bootstrap_{boot.method}"
                     row["status"] = boot.status
                     row["reason"] = boot.reason
@@ -266,21 +256,10 @@ def analyze_confidence_intervals(
     effect_rows: list[dict[str, Any]] = []
     for group in categorical:
         group_series = frame.get_column(group)
-        if group_series.dtype.is_float():
-            present_mask = ~(group_series.is_null() | group_series.is_nan()).to_numpy()
-        else:
-            present_mask = ~group_series.is_null().to_numpy()
-
-        group_list = group_series.to_list()
-        present_indices = np.flatnonzero(present_mask)
-        labels_present = [_category_label(group_list[i]) for i in present_indices]
-        levels = sorted(set(labels_present))
+        label_array, present_mask = _group_labels(group_series)
+        levels = sorted({lbl for lbl in label_array[present_mask] if lbl is not None})
         if len(levels) != 2 or len(levels) > max_category_levels:
             continue
-
-        label_array = np.empty(len(group_list), dtype=object)
-        for idx, label in zip(present_indices, labels_present, strict=True):
-            label_array[idx] = label
 
         mask_a = present_mask & (label_array == levels[0])
         mask_b = present_mask & (label_array == levels[1])
@@ -330,11 +309,11 @@ def analyze_confidence_intervals(
             difference_rows.append(
                 {
                     **base,
-                    "estimate": _safe_float(estimate),
-                    "standard_error": _safe_float(se),
-                    "df": _safe_float(df),
-                    "confidence_low": _safe_float(low),
-                    "confidence_high": _safe_float(high),
+                    "estimate": finite_or_none(estimate),
+                    "standard_error": finite_or_none(se),
+                    "df": finite_or_none(df),
+                    "confidence_low": finite_or_none(low),
+                    "confidence_high": finite_or_none(high),
                     "method": "welch",
                     "status": "ok",
                     "reason": None,
@@ -365,9 +344,9 @@ def analyze_confidence_intervals(
                 effect_rows.append(
                     {
                         **base,
-                        "estimate": _safe_float(effect),
-                        "confidence_low": _safe_float(boot.confidence_low),
-                        "confidence_high": _safe_float(boot.confidence_high),
+                        "estimate": finite_or_none(effect),
+                        "confidence_low": finite_or_none(boot.confidence_low),
+                        "confidence_high": finite_or_none(boot.confidence_high),
                         "method": f"hedges_g_bootstrap_{boot.method}",
                         "status": boot.status,
                         "reason": boot.reason,
@@ -390,10 +369,10 @@ def analyze_confidence_intervals(
                 "level_y_0": y_levels[0],
                 "level_y_1": y_levels[1],
                 "n_used": n_used,
-                "estimate": _safe_float(estimate),
+                "estimate": finite_or_none(estimate),
                 "confidence_level": confidence_level,
-                "confidence_low": _safe_float(low),
-                "confidence_high": _safe_float(high),
+                "confidence_low": finite_or_none(low),
+                "confidence_high": finite_or_none(high),
                 "method": "log_wald_no_zero_correction",
                 "status": status,
                 "reason": None if status == "ok" else "zero_cell_or_invalid_table",

@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 import polars as pl
 
+from ruddy.core.frames import missing_expr
+
 if TYPE_CHECKING:
     from polars._typing import PolarsDataType
 
@@ -159,16 +161,12 @@ def summarize_missingness_patterns(
         if n_total > 0:
             counts[()] = n_total
     else:
-        exprs = [
-            (pl.col(c).is_null() | pl.col(c).is_nan()).alias(c)
-            if frame.schema[c].is_float()
-            else pl.col(c).is_null().alias(c)
-            for c in cols
-        ]
+        exprs = [missing_expr(c, frame.schema[c]) for c in cols]
         missing_frame = frame.select(exprs)
-        for row in missing_frame.iter_rows():
-            pattern = tuple(col for col, is_missing in zip(cols, row, strict=True) if is_missing)
-            counts[pattern] = counts.get(pattern, 0) + 1
+        counts_df = missing_frame.group_by(cols).len()
+        for row in counts_df.iter_rows():
+            pattern = tuple(col for col, is_missing in zip(cols, row[:-1], strict=True) if is_missing)
+            counts[pattern] = counts.get(pattern, 0) + row[-1]
 
     ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     n_patterns_total = len(ordered)

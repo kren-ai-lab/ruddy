@@ -11,6 +11,7 @@ from scipy.stats import f_oneway
 from sklearn.metrics import pairwise_distances
 
 from ruddy.core.enums import AlignmentMode, ResultStatus
+from ruddy.core.frames import id_dtype
 from ruddy.data.validation import AlignmentReport, align_annotations
 from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
@@ -224,10 +225,10 @@ def analyze_permutation_group_structure(
         },
         random_state=random_state,
     )
-    id_dtype = pl.Series(ids).dtype if len(ids) > 0 else pl.String
+    id_dt = id_dtype(ids)
     empty_summary = pl.DataFrame(schema=SUMMARY_SCHEMA)
     empty_groups = pl.DataFrame(schema=GROUP_SCHEMA)
-    centroid_schema = {**CENTROID_SCHEMA_BASE, "observation_id": id_dtype}
+    centroid_schema = {**CENTROID_SCHEMA_BASE, "observation_id": id_dt}
     empty_dist = pl.DataFrame(schema={col: centroid_schema[col] for col in CENTROID_COLUMNS})
 
     if len(levels) < 2:

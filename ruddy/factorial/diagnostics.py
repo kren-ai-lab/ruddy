@@ -13,6 +13,7 @@ from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import jarque_bera
 
 from ruddy.core.enums import ResultStatus
+from ruddy.core.frames import finite_or_none, id_dtype
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -75,14 +76,6 @@ OBSERVATION_DIAGNOSTIC_COLUMNS = (
 )
 
 
-def _finite_or_none(value: Any) -> float | None:
-    try:
-        converted = float(value)
-    except (TypeError, ValueError):
-        return None
-    return converted if math.isfinite(converted) else None
-
-
 def build_factorial_cells(
     frame: pl.DataFrame,
     factors: Sequence[str],
@@ -118,7 +111,7 @@ def build_factorial_cells(
         levels.append(observed)
 
     # Count observed combinations
-    vc = frame.select(list(factor_names)).group_by(list(factor_names)).len(name="__ruddy_len")
+    vc = frame.select(list(factor_names)).group_by(list(factor_names)).len()
     observed_counts: dict[Any, int] = {}
     for row in vc.iter_rows():
         key = row[0] if len(factor_names) == 1 else tuple(row[:-1])
@@ -211,10 +204,10 @@ def model_diagnostics(
 
     if 3 <= n <= 5000:
         shapiro = stats.shapiro(residuals)
-        p = _finite_or_none(shapiro.pvalue)
+        p = finite_or_none(shapiro.pvalue)
         append(
             "shapiro_wilk_residual_normality",
-            statistic=_finite_or_none(shapiro.statistic),
+            statistic=finite_or_none(shapiro.statistic),
             p_value=p,
             flagged=None if p is None else bool(p < alpha),
             details="Residual normality diagnostic; does not select or replace the fitted model.",
@@ -235,10 +228,10 @@ def model_diagnostics(
 
     if n >= 8:
         jb_stat, jb_p, skew, kurtosis = jarque_bera(residuals)
-        p = _finite_or_none(jb_p)
+        p = finite_or_none(jb_p)
         append(
             "jarque_bera_residual_normality",
-            statistic=_finite_or_none(jb_stat),
+            statistic=finite_or_none(jb_stat),
             p_value=p,
             flagged=None if p is None else bool(p < alpha),
             details=f"skew={float(skew):.12g}; kurtosis={float(kurtosis):.12g}",
@@ -253,10 +246,10 @@ def model_diagnostics(
     if n > exog.shape[1] and exog.shape[1] >= 2:
         try:
             lm_stat, lm_p, f_stat, f_p = het_breuschpagan(residuals, exog)
-            p = _finite_or_none(lm_p)
+            p = finite_or_none(lm_p)
             append(
                 "breusch_pagan_heteroskedasticity",
-                statistic=_finite_or_none(lm_stat),
+                statistic=finite_or_none(lm_stat),
                 p_value=p,
                 flagged=None if p is None else bool(p < alpha),
                 details=f"f_value={float(f_stat):.12g}; f_p_value={float(f_p):.12g}",
@@ -284,10 +277,10 @@ def model_diagnostics(
                 grouped_residuals.append(values)
         if len(grouped_residuals) >= 2:
             levene = stats.levene(*grouped_residuals, center="median")
-            p = _finite_or_none(levene.pvalue)
+            p = finite_or_none(levene.pvalue)
             append(
                 "levene_median_residual_homoscedasticity",
-                statistic=_finite_or_none(levene.statistic),
+                statistic=finite_or_none(levene.statistic),
                 p_value=p,
                 flagged=None if p is None else bool(p < alpha),
                 details=f"n_cells_tested={len(grouped_residuals)}",
@@ -310,12 +303,12 @@ def model_diagnostics(
     condition = float(positive.max() / positive.min()) if positive.size else math.inf
     append(
         "design_condition_number",
-        statistic=_finite_or_none(condition),
+        statistic=finite_or_none(condition),
         flagged=bool(math.isfinite(condition) and condition > condition_number_threshold),
         details=f"threshold={condition_number_threshold:.12g}",
     )
 
-    id_dtype = pl.Series(observation_ids).dtype if len(observation_ids) > 0 else pl.String
+    id_dt = id_dtype(observation_ids)
     try:
         influence = model.get_influence()
         leverage = np.asarray(influence.hat_matrix_diag, dtype=np.float64)
@@ -328,15 +321,15 @@ def model_diagnostics(
         obs_rows: list[dict[str, Any]] = []
         selected_ids = [observation_ids[i] for i in source_row_indices]
         for index in range(n):
-            studentized_value = _finite_or_none(studentized[index])
-            leverage_value = _finite_or_none(leverage[index])
-            cooks_value = _finite_or_none(cooks[index])
+            studentized_value = finite_or_none(studentized[index])
+            leverage_value = finite_or_none(leverage[index])
+            cooks_value = finite_or_none(cooks[index])
             obs_rows.append(
                 {
                     "source_row_index": int(source_row_indices[index]),
                     "observation_id": selected_ids[index],
-                    "fitted_value": _finite_or_none(fitted[index]),
-                    "residual": _finite_or_none(residuals[index]),
+                    "fitted_value": finite_or_none(fitted[index]),
+                    "residual": finite_or_none(residuals[index]),
                     "studentized_residual": studentized_value,
                     "leverage": leverage_value,
                     "cooks_distance": cooks_value,
@@ -354,17 +347,15 @@ def model_diagnostics(
                     "reason": None,
                 }
             )
-        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dtype}
+        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dt}
         observations = pl.DataFrame(obs_rows, schema_overrides=schema).select(
             list(OBSERVATION_DIAGNOSTIC_COLUMNS)
         )
     except (ValueError, np.linalg.LinAlgError):
-        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dtype}
+        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dt}
         observations = pl.DataFrame(schema={col: schema[col] for col in OBSERVATION_DIAGNOSTIC_COLUMNS})
 
-    diagnostics = (
-        pl.DataFrame(rows, schema=DIAGNOSTIC_SCHEMA) if rows else pl.DataFrame(schema=DIAGNOSTIC_SCHEMA)
-    )
+    diagnostics = pl.DataFrame(rows, schema=DIAGNOSTIC_SCHEMA)
     return diagnostics, observations
 
 

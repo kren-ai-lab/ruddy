@@ -11,6 +11,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 
 from ruddy.core.enums import ScalingMethod
+from ruddy.core.frames import id_dtype
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
 
@@ -64,9 +65,9 @@ def _build_anomaly_scores(
     rows: list[dict[str, Any]],
     ids: tuple[ObservationID, ...],
 ) -> pl.DataFrame:
-    id_dtype = pl.Series(ids).dtype if len(ids) > 0 else pl.String
+    id_dt = id_dtype(ids)
     if not rows:
-        schema = {**ANOMALY_SCORE_SCHEMA_BASE, "observation_id": id_dtype}
+        schema = {**ANOMALY_SCORE_SCHEMA_BASE, "observation_id": id_dt}
         return pl.DataFrame(schema={col: schema[col] for col in ANOMALY_SCORE_COLUMNS})
     frame = pl.DataFrame(rows, schema_overrides=ANOMALY_SCORE_SCHEMA_BASE)
     return frame.select(list(ANOMALY_SCORE_COLUMNS))

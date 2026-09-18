@@ -15,6 +15,7 @@ from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from ruddy.core.enums import AlignmentMode, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import AlignmentError
+from ruddy.core.frames import id_dtype
 from ruddy.data.validation import AlignmentReport
 from ruddy.results import Advisory, AnalysisProvenance
 
@@ -149,9 +150,9 @@ def _exclusions_table(
     stage: str = "representation_complete_case",
     reason: str = "non_finite_feature_row",
 ) -> pl.DataFrame:
-    id_dtype = pl.Series(ids).dtype if len(ids) > 0 else pl.String
+    id_dt = id_dtype(ids)
     if len(excluded_indices) == 0:
-        schema = {"observation_id": id_dtype, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE}
+        schema = {"observation_id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE}
         return pl.DataFrame(schema={col: schema[col] for col in REPRESENTATION_EXCLUSION_COLUMNS})
 
     indices = [int(i) for i in excluded_indices]
@@ -171,7 +172,7 @@ def _exclusions_table(
     ]
     frame = pl.DataFrame(
         rows,
-        schema_overrides={"observation_id": id_dtype, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE},
+        schema_overrides={"observation_id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE},
     )
     return frame.select(list(REPRESENTATION_EXCLUSION_COLUMNS))
 
@@ -254,11 +255,11 @@ def _empty_cca_result(
     status: ResultStatus,
     reason: str,
     provenance: AnalysisProvenance,
-    id_dtype: PolarsDataType = pl.String,
+    id_dt: PolarsDataType = pl.String,
     advisories: tuple[Advisory, ...] = (),
 ) -> CCAResult:
     empty_feature_df = pl.DataFrame(schema={"feature": pl.String})
-    empty_score_df = pl.DataFrame(schema={"observation_id": id_dtype})
+    empty_score_df = pl.DataFrame(schema={"observation_id": id_dt})
     return CCAResult(
         status=status,
         reason=reason,
@@ -293,7 +294,7 @@ def _cca_result(
             "y_features": pair.y.shape[1],
         },
     )
-    id_dtype = pl.Series(pair.observation_ids).dtype if len(pair.observation_ids) > 0 else pl.String
+    id_dt = pl.Series(pair.observation_ids).dtype if len(pair.observation_ids) > 0 else pl.String
     x = _scale(pair.x, scaling)
     y = _scale(pair.y, scaling)
     rank_x, rank_y = np.linalg.matrix_rank(x), np.linalg.matrix_rank(y)
@@ -303,14 +304,14 @@ def _cca_result(
             ResultStatus.DEGENERATE,
             "zero_rank_representation",
             provenance,
-            id_dtype=id_dtype,
+            id_dt=id_dt,
         )
     if n_components < 1 or n_components > max_components:
         return _empty_cca_result(
             ResultStatus.SKIPPED,
             "cca_components_exceed_effective_rank",
             provenance,
-            id_dtype=id_dtype,
+            id_dt=id_dt,
         )
     model = CCA(n_components=n_components, scale=False, max_iter=max_iter, tol=tol)
     try:
@@ -321,7 +322,7 @@ def _cca_result(
             ResultStatus.DEGENERATE,
             "cca_fit_failed",
             provenance,
-            id_dtype=id_dtype,
+            id_dt=id_dt,
             advisories=(advisory,),
         )
     rows = []
@@ -338,42 +339,25 @@ def _cca_result(
         )
     correlations = pl.DataFrame(rows, schema=CCA_CORRELATION_SCHEMA)
     cols = [f"CC{i + 1}" for i in range(n_components)]
-    x_weights = pl.DataFrame(
-        {
-            "feature": pl.Series("feature", list(x_names), dtype=pl.String),
-            **{c: pl.Series(c, model.x_weights_[:, i], dtype=pl.Float64) for i, c in enumerate(cols)},
-        }
-    )
-    y_weights = pl.DataFrame(
-        {
-            "feature": pl.Series("feature", list(y_names), dtype=pl.String),
-            **{c: pl.Series(c, model.y_weights_[:, i], dtype=pl.Float64) for i, c in enumerate(cols)},
-        }
-    )
-    x_loadings = pl.DataFrame(
-        {
-            "feature": pl.Series("feature", list(x_names), dtype=pl.String),
-            **{c: pl.Series(c, model.x_loadings_[:, i], dtype=pl.Float64) for i, c in enumerate(cols)},
-        }
-    )
-    y_loadings = pl.DataFrame(
-        {
-            "feature": pl.Series("feature", list(y_names), dtype=pl.String),
-            **{c: pl.Series(c, model.y_loadings_[:, i], dtype=pl.Float64) for i, c in enumerate(cols)},
-        }
-    )
-    x_scores = pl.DataFrame(
-        {
-            "observation_id": pl.Series("observation_id", list(pair.observation_ids), dtype=id_dtype),
-            **{c: pl.Series(c, xs[:, i], dtype=pl.Float64) for i, c in enumerate(cols)},
-        }
-    )
-    y_scores = pl.DataFrame(
-        {
-            "observation_id": pl.Series("observation_id", list(pair.observation_ids), dtype=id_dtype),
-            **{c: pl.Series(c, ys[:, i], dtype=pl.Float64) for i, c in enumerate(cols)},
-        }
-    )
+
+    def _labelled(key_name: str, keys: list[Any], key_dt: PolarsDataType, matrix: np.ndarray) -> pl.DataFrame:
+        return pl.DataFrame(
+            {
+                key_name: pl.Series(key_name, keys, dtype=key_dt),
+                **{cols[i]: pl.Series(cols[i], matrix[:, i], dtype=pl.Float64) for i in range(n_components)},
+            }
+        )
+
+    x_list = list(x_names)
+    y_list = list(y_names)
+    id_list = list(pair.observation_ids)
+
+    x_weights = _labelled("feature", x_list, pl.String, model.x_weights_)
+    y_weights = _labelled("feature", y_list, pl.String, model.y_weights_)
+    x_loadings = _labelled("feature", x_list, pl.String, model.x_loadings_)
+    y_loadings = _labelled("feature", y_list, pl.String, model.y_loadings_)
+    x_scores = _labelled("observation_id", id_list, id_dt, xs)
+    y_scores = _labelled("observation_id", id_list, id_dt, ys)
     return CCAResult(
         ResultStatus.OK,
         None,

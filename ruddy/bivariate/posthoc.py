@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from itertools import combinations
 from typing import TYPE_CHECKING, Any
@@ -12,6 +11,7 @@ import polars as pl
 from scipy.stats import studentized_range
 
 from ruddy.core.enums import ColumnKind, ColumnRole, ResultStatus
+from ruddy.core.frames import present_mask, to_float_array
 from ruddy.results import AnalysisProvenance
 
 if TYPE_CHECKING:
@@ -92,25 +92,16 @@ def _validate_response_factor(dataset: TabularDataset, response: str, factor: st
 
 def _group_values(dataset: TabularDataset, response: str, factor: str) -> dict[object, np.ndarray]:
     frame = dataset.frame
-    numeric = frame.get_column(response).cast(pl.Float64).fill_null(float("nan")).to_numpy()
+    numeric = to_float_array(frame.get_column(response))
     factor_col = frame.get_column(factor)
-    labels = factor_col.to_list()
-    is_float = factor_col.dtype.is_float()
 
-    valid_mask = np.array(
-        [
-            np.isfinite(val) and label is not None and not (is_float and math.isnan(label))
-            for val, label in zip(numeric, labels, strict=True)
-        ],
-        dtype=bool,
-    )
+    mask = present_mask(factor_col).to_numpy() & np.isfinite(numeric)
+    labels = np.asarray(factor_col.to_list(), dtype=object)
 
-    valid_indices = np.flatnonzero(valid_mask)
-    levels = list(dict.fromkeys(labels[i] for i in valid_indices))
-
+    levels = list(dict.fromkeys(labels[mask]))
     result: dict[object, np.ndarray] = {}
     for level in levels:
-        level_mask = valid_mask & np.array([label == level for label in labels], dtype=bool)
+        level_mask = mask & (labels == level)
         result[level] = np.asarray(numeric[level_mask], dtype=float)
     return result
 
@@ -348,22 +339,10 @@ def analyze_posthoc(
                 .then(pl.lit("group_too_small"))
                 .otherwise(pl.col("reason"))
                 .alias("reason"),
-                pl.when(mask_expr)
-                .then(pl.lit(None, dtype=pl.Float64))
-                .otherwise(pl.col("statistic"))
-                .alias("statistic"),
-                pl.when(mask_expr)
-                .then(pl.lit(None, dtype=pl.Float64))
-                .otherwise(pl.col("p_value"))
-                .alias("p_value"),
-                pl.when(mask_expr)
-                .then(pl.lit(None, dtype=pl.Float64))
-                .otherwise(pl.col("ci_lower"))
-                .alias("ci_lower"),
-                pl.when(mask_expr)
-                .then(pl.lit(None, dtype=pl.Float64))
-                .otherwise(pl.col("ci_upper"))
-                .alias("ci_upper"),
+                *[
+                    pl.when(mask_expr).then(pl.lit(None, dtype=pl.Float64)).otherwise(pl.col(c)).alias(c)
+                    for c in ("statistic", "p_value", "ci_lower", "ci_upper")
+                ],
             )
 
     provenance = AnalysisProvenance(

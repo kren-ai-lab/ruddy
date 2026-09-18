@@ -16,7 +16,7 @@ from scipy.stats import t as student_t
 from statsmodels.api import OLS
 
 from ruddy.core.enums import PAdjustMethod, ResultStatus
-from ruddy.factorial.design import FactorialDesign, build_factorial_design
+from ruddy.factorial.design import FactorialDesign, build_factorial_design, complete_case
 from ruddy.projections.preprocessing import EXCLUSION_COLUMNS, _exclusions_table
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.multiple_testing import adjust_pvalues
@@ -80,17 +80,11 @@ def _safe_model(
 ) -> tuple[Any, pl.DataFrame, np.ndarray, dict[str, str], dict[str, str], Any]:
     selected = (design.response, *design.factors, *design.covariates)
     frame = dataset.frame.select(selected)
-    complete = np.ones(frame.height, dtype=bool)
-    for name in (design.response, *design.covariates):
-        values = frame.get_column(name).cast(pl.Float64).fill_null(float("nan")).to_numpy()
-        complete &= np.isfinite(values)
-    for name in design.factors:
-        series = frame.get_column(name)
-        valid = series.is_not_null()
-        if series.dtype.is_float():
-            valid = valid & ~series.is_nan()
-        complete &= valid.fill_null(value=False).to_numpy()
-    model_frame = frame.filter(pl.Series(complete))
+    model_frame, excluded_rows = complete_case(
+        frame,
+        numeric=(design.response, *design.covariates),
+        categorical=design.factors,
+    )
 
     # pandas boundary: statsmodels/Patsy consume pandas; see DEVELOPMENT.md
     pandas_frame = model_frame.to_pandas()
@@ -114,7 +108,7 @@ def _safe_model(
     response_matrix, design_matrix = dmatrices(formula, data=safe, return_type="dataframe")
     design_info = design_matrix.design_info
     model = OLS(response_matrix.iloc[:, 0], design_matrix).fit()
-    return model, model_frame, complete, factor_safe, covariate_safe, design_info
+    return model, model_frame, excluded_rows, factor_safe, covariate_safe, design_info
 
 
 def _normalize_terms(
@@ -199,7 +193,7 @@ def analyze_marginal_means(
     requested_terms = _normalize_terms(terms, design.factors)
     if not requested_terms:
         raise ValueError("Marginal means require at least one factor term.")
-    model, model_frame, complete, factor_safe, covariate_safe, design_info = _safe_model(dataset, design)
+    model, model_frame, excluded_rows, factor_safe, covariate_safe, design_info = _safe_model(dataset, design)
     if model.df_resid <= 0:
         raise ValueError("Marginal means require positive residual degrees of freedom.")
     if np.linalg.matrix_rank(model.model.exog) < model.model.exog.shape[1]:
@@ -281,7 +275,7 @@ def analyze_marginal_means(
                 row["q_value"] = float(q_value) if q_value is not None and math.isfinite(q_value) else None
             contrast_rows.extend(family_rows)
 
-    exclusions_idx = np.flatnonzero(~complete).astype(np.int64)
+    exclusions_idx = excluded_rows
     ids = dataset.observation_ids
     exclusions = _exclusions_table(
         ids,
@@ -305,15 +299,13 @@ def analyze_marginal_means(
         },
         input_summary={
             "n_observations": dataset.frame.height,
-            "n_complete_case": int(complete.sum()),
-            "n_excluded": int((~complete).sum()),
+            "n_complete_case": model_frame.height,
+            "n_excluded": len(excluded_rows),
         },
     )
     return MarginalMeansResult(
-        means=pl.DataFrame(mean_rows, schema=MEAN_SCHEMA) if mean_rows else pl.DataFrame(schema=MEAN_SCHEMA),
-        contrasts=pl.DataFrame(contrast_rows, schema=CONTRAST_SCHEMA)
-        if contrast_rows
-        else pl.DataFrame(schema=CONTRAST_SCHEMA),
+        means=pl.DataFrame(mean_rows, schema=MEAN_SCHEMA),
+        contrasts=pl.DataFrame(contrast_rows, schema=CONTRAST_SCHEMA),
         exclusions=exclusions,
         provenance=provenance,
     )

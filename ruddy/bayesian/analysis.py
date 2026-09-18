@@ -10,6 +10,7 @@ import polars as pl
 from scipy import stats
 
 from ruddy.core.enums import ColumnKind, ColumnRole
+from ruddy.core.frames import present_values, to_float_array
 from ruddy.results import AnalysisProvenance
 
 if TYPE_CHECKING:
@@ -190,6 +191,21 @@ def analyze_bayesian_eda(
             if dataset.kind_of(c) is ColumnKind.NUMERIC
             and dataset.role_of(c) in {ColumnRole.VARIABLE, ColumnRole.RESPONSE, ColumnRole.COVARIATE}
         )
+    group_info: dict[str, tuple[Any, Any, np.ndarray, np.ndarray] | None] = {}
+    for group in groups:
+        if group not in frame.columns:
+            raise ValueError(f"Unknown Bayesian grouping column: {group!r}.")
+        g = frame.get_column(group)
+        non_missing = present_values(g)
+        levels = list(dict.fromkeys(non_missing.to_list()))
+        if len(levels) == 2:
+            a, b = levels
+            mask_a = g.eq(a).fill_null(value=False).to_numpy()
+            mask_b = g.eq(b).fill_null(value=False).to_numpy()
+            group_info[group] = (a, b, mask_a, mask_b)
+        else:
+            group_info[group] = None
+
     for column in variables:
         if column not in frame.columns or dataset.kind_of(column) is not ColumnKind.NUMERIC:
             raise ValueError(f"Bayesian EDA variable must be numeric: {column!r}.")
@@ -197,7 +213,7 @@ def analyze_bayesian_eda(
     mean_rows: list[dict[str, Any]] = []
     diff_rows: list[dict[str, Any]] = []
     for column in variables:
-        values = frame.get_column(column).cast(pl.Float64).fill_null(float("nan")).to_numpy()
+        values = to_float_array(frame.get_column(column))
         finite = values[np.isfinite(values)]
         if finite.size < min_n:
             mean_rows.append(
@@ -227,12 +243,8 @@ def analyze_bayesian_eda(
         }
         mean_rows.append(row)
         for group in groups:
-            if group not in frame.columns:
-                raise ValueError(f"Unknown Bayesian grouping column: {group!r}.")
-            g = frame.get_column(group)
-            non_missing = g.filter(~g.is_null() & ~g.is_nan()) if g.dtype.is_float() else g.drop_nulls()
-            levels = list(dict.fromkeys(non_missing.to_list()))
-            if len(levels) != 2:
+            info = group_info[group]
+            if info is None:
                 diff_rows.append(
                     {
                         "variable": column,
@@ -254,10 +266,7 @@ def analyze_bayesian_eda(
                     }
                 )
                 continue
-            a, b = levels
-            g_list = g.to_list()
-            mask_a = np.array([v == a for v in g_list])
-            mask_b = np.array([v == b for v in g_list])
+            a, b, mask_a, mask_b = info
             va = values[mask_a]
             va = va[np.isfinite(va)]
             vb = values[mask_b]

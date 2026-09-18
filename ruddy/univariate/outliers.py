@@ -9,6 +9,7 @@ import numpy as np
 import polars as pl
 
 from ruddy.core.enums import OutlierMethod, ResultStatus
+from ruddy.core.frames import present_mask, to_float_array
 from ruddy.profiling import profile_columns
 from ruddy.results import AnalysisProvenance
 from ruddy.statistics.robust import (
@@ -124,10 +125,10 @@ def _finite_values_with_positions(
 ) -> tuple[np.ndarray, np.ndarray, int, int, int, int]:
     n_total = series.len()
     if series.dtype.is_float():
-        missing = (series.is_null() | series.is_nan()).to_numpy()
+        missing = ~present_mask(series).to_numpy()
     else:
-        missing = series.is_null().to_numpy()
-    numeric = series.cast(pl.Float64).fill_null(float("nan")).to_numpy()
+        missing = ~present_mask(series).to_numpy()
+    numeric = to_float_array(series)
     finite = np.isfinite(numeric)
     positions = np.flatnonzero(finite).astype(np.int64)
     values = numeric[finite].astype(np.float64, copy=False)

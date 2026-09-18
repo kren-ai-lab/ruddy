@@ -12,7 +12,7 @@ import numpy as np
 import polars as pl
 from scipy import stats
 
-from ruddy.univariate.categorical import _safe_float
+from ruddy.core.frames import finite_or_none, to_float_array
 
 if TYPE_CHECKING:
     from polars._typing import PolarsDataType
@@ -93,7 +93,7 @@ def validate_quantiles(quantiles: tuple[float, ...]) -> tuple[float, ...]:
 
 
 def _finite_numeric_values(series: pl.Series) -> np.ndarray:
-    values = series.drop_nulls().cast(pl.Float64).to_numpy()
+    values = to_float_array(series)
     return values[np.isfinite(values)]
 
 
@@ -166,18 +166,18 @@ def _numeric_row(
     if n_finite == 0:
         return row
 
-    minimum = _safe_float(np.min(values))
-    maximum = _safe_float(np.max(values))
-    row["mean"] = _safe_float(np.mean(values))
+    minimum = finite_or_none(np.min(values))
+    maximum = finite_or_none(np.max(values))
+    row["mean"] = finite_or_none(np.mean(values))
     row["min"] = minimum
     row["max"] = maximum
     if minimum is not None and maximum is not None:
-        row["range"] = _safe_float(maximum - minimum)
+        row["range"] = finite_or_none(maximum - minimum)
 
     quantile_values = np.quantile(values, quantiles)
     quantile_lookup: dict[float, float] = {}
     for quantile, value in zip(quantiles, quantile_values, strict=True):
-        converted = _safe_float(value)
+        converted = finite_or_none(value)
         row[quantile_column_name(quantile)] = converted
         if converted is not None:
             quantile_lookup[float(quantile)] = converted
@@ -187,22 +187,22 @@ def _numeric_row(
     q75 = quantile_lookup.get(0.75)
     row["median"] = median
     if q25 is not None and q75 is not None:
-        row["iqr"] = _safe_float(q75 - q25)
+        row["iqr"] = finite_or_none(q75 - q25)
     if median is not None:
-        row["mad"] = _safe_float(np.median(np.abs(values - median)))
+        row["mad"] = finite_or_none(np.median(np.abs(values - median)))
 
     zero_count = int(np.count_nonzero(values == 0.0))
     row["zero_count"] = zero_count
     row["zero_fraction"] = float(zero_count / n_finite)
 
     if n_finite >= 2:
-        variance = _safe_float(np.var(values, ddof=1))
+        variance = finite_or_none(np.var(values, ddof=1))
         row["variance"] = variance
-        row["std"] = _safe_float(np.std(values, ddof=1))
+        row["std"] = finite_or_none(np.std(values, ddof=1))
     if not is_constant and n_finite >= 3:
-        row["skewness"] = _safe_float(stats.skew(values, bias=False))
+        row["skewness"] = finite_or_none(stats.skew(values, bias=False))
     if not is_constant and n_finite >= 4:
-        row["kurtosis"] = _safe_float(stats.kurtosis(values, bias=False))
+        row["kurtosis"] = finite_or_none(stats.kurtosis(values, bias=False))
     return row
 
 

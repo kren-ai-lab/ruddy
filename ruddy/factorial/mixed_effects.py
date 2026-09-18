@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -12,7 +13,8 @@ import polars as pl
 from statsmodels.formula.api import mixedlm
 
 from ruddy.core.enums import ColumnKind, ResultStatus
-from ruddy.factorial.design import FactorialDesign, build_factorial_design
+from ruddy.core.frames import finite_or_none
+from ruddy.factorial.design import FactorialDesign, build_factorial_design, complete_case
 from ruddy.projections.preprocessing import _exclusions_table
 from ruddy.results import Advisory, AnalysisProvenance
 
@@ -32,7 +34,6 @@ FIXED_SCHEMA: dict[str, PolarsDataType] = {
     "status": pl.String,
     "reason": pl.String,
 }
-FIXED_COLUMNS = tuple(FIXED_SCHEMA)
 
 VARIANCE_SCHEMA: dict[str, PolarsDataType] = {
     "component": pl.String,
@@ -42,7 +43,6 @@ VARIANCE_SCHEMA: dict[str, PolarsDataType] = {
     "status": pl.String,
     "reason": pl.String,
 }
-VARIANCE_COLUMNS = tuple(VARIANCE_SCHEMA)
 
 RANDOM_EFFECT_SCHEMA: dict[str, PolarsDataType] = {
     "group": pl.String,
@@ -51,7 +51,6 @@ RANDOM_EFFECT_SCHEMA: dict[str, PolarsDataType] = {
     "status": pl.String,
     "reason": pl.String,
 }
-RANDOM_EFFECT_COLUMNS = tuple(RANDOM_EFFECT_SCHEMA)
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,14 +95,6 @@ def _safe_fixed_frame(
     fixed_formula = f"Y ~ {rhs}"
     ("1" if not random_slopes else "1 + " + " + ".join(random_names[name] for name in random_slopes))
     return safe, fixed_formula, expression, random_names
-
-
-def _finite_or_none(value: Any) -> float | None:
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return number if np.isfinite(number) else None
 
 
 def analyze_mixed_effects(
@@ -160,19 +151,11 @@ def analyze_mixed_effects(
 
     selected = tuple(dict.fromkeys((design.response, *design.factors, *design.covariates, group)))
     frame = dataset.frame.select(selected)
-    numeric_columns = (design.response, *design.covariates)
-    complete = np.ones(frame.height, dtype=bool)
-    for name in numeric_columns:
-        values = frame.get_column(name).cast(pl.Float64).fill_null(float("nan")).to_numpy()
-        complete &= np.isfinite(values)
-    for name in (*design.factors, group):
-        col = frame.get_column(name)
-        mask = col.is_not_null()
-        if col.dtype.is_float():
-            mask &= ~col.is_nan()
-        complete &= mask.to_numpy()
-    model_frame = frame.filter(pl.Series(complete))
-    excluded_rows = np.flatnonzero(~complete).astype(np.int64)
+    model_frame, excluded_rows = complete_case(
+        frame,
+        numeric=(design.response, *design.covariates),
+        categorical=[*list(design.factors), group],
+    )
     exclusions = _exclusions_table(
         dataset.observation_ids,
         excluded_rows,
@@ -180,8 +163,7 @@ def analyze_mixed_effects(
         reason="missing_or_non_finite_model_value",
     )
 
-    group_counts_df = model_frame.get_column(group).value_counts(name="__ruddy_count")
-    group_counts = {row[group]: int(row["__ruddy_count"]) for row in group_counts_df.iter_rows(named=True)}
+    group_counts = dict(collections.Counter(model_frame.get_column(group).to_list()))
     provenance = AnalysisProvenance(
         analysis="mixed_effects",
         parameters={
@@ -199,8 +181,8 @@ def analyze_mixed_effects(
         },
         input_summary={
             "n_observations": dataset.frame.height,
-            "n_complete_case": int(complete.sum()),
-            "n_excluded": int((~complete).sum()),
+            "n_complete_case": model_frame.height,
+            "n_excluded": len(excluded_rows),
             "n_groups": len(group_counts),
         },
     )
@@ -284,9 +266,9 @@ def analyze_mixed_effects(
         se = float(fit.bse_fe[name])
         z_value = estimate / se if se > 0 else (np.inf if estimate != 0 else 0.0)
         p_val = fit.pvalues.get(name)
-        p_value = _finite_or_none(p_val) if p_val is not None else None
-        ci_low = _finite_or_none(ci.loc[name, 0])
-        ci_high = _finite_or_none(ci.loc[name, 1])
+        p_value = finite_or_none(p_val) if p_val is not None else None
+        ci_low = finite_or_none(ci.loc[name, 0])
+        ci_high = finite_or_none(ci.loc[name, 1])
         fixed_rows.append(
             {
                 "parameter": str(name),
@@ -376,17 +358,17 @@ def analyze_mixed_effects(
     summary = {
         "fixed_formula": fixed_formula,
         "random_formula": re_formula,
-        "n_complete_case": int(complete.sum()),
+        "n_complete_case": model_frame.height,
         "n_groups": len(group_counts),
         "converged": converged,
         "singular_random_effect_covariance": singular,
         "reml": bool(reml),
-        "log_likelihood": _finite_or_none(fit.llf),
-        "aic": _finite_or_none(fit.aic),
-        "bic": _finite_or_none(fit.bic),
+        "log_likelihood": finite_or_none(fit.llf),
+        "aic": finite_or_none(fit.aic),
+        "bic": finite_or_none(fit.bic),
         "residual_variance": residual_var,
         "random_intercept_variance": random_intercept_var,
-        "icc_random_intercept": _finite_or_none(icc),
+        "icc_random_intercept": finite_or_none(icc),
     }
     status = ResultStatus.OK if converged else ResultStatus.DEGENERATE
     reason = None if converged else "mixed_model_not_converged"

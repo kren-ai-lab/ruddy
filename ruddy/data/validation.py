@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import polars as pl
+import pyarrow as pa
 
 from ruddy.core.enums import AlignmentMode
 from ruddy.core.exceptions import (
@@ -100,7 +101,7 @@ def align_annotations(
                 "Pass frame.reset_index() with the ID as a column."
             )
         annotation_id_values = annotations.get(id_column)
-        annotations = pl.from_pandas(annotations, include_index=False)
+        annotations = from_pandas_checked(annotations)
     elif isinstance(annotations, pl.DataFrame):
         if id_column is None:
             raise ValueError("Polars annotations require id_column: Polars has no row index.")
@@ -152,3 +153,35 @@ def align_annotations(
     if id_column is not None:
         aligned = aligned.with_columns(pl.Series(id_column, list(base))).select(annotations.columns)
     return aligned, report
+
+
+def from_pandas_checked(frame: pd.DataFrame) -> pl.DataFrame:
+    """Safely convert a pandas DataFrame to Polars, verifying schemas and representations."""
+    if not frame.columns.is_unique:
+        duplicates = frame.columns[frame.columns.duplicated()].tolist()
+        raise ValueError(f"DataFrame column names must be unique; duplicates={duplicates}.")
+    non_string = [column for column in frame.columns if not isinstance(column, str)]
+    if non_string:
+        raise TypeError(
+            f"Ruddy requires string column names for stable schemas; non-string labels={non_string}."
+        )
+    non_string_categoricals = [
+        column
+        for column in frame.columns
+        if isinstance(frame[column].dtype, pd.CategoricalDtype)
+        and not pd.api.types.is_string_dtype(frame[column].cat.categories)
+    ]
+    if non_string_categoricals:
+        raise TypeError(
+            "pandas Categorical columns with non-string categories would be reinterpreted "
+            "as numeric by Polars; convert them to string categories or to Polars explicitly: "
+            f"{non_string_categoricals}."
+        )
+    try:
+        # Deep-copy first: from_pandas may share numeric buffers with the caller's frame.
+        return pl.from_pandas(frame.copy(deep=True), include_index=False)
+    except (pa.ArrowNotImplementedError, pa.ArrowInvalid, TypeError) as exc:
+        raise TypeError(
+            "pandas DataFrame contains a dtype Polars cannot represent (e.g. complex); "
+            f"drop or convert it explicitly before constructing TabularDataset: {exc}"
+        ) from exc
