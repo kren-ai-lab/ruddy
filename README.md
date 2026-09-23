@@ -1,30 +1,36 @@
 # Ruddy
 
-**Ruddy** is a Python library for statistical exploratory data analysis of
-tabular datasets and numerical feature spaces: embeddings, descriptors and
-other observation-aligned matrices. It returns Polars tables with sample counts,
-scientific diagnostics and provenance, ready for filtering, export and plotting.
+[![PyPI](https://img.shields.io/pypi/v/ruddy?style=flat-square)](https://pypi.org/project/ruddy/)
+[![PyVersions](https://img.shields.io/pypi/pyversions/ruddy?style=flat-square)](https://github.com/kren-ai-lab/ruddy)
+[![Tests](https://img.shields.io/github/actions/workflow/status/kren-ai-lab/ruddy/tests.yml?style=flat-square)](https://github.com/kren-ai-lab/ruddy/actions/workflows/tests.yml)
+![License](https://img.shields.io/github/license/kren-ai-lab/ruddy?style=flat-square)
 
-Ruddy is domain-agnostic. It analyzes supplied data and representations; it does
-not generate domain-specific features. Plotting lives in the
-[example notebooks](examples/README.md), outside the scientific core.
+Ruddy is a Python library for statistical exploratory data analysis. It works
+on tables and on numerical feature spaces such as embeddings or descriptor
+matrices, as long as each row belongs to an identifiable observation. Results
+come back as Polars tables that carry sample counts, diagnostics and the
+parameters used, so you can filter them, export them or plot them.
+
+Ruddy doesn't know about any particular domain and doesn't compute features. You
+bring the data or the representation, and Ruddy analyzes it. It also has no
+plotting code, but you can use your prefered library for visualizations.
+See [example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/README.md) for more comprehensive examples.
 
 ## Installation
 
-Ruddy is in pre-release development and supports Python 3.11–3.14.
-From a checkout:
+Ruddy supports Python 3.11 to 3.14.
 
 ```bash
-python -m pip install -e .
+python -m pip install ruddy
 ```
 
 For optional UMAP support:
 
 ```bash
-python -m pip install -e ".[manifold]"
+python -m pip install "ruddy[manifold]"
 ```
 
-For development setup with `uv`, see [DEVELOPMENT.md](DEVELOPMENT.md).
+For development setup with `uv`, see [DEVELOPMENT.md](https://github.com/kren-ai-lab/ruddy/blob/main/DEVELOPMENT.md).
 
 ## Analyze a table
 
@@ -54,10 +60,11 @@ print(univariate.numeric_statistics)
 print(bivariate.correlations)
 ```
 
-Use `pl.read_csv(...)` or `pl.read_parquet(...)` for file inputs. pandas
-DataFrames are also accepted. Column roles are separate from storage types:
-a numerically encoded batch can be explicitly declared as a categorical factor.
-See [data contracts](docs/DATA_CONTRACTS.md) for identity and alignment rules.
+To read files, use `pl.read_csv(...)` or `pl.read_parquet(...)`. pandas
+DataFrames work too. A column's role doesn't depend on its dtype, so a batch
+stored as integers can still be declared a categorical factor. The
+[data contracts](https://github.com/kren-ai-lab/ruddy/blob/main/docs/DATA_CONTRACTS.md) guide explains how observation IDs
+are checked and aligned.
 
 ## Analyze a feature space
 
@@ -73,8 +80,10 @@ print(pca.scores)
 print(pca.variance)
 ```
 
-`FeatureMatrix` also accepts NumPy arrays and SciPy sparse matrices, with
-method-specific sparse support. To compare two spaces, supply explicit IDs:
+`FeatureMatrix` also takes NumPy arrays and SciPy sparse matrices. Not every
+method accepts sparse input, and Ruddy raises an error rather than densify it
+behind your back. To compare two feature spaces, give both of them observation
+IDs:
 
 ```python
 # Given two FeatureMatrix objects named space_a and space_b:
@@ -91,10 +100,10 @@ print(comparison.cka)
 print(comparison.mantel)
 ```
 
-See the [method reference](docs/METHODS.md) for supported analyses, assumptions
-and output interpretation. It covers descriptive statistics, group comparisons,
-dependence, uncertainty, factorial/mixed models, projections, multivariate
-structure, representation comparison, compositions, Bayesian EDA and anomalies.
+The [method reference](https://github.com/kren-ai-lab/ruddy/blob/main/docs/METHODS.md) lists every analysis with its
+assumptions and how to read its output. Besides the ones above, Ruddy has group
+comparisons, bootstrap intervals, factorial and mixed-effects models, PERMANOVA,
+compositional data, Bayesian summaries and anomaly flags.
 
 ## Run several analyses
 
@@ -113,8 +122,9 @@ result = analyze(
 print(result.summary())
 ```
 
-The default configuration enables only profiling and univariate analysis.
-See [unified analysis](docs/UNIFIED_ANALYSIS.md) for block selection and parameters.
+By default only profiling and univariate analysis run. The
+[unified analysis](https://github.com/kren-ai-lab/ruddy/blob/main/docs/UNIFIED_ANALYSIS.md) guide covers the other blocks and
+their parameters.
 
 ## Command line
 
@@ -126,39 +136,47 @@ ruddy analyze bivariate data.csv \
   --output-dir results
 ```
 
-Commands are grouped under `inspect`, `analyze`, `model` and `project`;
-`ruddy pipeline` runs explicitly selected blocks together. See the
-[CLI reference](docs/CLI_REFERENCE.md) for inputs, options and exported files.
+The commands are grouped under `inspect`, `analyze`, `model` and `project`.
+`ruddy pipeline` runs several blocks in one go, but only the ones you select.
+The [CLI reference](https://github.com/kren-ai-lab/ruddy/blob/main/docs/CLI_REFERENCE.md) documents every option and the
+files each command writes.
 
 ## Design principles
 
-- Data transformations, scaling and dimensionality reduction are explicit.
-  Missing values are not imputed and numeric-looking strings are not coerced.
-- Analyses report the observations they use; exclusions do not delete source rows.
-- Diagnostics do not change the requested test. Rank-deficient problems are
-  reported instead of silently regularized.
-- Outliers and anomalies are flagged, never removed or modified.
-- Data and annotations align by observation ID, not row position.
-- Results retain parameters, sample summaries, seeds and the Ruddy version.
+Ruddy tries hard not to make decisions for you:
 
-Check `status` and `reason` alongside estimates. `ok` means estimable;
-`degenerate` means the data make the quantity non-estimable; `skipped` means a
-requirement was not met. Unavailable table values are Polars nulls.
-See [results and provenance](docs/RESULTS_AND_PROVENANCE.md) for reading and
-exporting results.
+- Scaling and dimensionality reduction happen only when you ask for them.
+  Missing values aren't imputed, and a string that looks like a number stays a
+  string.
+- Each analysis reports which observations it used. Excluding a row never
+  deletes it from your data.
+- A diagnostic never swaps the test you asked for. If a normality check fails,
+  you still get the test you requested, with the diagnostic next to it.
+- A rank-deficient problem is reported as such, not quietly regularized.
+- Outliers are flagged and left alone.
+- Data and annotations are matched by observation ID, never by row position.
+- Every result records its parameters, input sizes, random seed and the Ruddy
+  version that produced it.
+
+Because of this, read `status` and `reason` next to every estimate. `ok` means
+the quantity was estimated. `degenerate` means the data can't support it, for
+example a constant column in a correlation. `skipped` means a requirement
+wasn't met. Missing values in result tables are Polars nulls, not NaN. See
+[results and provenance](https://github.com/kren-ai-lab/ruddy/blob/main/docs/RESULTS_AND_PROVENANCE.md) for how to read and
+export results.
 
 ## Documentation and examples
 
-The [documentation index](docs/README.md) links the user guides and development
-instructions. The [13 example notebooks](examples/README.md) demonstrate complete
-workflows and plots. Open one interactively with:
+The [documentation index](https://github.com/kren-ai-lab/ruddy/blob/main/docs/README.md) links all the guides. There are also
+[13 example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/README.md) written in marimo. To open one:
 
 ```bash
 uv sync --all-extras --group examples
 uv run marimo edit examples/01_profiling_univariate.py
 ```
 
-Ruddy does not provide supervised prediction, clustering, survival/time-series
-models, repeated-measures-specific procedures or unrestricted GLM/Bayesian model
-specification. It returns statistical evidence; domain interpretation, causal
-claims and decisions about flagged observations remain with the caller.
+## Citing and license
+
+If you use Ruddy in published work, please cite it using
+[`CITATION.cff`](https://github.com/kren-ai-lab/ruddy/blob/main/CITATION.cff), or the "Cite this repository" button on
+GitHub. Ruddy is released under the [MIT license](https://github.com/kren-ai-lab/ruddy/blob/main/LICENSE).

@@ -1,6 +1,7 @@
 name: tests
 
 on:
+  workflow_call:
   push:
     paths:
       - "ruddy/**"
@@ -32,3 +33,17 @@ jobs:
         run: uv sync --all-extras
       - name: Run tests
         run: uv run pytest -q
+
+  # The declared lower bounds are part of the public contract: an unsupported
+  # floor can break silently (e.g. a scipy keyword caught as a degenerate result).
+  lowest-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+      - name: Install lowest direct dependencies
+        run: uv sync --all-extras --resolution lowest-direct
+      - name: Run tests
+        run: uv run --no-sync pytest -q
