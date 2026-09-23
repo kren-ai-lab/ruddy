@@ -7,24 +7,23 @@ scientific diagnostics and provenance, ready for filtering, export and plotting.
 
 Ruddy is domain-agnostic. It analyzes supplied data and representations; it does
 not generate domain-specific features. Plotting lives in the
-[example notebooks](examples/README.md), outside the scientific core.
+[example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/README.md), outside the scientific core.
 
 ## Installation
 
-Ruddy is in pre-release development and supports Python 3.11–3.14.
-From a checkout:
+Ruddy supports Python 3.11–3.14.
 
 ```bash
-python -m pip install -e .
+python -m pip install ruddy
 ```
 
 For optional UMAP support:
 
 ```bash
-python -m pip install -e ".[manifold]"
+python -m pip install "ruddy[manifold]"
 ```
 
-For development setup with `uv`, see [DEVELOPMENT.md](DEVELOPMENT.md).
+For development setup with `uv`, see [DEVELOPMENT.md](https://github.com/kren-ai-lab/ruddy/blob/main/DEVELOPMENT.md).
 
 ## Analyze a table
 
@@ -57,7 +56,7 @@ print(bivariate.correlations)
 Use `pl.read_csv(...)` or `pl.read_parquet(...)` for file inputs. pandas
 DataFrames are also accepted. Column roles are separate from storage types:
 a numerically encoded batch can be explicitly declared as a categorical factor.
-See [data contracts](docs/DATA_CONTRACTS.md) for identity and alignment rules.
+See [data contracts](https://github.com/kren-ai-lab/ruddy/blob/main/docs/DATA_CONTRACTS.md) for identity and alignment rules.
 
 ## Analyze a feature space
 
@@ -91,7 +90,7 @@ print(comparison.cka)
 print(comparison.mantel)
 ```
 
-See the [method reference](docs/METHODS.md) for supported analyses, assumptions
+See the [method reference](https://github.com/kren-ai-lab/ruddy/blob/main/docs/METHODS.md) for supported analyses, assumptions
 and output interpretation. It covers descriptive statistics, group comparisons,
 dependence, uncertainty, factorial/mixed models, projections, multivariate
 structure, representation comparison, compositions, Bayesian EDA and anomalies.
@@ -114,7 +113,7 @@ print(result.summary())
 ```
 
 The default configuration enables only profiling and univariate analysis.
-See [unified analysis](docs/UNIFIED_ANALYSIS.md) for block selection and parameters.
+See [unified analysis](https://github.com/kren-ai-lab/ruddy/blob/main/docs/UNIFIED_ANALYSIS.md) for block selection and parameters.
 
 ## Command line
 
@@ -128,7 +127,7 @@ ruddy analyze bivariate data.csv \
 
 Commands are grouped under `inspect`, `analyze`, `model` and `project`;
 `ruddy pipeline` runs explicitly selected blocks together. See the
-[CLI reference](docs/CLI_REFERENCE.md) for inputs, options and exported files.
+[CLI reference](https://github.com/kren-ai-lab/ruddy/blob/main/docs/CLI_REFERENCE.md) for inputs, options and exported files.
 
 ## Design principles
 
@@ -144,13 +143,13 @@ Commands are grouped under `inspect`, `analyze`, `model` and `project`;
 Check `status` and `reason` alongside estimates. `ok` means estimable;
 `degenerate` means the data make the quantity non-estimable; `skipped` means a
 requirement was not met. Unavailable table values are Polars nulls.
-See [results and provenance](docs/RESULTS_AND_PROVENANCE.md) for reading and
+See [results and provenance](https://github.com/kren-ai-lab/ruddy/blob/main/docs/RESULTS_AND_PROVENANCE.md) for reading and
 exporting results.
 
 ## Documentation and examples
 
-The [documentation index](docs/README.md) links the user guides and development
-instructions. The [13 example notebooks](examples/README.md) demonstrate complete
+The [documentation index](https://github.com/kren-ai-lab/ruddy/blob/main/docs/README.md) links the user guides and development
+instructions. The [13 example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/README.md) demonstrate complete
 workflows and plots. Open one interactively with:
 
 ```bash
