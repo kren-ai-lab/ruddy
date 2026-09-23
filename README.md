@@ -4,6 +4,7 @@
 [![PyVersions](https://img.shields.io/pypi/pyversions/ruddy?style=flat-square)](https://github.com/kren-ai-lab/ruddy)
 [![Tests](https://img.shields.io/github/actions/workflow/status/kren-ai-lab/ruddy/tests.yml?style=flat-square)](https://github.com/kren-ai-lab/ruddy/actions/workflows/tests.yml)
 ![License](https://img.shields.io/github/license/kren-ai-lab/ruddy?style=flat-square)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22920317-blue?style=flat-square)](https://doi.org/10.5281/zenodo.22920317)
 
 Ruddy is a Python library for statistical exploratory data analysis. It works
 on tables and on numerical feature spaces such as embeddings or descriptor

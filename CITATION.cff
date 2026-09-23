@@ -4,7 +4,9 @@ title: "Ruddy: Domain-Agnostic Statistical Exploratory Data Analysis for Tabular
 abstract: "Domain-agnostic statistical exploratory data analysis for tabular datasets and numerical feature representations."
 type: software
 version: 0.1.0
+date-released: "2026-09-23"
 license: MIT
+doi: 10.5281/zenodo.22920317
 authors:
   - name: "Kren AI Lab"
     email: "krenai@umag.cl"
@@ -19,3 +21,10 @@ keywords:
   - factorial-analysis
   - dimensionality-reduction
   - scientific-software
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22920317
+    description: "Concept DOI (all versions)"
+  - type: doi
+    value: 10.5281/zenodo.22920318
+    description: "Version DOI (v0.1.0)"
