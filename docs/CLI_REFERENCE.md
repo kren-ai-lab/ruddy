@@ -33,6 +33,24 @@ A single top-level command rather than a group: it orchestrates blocks from
 every group, selected explicitly with `--enable`, under one configuration and
 one provenance record.
 
+#### Config file
+
+`ruddy pipeline INPUT --config pipeline.yaml` reads option values from a YAML (or JSON) file whose root is a mapping. Keys are option parameter names (`--random-state` is `random_state`). Precedence is built-in defaults, then the file, then flags given on the command line. Unknown keys and values of the wrong type are errors (exit code `2`). Options that take a file path (`output_dir`, `feature_input`, `feature_ids_file`, `comparison_feature_input`, `comparison_feature_ids_file`) and `config` itself must be passed as flags.
+
+```yaml
+id_column: id
+response: [y]
+group: [family]
+enable: [profiling, univariate, groups]
+random_state: 7
+```
+
+`ruddy validate pipeline.yaml [--json]` checks such a file without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate ...`).
+
+#### Provenance sidecar
+
+With `--output-dir DIR`, the pipeline also writes `DIR.provenance.json` next to the directory: tool and version, effective parameters, a fingerprint of them, sha256 of the input files and of the output, the environment and the executed blocks. Nothing is written in stdout mode.
+
 ### `ruddy inspect` — profiling and dataset diagnostics
 
 | Command | Purpose |

@@ -14,7 +14,7 @@ def _command_names(group: str | None = None) -> list[str]:
 
 
 def test_cli_exposes_the_command_groups() -> None:
-    assert _command_names() == ["analyze", "inspect", "model", "pipeline", "project"]
+    assert _command_names() == ["analyze", "inspect", "model", "pipeline", "project", "validate"]
 
 
 def test_cli_empty_invocation() -> None:
