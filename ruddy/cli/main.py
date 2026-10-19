@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
@@ -11,8 +12,11 @@ import ruddy.cli.inspect as inspect_group
 import ruddy.cli.model as model_group
 import ruddy.cli.pipeline as pipeline_command
 import ruddy.cli.project as project_group
+from ruddy.cli._config_file import ConfigIssue, check_config, read_config, report_issues
 from ruddy.cli._console import STATE, configure
-from ruddy.cli._options import CONTEXT_SETTINGS, version_callback
+from ruddy.cli._options import CONTEXT_SETTINGS, bundle, version_callback
+from ruddy.cli.commands.descriptive import build_config
+from ruddy.core.exceptions import RuddyError
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from collections.abc import Sequence
@@ -28,11 +32,34 @@ app = typer.Typer(
     ),
 )
 
+pipeline_command_app = typer.Typer(add_completion=False)
+pipeline_command_app.command("pipeline", context_settings=CONTEXT_SETTINGS)(pipeline_command.pipeline)
 app.command("pipeline", context_settings=CONTEXT_SETTINGS)(pipeline_command.pipeline)
 app.add_typer(inspect_group.app, name="inspect")
 app.add_typer(analyze_group.app, name="analyze")
 app.add_typer(model_group.app, name="model")
 app.add_typer(project_group.app, name="project")
+
+
+VALIDATE_CONFIG = typer.Argument(..., metavar="CONFIG", help="Pipeline config file (YAML or JSON).")
+VALIDATE_JSON = typer.Option(False, "--json", help="Print the issues as a JSON array on stdout.")
+
+
+@app.command("validate", context_settings=CONTEXT_SETTINGS)
+def validate(config: Path = VALIDATE_CONFIG, as_json: bool = VALIDATE_JSON) -> None:
+    """Validate a ``ruddy pipeline --config`` file without reading any data."""
+    command = typer.main.get_command(pipeline_command_app)
+    raw, issues = read_config(config)
+    issues = issues or check_config(command, raw, exclude=pipeline_command.CONFIG_EXCLUDE)
+    if not issues:
+        # Parse with the config as defaults, then run the same semantic checks the pipeline would.
+        ctx = command.make_context("pipeline", ["-"], default_map=raw)
+        try:
+            build_config(bundle(ctx.params))
+        except (RuddyError, TypeError, ValueError) as exc:
+            issues = [ConfigIssue("", str(exc))]
+    raise typer.Exit(report_issues(issues, as_json=as_json))
+
 
 QUIET_OPTION = typer.Option(
     False,

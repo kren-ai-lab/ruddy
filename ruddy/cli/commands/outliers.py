@@ -22,7 +22,7 @@ def write_outlier_result(result: OutlierResult, output_dir: str | Path) -> Path:
     write_table(result.quality, target / "numeric_quality.csv")
     if result.flags.height:
         write_table(result.flags, target / "outlier_flags.csv")
-    write_json(result.provenance.to_dict(), target / "outlier_provenance.json")
+    write_json(result.provenance.to_dict(), target / "outliers_provenance.json")
     return target
 
 

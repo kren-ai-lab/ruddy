@@ -139,6 +139,7 @@ ruddy analyze bivariate data.csv \
 
 The commands are grouped under `inspect`, `analyze`, `model` and `project`.
 `ruddy pipeline` runs several blocks in one go, but only the ones you select.
+It accepts `--config pipeline.yaml` (option names as keys; flags override the file), and `ruddy validate pipeline.yaml` checks such a file without reading data.
 The [CLI reference](https://github.com/kren-ai-lab/ruddy/blob/main/docs/CLI_REFERENCE.md) documents every option and the
 files each command writes.
 

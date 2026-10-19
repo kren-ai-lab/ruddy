@@ -46,7 +46,7 @@ def test_groups_cli_writes_structured_outputs(tmp_path) -> None:
         "grouped_numeric_comparisons.csv",
         "grouped_categorical_comparisons.csv",
         "annotation_coverage.csv",
-        "grouped_provenance.json",
+        "groups_provenance.json",
     }
     assert expected.issubset({path.name for path in output.iterdir()})
 

@@ -112,7 +112,7 @@ def write_projection_result(result: ProjectionResult, output_dir: str | Path) ->
         "warnings": list(result.warnings),
         "provenance": result.provenance.to_dict(),
     }
-    write_json(payload, target / "projection_provenance.json")
+    write_json(payload, target / f"{result.method.value}_provenance.json")
     return target
 
 
