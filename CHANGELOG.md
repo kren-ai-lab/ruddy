@@ -6,7 +6,7 @@ All notable changes to Ruddy are recorded here. Versions follow
 ## 0.2.0
 
 - `--config PATH` reads option values from a YAML/JSON file (defaults < file < command-line flags) in `pipeline` and every `inspect`, `analyze`, `model` and `project` subcommand. Path options stay on the command line.
-- `ruddy validate CONFIG [--json] [--command "project pca"]` checks a config without reading data (the pipeline's by default).
+- `ruddy validate-config CONFIG [--json] [--command "project pca"]` checks a config without reading data (the pipeline's by default).
 - Every command that writes to `--output-dir` also writes `DIR.provenance.json`, following the shared ecosystem CLI contract. `pyyaml` is now a runtime dependency.
 
 ### Breaking changes

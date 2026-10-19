@@ -58,7 +58,7 @@ def _find_command(name: str) -> Any:
     return command
 
 
-@app.command("validate", context_settings=CONTEXT_SETTINGS)
+@app.command("validate-config", context_settings=CONTEXT_SETTINGS)
 def validate(
     config: Path = VALIDATE_CONFIG,
     as_json: bool = VALIDATE_JSON,

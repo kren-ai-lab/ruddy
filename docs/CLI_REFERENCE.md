@@ -48,7 +48,7 @@ enable: [profiling, univariate, groups]
 random_state: 7
 ```
 
-`ruddy validate pipeline.yaml [--json] [--command "project pca"]` checks such a file (against the pipeline's options unless `--command` names another command) without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate ...`).
+`ruddy validate-config pipeline.yaml [--json] [--command "project pca"]` checks such a file (against the pipeline's options unless `--command` names another command) without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate-config ...`).
 
 #### Provenance sidecar
 
