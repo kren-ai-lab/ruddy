@@ -25,7 +25,7 @@ def test_unknown_column_reports_the_available_ones(
     code = main(["inspect", "profile", str(_source(tmp_path)), "--id-column", "nope"])
 
     captured = capsys.readouterr()
-    assert code == 2
+    assert code == 3
     assert captured.out == ""
     assert "nope" in captured.err
     assert "'id'" in captured.err
@@ -37,7 +37,7 @@ def test_missing_input_is_reported_without_a_traceback(
     code = main(["inspect", "profile", str(tmp_path / "absent.csv")])
 
     captured = capsys.readouterr()
-    assert code == 2
+    assert code == 3
     assert "absent.csv" in captured.err
     assert "Traceback" not in captured.err
 

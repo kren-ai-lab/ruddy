@@ -101,3 +101,54 @@ def test_check_config_flags_each_kind_of_problem() -> None:
     found = {i.path for i in check_config(cmd, {"size": 0, "layers": 3, "nope": 1}, exclude=frozenset())}
     assert found == {"size", "layers", "nope"}
     assert check_config(cmd, {"size": "4", "layers": [1, 2]}, exclude=frozenset()) == []
+
+
+def test_other_commands_follow_the_contract(data: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("n_components: 2\n")
+    out = tmp_path / "pca"
+    assert (
+        main(
+            [
+                "-q",
+                "project",
+                "pca",
+                str(data),
+                "--id-column",
+                "id",
+                "--config",
+                str(cfg),
+                "--output-dir",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    doc = json.loads((tmp_path / "pca.provenance.json").read_text())
+    jsonschema.validate(doc, _schema("provenance.schema.json"))
+    assert doc["command"] == "project pca"
+    assert doc["parameters"]["n_components"] == 2
+    assert "output_dir" not in doc["parameters"]
+    cfg.write_text("ids_file: x\n")
+    assert main(["project", "pca", str(data), "--id-column", "id", "--config", str(cfg)]) == 2
+
+
+def test_validate_targets_another_command(tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("n_components: 2\n")
+    assert main(["validate", str(cfg), "--command", "project pca"]) == 0
+    assert main(["validate", str(cfg)]) == 2
+    assert main(["validate", str(cfg), "--command", "project nope"]) == 2
+
+
+def test_exit_codes_for_runtime_and_internal_errors(
+    data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["inspect", "profile", str(data.parent / "absent.csv")]) == 3
+
+    def boom(_args: object) -> int:
+        raise KeyError("bug")
+
+    monkeypatch.setattr("ruddy.cli.inspect.run_profile", boom)
+    assert main(["inspect", "profile", str(data)]) == 4
+    assert "Traceback" in capsys.readouterr().err

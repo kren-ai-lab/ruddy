@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
+from ruddy.cli._contract import CONFIG
 from ruddy.cli._enums import (
     Alignment,
     AnomalyMethod,
@@ -127,6 +130,7 @@ app = typer.Typer(
 @app.command("bivariate", context_settings=CONTEXT_SETTINGS)
 def bivariate(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -156,6 +160,7 @@ def bivariate(
 @app.command("dependence", context_settings=CONTEXT_SETTINGS)
 def dependence(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -189,6 +194,7 @@ def dependence(
 @app.command("contingency", context_settings=CONTEXT_SETTINGS)
 def contingency(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -222,6 +228,7 @@ def contingency(
 @app.command("intervals", context_settings=CONTEXT_SETTINGS)
 def intervals(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -255,6 +262,7 @@ def intervals(
 @app.command("groups", context_settings=CONTEXT_SETTINGS)
 def groups(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -291,6 +299,7 @@ def groups(
 @app.command("posthoc", context_settings=CONTEXT_SETTINGS)
 def posthoc(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -329,6 +338,7 @@ def posthoc(
 def representation(
     input_x: str = REPRESENTATION_X_ARGUMENT,
     input_y: str = REPRESENTATION_Y_ARGUMENT,
+    config: Path | None = CONFIG,
     x_id_column: str | None = X_ID_COLUMN,
     y_id_column: str | None = Y_ID_COLUMN,
     x_ids_file: str | None = X_IDS_FILE,
@@ -353,6 +363,7 @@ def representation(
 @app.command("compositional", context_settings=CONTEXT_SETTINGS)
 def compositional(
     input: str = FEATURES_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     ids_file: str | None = IDS_FILE,
     feature_column: list[str] = FEATURE_COLUMN,
@@ -369,6 +380,7 @@ def compositional(
 @app.command("bayesian", context_settings=CONTEXT_SETTINGS)
 def bayesian(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -399,6 +411,7 @@ def bayesian(
 @app.command("anomaly", context_settings=CONTEXT_SETTINGS)
 def anomaly(
     input: str = FEATURES_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     ids_file: str | None = IDS_FILE,
     feature_column: list[str] = FEATURE_COLUMN,

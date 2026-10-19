@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import typer
-
-import ruddy
-from ruddy.cli._config_file import apply_config
-from ruddy.cli._console import STATE
+from ruddy.cli._contract import CONFIG
 from ruddy.cli._enums import (
     Alignment,
     AnalysisBlock,
@@ -159,35 +155,7 @@ from ruddy.cli._options import (
     bundle,
     dispatch,
 )
-from ruddy.cli._provenance import utc_now, write_provenance
 from ruddy.cli.commands import run_analyze
-
-#: Options that take a filesystem path; they stay on the command line, never in ``--config``.
-PATH_OPTIONS = frozenset(
-    {
-        "output_dir",
-        "feature_input",
-        "feature_ids_file",
-        "comparison_feature_input",
-        "comparison_feature_ids_file",
-    }
-)
-CONFIG_EXCLUDE = PATH_OPTIONS | {"config"}
-_PROVENANCE_PACKAGES = ["ruddy", "numpy", "pandas", "polars", "scipy", "scikit-learn", "statsmodels"]
-
-
-def _config_callback(ctx: typer.Context, value: Path | None) -> Path | None:
-    apply_config(ctx, value, exclude=CONFIG_EXCLUDE)
-    return value
-
-
-CONFIG = typer.Option(
-    None,
-    "--config",
-    is_eager=True,
-    callback=_config_callback,
-    help="YAML/JSON file of option values (keys are option names). Command-line flags win.",
-)
 
 
 def pipeline(
@@ -324,21 +292,4 @@ def pipeline(
     lof_neighbors: int = LOF_NEIGHBORS,
 ) -> None:
     """Run an explicitly configured unified Ruddy analysis pipeline."""
-    created_at = utc_now()
-    args = bundle(locals())
-    parameters = {k: v for k, v in vars(args).items() if k not in CONFIG_EXCLUDE | {"input"}}
-    given = [args.input, args.feature_input, args.feature_ids_file]
-    given += [args.comparison_feature_input, args.comparison_feature_ids_file]
-    dispatch(run_analyze, args, command="pipeline", legacy="analyze")
-    if args.output_dir:
-        write_provenance(
-            Path(args.output_dir),
-            tool="ruddy",
-            version=ruddy.__version__,
-            command="pipeline",
-            created_at=created_at,
-            parameters=parameters,
-            inputs=[Path(p) for p in given if p],
-            packages=_PROVENANCE_PACKAGES,
-            extensions={"executed_blocks": [name for name, _ in STATE.blocks]},
-        )
+    dispatch(run_analyze, bundle(locals()), command="pipeline", legacy="analyze")

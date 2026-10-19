@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
+from ruddy.cli._contract import CONFIG
 from ruddy.cli._enums import (
     Alignment,
     BootstrapMethod,
@@ -105,6 +108,7 @@ app = typer.Typer(
 @app.command("factorial", context_settings=CONTEXT_SETTINGS)
 def factorial(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -138,6 +142,7 @@ def factorial(
 @app.command("marginal-means", context_settings=CONTEXT_SETTINGS)
 def marginal_means(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -178,6 +183,7 @@ def marginal_means(
 @app.command("mixed-effects", context_settings=CONTEXT_SETTINGS)
 def mixed_effects(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -223,6 +229,7 @@ def mixed_effects(
 @app.command("manova", context_settings=CONTEXT_SETTINGS)
 def manova(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -247,6 +254,7 @@ def manova(
 @app.command("permanova", context_settings=CONTEXT_SETTINGS)
 def permanova(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,

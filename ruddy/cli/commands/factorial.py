@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import typer
+
 from ruddy.cli.commands.descriptive import build_config, load_dataset
 from ruddy.core.io import write_json, write_table
 from ruddy.factorial import FactorialResult, analyze_factorial
@@ -24,7 +26,7 @@ def _parse_interactions(values: list[str]) -> tuple[tuple[str, ...], ...]:
         columns = tuple(part.strip() for part in str(value).split(":"))
         if len(columns) < _MIN_INTERACTION_TERMS or any(not column for column in columns):
             msg = "--interaction must use colon-separated predictor names, e.g. factor_a:factor_b."
-            raise ValueError(msg)
+            raise typer.BadParameter(msg)
         if columns not in interactions:
             interactions.append(columns)
     return tuple(interactions)

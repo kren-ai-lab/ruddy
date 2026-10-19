@@ -20,10 +20,13 @@ matrix shape, the blocks that ran with `OK` or `WARN`, and where the artifacts
 were written. Commands that print machine-readable JSON write it to **stdout**,
 so that stream stays free of decoration and can be piped into `jq`.
 
-A user-facing error is reported on stderr without a traceback and exits with
-code `2`. Messages are actionable: an unknown column lists the available ones,
-and an unsupported extension lists the supported ones. Invoking `ruddy` with no
-command prints the help and exits with code `2`.
+Exit codes follow the shared ecosystem CLI contract: `0` success, `2` usage or
+config errors (including invoking `ruddy` with no command, which prints the help),
+`3` runtime failures (bad input data, unreadable files, failed computations) and
+`4` internal errors, which print a traceback on stderr. Errors are reported on
+stderr without a traceback, except `4`. Messages are actionable: an unknown
+column lists the available ones, and an unsupported extension lists the supported
+ones. `--debug` re-raises the original exception instead.
 
 ## Commands
 
@@ -35,7 +38,7 @@ one provenance record.
 
 #### Config file
 
-`ruddy pipeline INPUT --config pipeline.yaml` reads option values from a YAML (or JSON) file whose root is a mapping. Keys are option parameter names (`--random-state` is `random_state`). Precedence is built-in defaults, then the file, then flags given on the command line. Unknown keys and values of the wrong type are errors (exit code `2`). Options that take a file path (`output_dir`, `feature_input`, `feature_ids_file`, `comparison_feature_input`, `comparison_feature_ids_file`) and `config` itself must be passed as flags.
+Every command that writes to `--output-dir` (`pipeline` and all `inspect`, `analyze`, `model` and `project` subcommands) accepts `--config`. `ruddy pipeline INPUT --config pipeline.yaml` reads option values from a YAML (or JSON) file whose root is a mapping. Keys are option parameter names (`--random-state` is `random_state`). Precedence is built-in defaults, then the file, then flags given on the command line. Unknown keys and values of the wrong type are errors (exit code `2`). Options that take a file path (`output_dir`, `ids_file`, `x_ids_file`, `y_ids_file`, `feature_input`, `feature_ids_file`, `comparison_feature_input`, `comparison_feature_ids_file`, whichever the command has) and `config` itself must be passed as flags.
 
 ```yaml
 id_column: id
@@ -45,11 +48,11 @@ enable: [profiling, univariate, groups]
 random_state: 7
 ```
 
-`ruddy validate pipeline.yaml [--json]` checks such a file without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate ...`).
+`ruddy validate pipeline.yaml [--json] [--command "project pca"]` checks such a file (against the pipeline's options unless `--command` names another command) without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate ...`).
 
 #### Provenance sidecar
 
-With `--output-dir DIR`, the pipeline also writes `DIR.provenance.json` next to the directory: tool and version, effective parameters, a fingerprint of them, sha256 of the input files and of the output, the environment and the executed blocks. Nothing is written in stdout mode.
+With `--output-dir DIR`, every such command also writes `DIR.provenance.json` next to the directory: tool and version, effective parameters, a fingerprint of them, sha256 of the input files and of the output, the environment and the executed blocks. Nothing is written in stdout mode.
 
 ### `ruddy inspect` — profiling and dataset diagnostics
 
@@ -247,6 +250,6 @@ blocks and options.
 
 ## Limitations
 
-The CLI does not accept reusable configuration files or show progress during
-long analyses. Use Python `AnalysisConfig` for reusable multi-analysis settings;
+The CLI does not show progress during long analyses. Use Python
+`AnalysisConfig` for reusable multi-analysis settings;
 see [unified analysis](UNIFIED_ANALYSIS.md).
