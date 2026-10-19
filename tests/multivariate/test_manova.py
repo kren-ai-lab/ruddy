@@ -61,7 +61,7 @@ def test_complete_case_exclusions_are_observable():
     )
     result = analyze_manova(dataset, responses=("y1", "y2"), factors=("group",))
     assert len(result.exclusions) == 3
-    assert set(result.exclusions.get_column("observation_id").to_list()) == {"o0", "o1", "o2"}
+    assert set(result.exclusions.get_column("id").to_list()) == {"o0", "o1", "o2"}
 
 
 def test_rank_deficient_response_matrix_is_degenerate():

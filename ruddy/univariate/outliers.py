@@ -87,7 +87,7 @@ OUTLIER_FLAG_COLUMNS: tuple[str, ...] = (
     "column",
     "role",
     "method",
-    "observation_id",
+    "id",
     "source_row_index",
     "value",
     "score",
@@ -114,7 +114,7 @@ def _build_flags_frame(
 ) -> pl.DataFrame:
     id_dtype = pl.Series(dataset.observation_ids).dtype
     if not rows:
-        schema = {**OUTLIER_FLAG_SCHEMA_BASE, "observation_id": id_dtype}
+        schema = {**OUTLIER_FLAG_SCHEMA_BASE, "id": id_dtype}
         return pl.DataFrame(schema={col: schema[col] for col in OUTLIER_FLAG_COLUMNS})
     frame = pl.DataFrame(rows, schema_overrides=OUTLIER_FLAG_SCHEMA_BASE)
     return frame.select(list(OUTLIER_FLAG_COLUMNS))
@@ -288,7 +288,7 @@ def _flag_rows(
                 "column": str(summary["column"]),
                 "role": str(summary["role"]),
                 "method": method,
-                "observation_id": observation_ids[position],
+                "id": observation_ids[position],
                 "source_row_index": position,
                 "value": float(values[local_index]),
                 "score": float(scores[local_index]),

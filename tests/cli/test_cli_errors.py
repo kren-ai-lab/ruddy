@@ -67,7 +67,7 @@ def test_unsupported_extension_lists_the_supported_ones(tmp_path: Path) -> None:
 def test_quiet_suppresses_the_summary_but_keeps_stdout_json(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    code = main(["--quiet", "inspect", "profile", str(_source(tmp_path))])
+    code = main(["--quiet", "inspect", "profile", str(_source(tmp_path)), "--id-column", "id"])
 
     captured = capsys.readouterr()
     assert code == 0

@@ -64,8 +64,8 @@ def test_pca_exclusions_preserve_row_mapping():
     x = _matrix()[:8]
     x[2, 1] = np.nan
     result = analyze_pca(FeatureMatrix(x, observation_ids=[f"r{i}" for i in range(8)]), n_components=2)
-    assert result.scores["observation_id"].to_list() == ["r0", "r1", "r3", "r4", "r5", "r6", "r7"]
-    assert result.exclusions["observation_id"].to_list() == ["r2"]
+    assert result.scores["id"].to_list() == ["r0", "r1", "r3", "r4", "r5", "r6", "r7"]
+    assert result.exclusions["id"].to_list() == ["r2"]
     assert result.scores["source_row_index"].to_list() == [0, 1, 3, 4, 5, 6, 7]
 
 

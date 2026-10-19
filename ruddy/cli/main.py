@@ -13,12 +13,11 @@ import ruddy.cli.inspect as inspect_group
 import ruddy.cli.model as model_group
 import ruddy.cli.pipeline as pipeline_command
 import ruddy.cli.project as project_group
-from ruddy.cli._config_file import ConfigIssue, check_config, read_config, report_issues
+from ruddy.cli._config_file import report_issues
 from ruddy.cli._console import STATE, configure, fail
-from ruddy.cli._contract import config_exclude
-from ruddy.cli._options import CONTEXT_SETTINGS, bundle, version_callback
-from ruddy.cli.commands.descriptive import build_config
+from ruddy.cli._options import CONTEXT_SETTINGS, version_callback
 from ruddy.core.exceptions import ResultContractError, RuddyError
+from ruddy.validation import validate_config
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from collections.abc import Sequence
@@ -41,11 +40,10 @@ app.add_typer(model_group.app, name="model")
 app.add_typer(project_group.app, name="project")
 
 
-VALIDATE_CONFIG = typer.Argument(..., metavar="CONFIG", help="Config file (YAML or JSON).")
-VALIDATE_JSON = typer.Option(False, "--json", help="Print the issues as a JSON array on stdout.")
-VALIDATE_COMMAND = typer.Option(
-    "pipeline", "--command", help='Command whose options the config targets, e.g. "project pca".'
+VALIDATE_ARGS = typer.Argument(
+    ..., metavar="[COMMAND...] CONFIG", help="Command path (default: pipeline), then the config file."
 )
+VALIDATE_JSON = typer.Option(False, "--json", help="Print the issues as a JSON array on stdout.")
 
 
 def _find_command(name: str) -> Any:
@@ -54,29 +52,17 @@ def _find_command(name: str) -> Any:
         command = getattr(command, "commands", {}).get(part)  # duck-typed: Typer vendors Click
         if command is None:
             msg = f"unknown command {name!r}"
-            raise typer.BadParameter(msg, param_hint="'--command'")
+            raise typer.BadParameter(msg, param_hint="'COMMAND'")
     return command
 
 
 @app.command("validate-config", context_settings=CONTEXT_SETTINGS)
-def validate(
-    config: Path = VALIDATE_CONFIG,
-    as_json: bool = VALIDATE_JSON,
-    command_name: str = VALIDATE_COMMAND,
-) -> None:
+def validate(args: list[str] = VALIDATE_ARGS, as_json: bool = VALIDATE_JSON) -> None:
     """Validate a ``--config`` file for a command (default ``pipeline``) without reading any data."""
-    command = _find_command(command_name)
-    raw, issues = read_config(config)
-    issues = issues or check_config(command, raw, exclude=config_exclude(command))
-    if not issues:
-        # Parse with the config as defaults, then run the same semantic checks the command would.
-        n_arguments = sum(getattr(p, "param_type_name", None) == "argument" for p in command.params)
-        ctx = command.make_context(command_name, ["-"] * n_arguments, default_map=raw)
-        if "min_numeric_n" in ctx.params:  # table commands share the AnalysisConfig checks
-            try:
-                build_config(bundle(ctx.params))
-            except typer.BadParameter as exc:
-                issues = [ConfigIssue("", exc.format_message())]
+    *words, config = args
+    command_name = " ".join(words) or "pipeline"
+    _find_command(command_name)  # an unknown command is a usage error, not a config issue
+    issues = validate_config(Path(config), command_name)
     raise typer.Exit(report_issues(issues, as_json=as_json))
 
 

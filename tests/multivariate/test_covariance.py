@@ -102,9 +102,9 @@ def test_square_table_roundtrip():
     assert table.filter(pl.col("feature") == "b").row(0)[2] == 2.0
 
     dist_values = np.zeros((3, 3))
-    dist_table = square_table(dist_values, [0, 1, 2], label_column="observation_id")
-    assert dist_table.schema["observation_id"] == pl.Int64
-    assert dist_table.columns == ["observation_id", "0", "1", "2"]
+    dist_table = square_table(dist_values, [0, 1, 2], label_column="id")
+    assert dist_table.schema["id"] == pl.Int64
+    assert dist_table.columns == ["id", "0", "1", "2"]
 
 
 def test_spearman_via_ranks_matches_scipy_on_random_matrix():

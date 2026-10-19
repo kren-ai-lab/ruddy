@@ -53,7 +53,7 @@ CENTROID_SCHEMA_BASE: dict[str, PolarsDataType] = {
 
 CENTROID_COLUMNS: tuple[str, ...] = (
     "source_row_index",
-    "observation_id",
+    "id",
     "factor",
     "level",
     "distance_to_centroid",
@@ -228,7 +228,7 @@ def analyze_permutation_group_structure(
     id_dt = id_dtype(ids)
     empty_summary = pl.DataFrame(schema=SUMMARY_SCHEMA)
     empty_groups = pl.DataFrame(schema=GROUP_SCHEMA)
-    centroid_schema = {**CENTROID_SCHEMA_BASE, "observation_id": id_dt}
+    centroid_schema = {**CENTROID_SCHEMA_BASE, "id": id_dt}
     empty_dist = pl.DataFrame(schema={col: centroid_schema[col] for col in CENTROID_COLUMNS})
 
     if len(levels) < 2:
@@ -395,7 +395,7 @@ def analyze_permutation_group_structure(
         dist_rows.append(
             {
                 "source_row_index": source_row,
-                "observation_id": obs_id,
+                "id": obs_id,
                 "factor": factor,
                 "level": str(level),
                 "distance_to_centroid": float(distance),

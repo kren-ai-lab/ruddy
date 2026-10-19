@@ -53,7 +53,7 @@ class PCAResult:
         component_columns = [column for column in self.scores.columns if column.startswith("PC")]
         return FeatureMatrix(
             self.scores.select(component_columns),
-            observation_ids=self.scores.get_column("observation_id").to_list(),
+            observation_ids=self.scores.get_column("id").to_list(),
             feature_names=component_columns,
             provenance={
                 "derived_from": "pca",
@@ -73,7 +73,7 @@ def _empty_result(
 ) -> PCAResult:
     scores = pl.DataFrame(
         schema={
-            "observation_id": id_dtype,
+            "id": id_dtype,
             "source_row_index": pl.Int64,
         }
     )
@@ -154,7 +154,7 @@ def analyze_pca(
     score_matrix = np.asarray(estimator.fit_transform(matrix), dtype=np.float64)
     component_names = [f"PC{index + 1}" for index in range(score_matrix.shape[1])]
     scores_cols: dict[str, pl.Series] = {
-        "observation_id": pl.Series("observation_id", list(prepared.observation_ids), dtype=id_dtype),
+        "id": pl.Series("id", list(prepared.observation_ids), dtype=id_dtype),
         "source_row_index": pl.Series("source_row_index", prepared.source_row_indices, dtype=pl.Int64),
     }
     for index, name in enumerate(component_names):

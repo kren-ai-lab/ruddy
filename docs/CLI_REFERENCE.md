@@ -48,7 +48,9 @@ enable: [profiling, univariate, groups]
 random_state: 7
 ```
 
-`ruddy validate-config pipeline.yaml [--json] [--command "project pca"]` checks such a file (against the pipeline's options unless `--command` names another command) without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate-config ...`).
+`ruddy validate-config [COMMAND...] pipeline.yaml [--json]` checks such a file (against the pipeline's options unless `COMMAND`, e.g. `project pca`, names another command) without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate-config ...`).
+
+In Python, `ruddy.validate_config(config, command="pipeline")` runs the same check on a mapping or a file path and returns a list of `ruddy.ConfigIssue(path, message)`; it never raises for config problems.
 
 #### Provenance sidecar
 
@@ -216,7 +218,7 @@ Supply shared observation IDs when combining independently loaded files.
 ## Structured artifacts
 
 The CLI writes result tables as CSV and summaries/provenance as JSON. Matrix
-exports include a `feature` or `observation_id` column for row labels; no
+exports include a `feature` or `id` column for row labels; no
 implicit row index is written. CSV does not retain type metadata, so specify
 ID dtypes when reading exports back for alignment.
 

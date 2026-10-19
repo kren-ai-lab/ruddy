@@ -35,8 +35,8 @@ def test_tsne_excludes_nonfinite_rows_explicitly():
         max_iter=250,
         random_state=1,
     )
-    assert result.exclusions["observation_id"].to_list() == [4]
-    assert 4 not in result.coordinates["observation_id"].to_list()
+    assert result.exclusions["id"].to_list() == [4]
+    assert 4 not in result.coordinates["id"].to_list()
 
 
 def test_tsne_requires_valid_perplexity():

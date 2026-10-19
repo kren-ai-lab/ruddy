@@ -38,7 +38,7 @@ MAHALANOBIS_DISTANCE_SCHEMA_BASE: dict[str, PolarsDataType] = {
 
 MAHALANOBIS_DISTANCE_COLUMNS: tuple[str, ...] = (
     "source_row_index",
-    "observation_id",
+    "id",
     "method",
     "squared_distance",
     "distance",
@@ -91,7 +91,7 @@ def _method_rows(
     df_var = pl.DataFrame(
         {
             "source_row_index": pl.Series("source_row_index", source_rows.astype(np.int64), dtype=pl.Int64),
-            "observation_id": pl.Series("observation_id", id_list, dtype=id_dt),
+            "id": pl.Series("id", id_list, dtype=id_dt),
             "squared_distance": pl.Series("squared_distance", values, dtype=pl.Float64),
             "distance": pl.Series("distance", np.sqrt(np.maximum(values, 0.0)), dtype=pl.Float64),
             "is_flagged": pl.Series("is_flagged", values > threshold_squared, dtype=pl.Boolean),
@@ -255,7 +255,7 @@ def analyze_mahalanobis(
         distances = pl.concat(distance_frames, how="vertical")
     else:
         id_dt = pl.Series(prepared.observation_ids).dtype if len(prepared.observation_ids) > 0 else pl.String
-        schema = {**MAHALANOBIS_DISTANCE_SCHEMA_BASE, "observation_id": id_dt}
+        schema = {**MAHALANOBIS_DISTANCE_SCHEMA_BASE, "id": id_dt}
         distances = pl.DataFrame(schema={col: schema[col] for col in MAHALANOBIS_DISTANCE_COLUMNS})
 
     any_ok = bool((methods["status"] == ResultStatus.OK.value).any())

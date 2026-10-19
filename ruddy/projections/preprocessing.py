@@ -29,7 +29,7 @@ EXCLUSIONS_SCHEMA_BASE: dict[str, PolarsDataType] = {
 
 EXCLUSION_COLUMNS: tuple[str, ...] = (
     "source_row_index",
-    "observation_id",
+    "id",
     "stage",
     "reason",
 )
@@ -44,7 +44,7 @@ def _exclusions_table(
 ) -> pl.DataFrame:
     id_dt = id_dtype(ids)
     if len(excluded_rows) == 0:
-        schema = {**EXCLUSIONS_SCHEMA_BASE, "observation_id": id_dt}
+        schema = {**EXCLUSIONS_SCHEMA_BASE, "id": id_dt}
         return pl.DataFrame(schema={col: schema[col] for col in EXCLUSION_COLUMNS})
 
     indices = [int(i) for i in excluded_rows]
@@ -54,7 +54,7 @@ def _exclusions_table(
     rows = [
         {
             "source_row_index": idx,
-            "observation_id": oid,
+            "id": oid,
             "stage": stg,
             "reason": rsn,
         }
