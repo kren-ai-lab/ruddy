@@ -138,7 +138,7 @@ def aitchison_distance_matrix(array: np.ndarray, observation_ids: Sequence[Any])
     """Compute pairwise Aitchison distances between compositional observations."""
     clr = clr_transform(array)
     dist = squareform(pdist(clr, metric="euclidean"))
-    return square_table(dist, observation_ids, label_column="observation_id")
+    return square_table(dist, observation_ids, label_column="id")
 
 
 def analyze_composition(

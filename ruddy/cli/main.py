@@ -40,11 +40,10 @@ app.add_typer(model_group.app, name="model")
 app.add_typer(project_group.app, name="project")
 
 
-VALIDATE_CONFIG = typer.Argument(..., metavar="CONFIG", help="Config file (YAML or JSON).")
-VALIDATE_JSON = typer.Option(False, "--json", help="Print the issues as a JSON array on stdout.")
-VALIDATE_COMMAND = typer.Option(
-    "pipeline", "--command", help='Command whose options the config targets, e.g. "project pca".'
+VALIDATE_ARGS = typer.Argument(
+    ..., metavar="[COMMAND...] CONFIG", help="Command path (default: pipeline), then the config file."
 )
+VALIDATE_JSON = typer.Option(False, "--json", help="Print the issues as a JSON array on stdout.")
 
 
 def _find_command(name: str) -> Any:
@@ -53,19 +52,17 @@ def _find_command(name: str) -> Any:
         command = getattr(command, "commands", {}).get(part)  # duck-typed: Typer vendors Click
         if command is None:
             msg = f"unknown command {name!r}"
-            raise typer.BadParameter(msg, param_hint="'--command'")
+            raise typer.BadParameter(msg, param_hint="'COMMAND'")
     return command
 
 
 @app.command("validate-config", context_settings=CONTEXT_SETTINGS)
-def validate(
-    config: Path = VALIDATE_CONFIG,
-    as_json: bool = VALIDATE_JSON,
-    command_name: str = VALIDATE_COMMAND,
-) -> None:
+def validate(args: list[str] = VALIDATE_ARGS, as_json: bool = VALIDATE_JSON) -> None:
     """Validate a ``--config`` file for a command (default ``pipeline``) without reading any data."""
+    *words, config = args
+    command_name = " ".join(words) or "pipeline"
     _find_command(command_name)  # an unknown command is a usage error, not a config issue
-    issues = validate_config(config, command_name)
+    issues = validate_config(Path(config), command_name)
     raise typer.Exit(report_issues(issues, as_json=as_json))
 
 

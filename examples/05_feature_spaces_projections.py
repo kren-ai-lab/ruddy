@@ -150,10 +150,10 @@ def _(mo):
 def _(frame, pca, pl):
     import plotly.express as px
     interactive = (
-        pca.scores.join(frame.select(['id', 'group', 'source', 'phenotype', 'activity']), left_on='observation_id', right_on='id', how='left')
+        pca.scores.join(frame.select(['id', 'group', 'source', 'phenotype', 'activity']), on='id', how='left')
         .to_pandas()
     )
-    _fig = px.scatter(interactive, x='PC1', y='PC2', color='group', symbol='source', hover_data=['observation_id', 'phenotype', 'activity'], title='Interactive PCA score explorer')
+    _fig = px.scatter(interactive, x='PC1', y='PC2', color='group', symbol='source', hover_data=['id', 'phenotype', 'activity'], title='Interactive PCA score explorer')
     _fig
     return
 

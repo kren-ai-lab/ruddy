@@ -60,7 +60,7 @@ def _(mo):
 
 @app.cell
 def _(finish, frame, np, out, pl, plt, show):
-    flagged = set(out.flags.filter(pl.col('column') == 'activity').get_column('observation_id').to_list())
+    flagged = set(out.flags.filter(pl.col('column') == 'activity').get_column('id').to_list())
     f = (
         frame.select(['id', 'activity', 'group'])
         .with_columns(flagged=pl.col('id').is_in(list(flagged)))
@@ -118,9 +118,9 @@ def _(an, anomaly_agreement, show):
 @app.cell
 def _(an, frame, pl, scatter_by_group, show):
     wide = (
-        an.scores.pivot(index='observation_id', on='method', values='anomaly_score')
+        an.scores.pivot(index='id', on='method', values='anomaly_score')
         .drop_nulls()
-        .join(frame.select(['id', 'group']), left_on='observation_id', right_on='id', how='left')
+        .join(frame.select(['id', 'group']), on='id', how='left')
     )
     scatter_by_group(wide, x='isolation_forest', y='lof', group='group', title='Isolation Forest vs LOF anomaly scores', fit_lines=False)
     show()
@@ -138,10 +138,10 @@ def _(mo):
 @app.cell
 def _(an, finish, pca, pl, plt, show):
     flags = (
-        an.scores.group_by('observation_id')
+        an.scores.group_by('id')
         .agg(anomaly=pl.col('is_flagged').any())
     )
-    merged = pca.scores.join(flags, on='observation_id', how='left')
+    merged = pca.scores.join(flags, on='id', how='left')
     _fig, _ax = plt.subplots(figsize=(7.4, 5.2))
     for _label in [False, True]:
         _sub = merged.filter(pl.col('anomaly') == _label)
@@ -168,10 +168,10 @@ def _(mo):
 def _(distance_scatter, mv, pl, show):
     md = (
         mv.mahalanobis.distances.filter(pl.col('status') == 'ok')
-        .pivot(index='observation_id', on='method', values='squared_distance')
+        .pivot(index='id', on='method', values='squared_distance')
         .drop_nulls()
     )
-    methods = [c for c in md.columns if c != 'observation_id']
+    methods = [c for c in md.columns if c != 'id']
     distance_scatter(
         md.get_column(methods[0]).to_numpy(),
         md.get_column(methods[-1]).to_numpy(),

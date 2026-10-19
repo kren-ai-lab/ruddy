@@ -45,7 +45,7 @@ def test_aitchison_distances_string_ids_and_zero_diagonal():
     features = _features()
     r = analyze_composition(features, transform="clr")
     table = r.aitchison_distances
-    assert table.schema["observation_id"] == pl.String
+    assert table.schema["id"] == pl.String
     for i in range(table.height):
         assert table.row(i)[i + 1] == 0.0
 

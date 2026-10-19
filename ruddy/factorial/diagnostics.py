@@ -59,7 +59,7 @@ OBSERVATION_DIAGNOSTIC_SCHEMA_BASE: dict[str, PolarsDataType] = {
 
 OBSERVATION_DIAGNOSTIC_COLUMNS = (
     "source_row_index",
-    "observation_id",
+    "id",
     "fitted_value",
     "residual",
     "studentized_residual",
@@ -327,7 +327,7 @@ def model_diagnostics(
             obs_rows.append(
                 {
                     "source_row_index": int(source_row_indices[index]),
-                    "observation_id": selected_ids[index],
+                    "id": selected_ids[index],
                     "fitted_value": finite_or_none(fitted[index]),
                     "residual": finite_or_none(residuals[index]),
                     "studentized_residual": studentized_value,
@@ -347,12 +347,12 @@ def model_diagnostics(
                     "reason": None,
                 }
             )
-        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dt}
+        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "id": id_dt}
         observations = pl.DataFrame(obs_rows, schema_overrides=schema).select(
             list(OBSERVATION_DIAGNOSTIC_COLUMNS)
         )
     except (ValueError, np.linalg.LinAlgError):
-        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dt}
+        schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "id": id_dt}
         observations = pl.DataFrame(schema={col: schema[col] for col in OBSERVATION_DIAGNOSTIC_COLUMNS})
 
     diagnostics = pl.DataFrame(rows, schema=DIAGNOSTIC_SCHEMA)

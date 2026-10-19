@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 
-from ruddy.cli._config_file import ConfigIssue
+from ruddy.cli._config_file import ConfigIssue, check_config, read_config
 
 if TYPE_CHECKING:
     import os
@@ -19,11 +19,10 @@ def validate_config(
 ) -> list[ConfigIssue]:
     """Check a config (mapping, or path to a YAML/JSON file) against ``command``'s options.
 
-    ``command`` is the CLI's ``--command`` value, e.g. ``"project pca"``. Returns the issues found (empty when
+    ``command`` is the CLI's ``COMMAND`` value, e.g. ``"project pca"``. Returns the issues found (empty when
     valid); problems with the file or the command are issues with path ``""``. Reads no data.
     """
     # Lazy: the CLI pulls in every command module.
-    from ruddy.cli._config_file import check_config, read_config  # noqa: PLC0415
     from ruddy.cli._contract import config_exclude  # noqa: PLC0415
     from ruddy.cli._options import bundle  # noqa: PLC0415
     from ruddy.cli.commands.descriptive import build_config  # noqa: PLC0415
@@ -41,10 +40,10 @@ def validate_config(
     if not issues:
         # Parse with the config as defaults, then run the same semantic checks the command would.
         n_arguments = sum(getattr(p, "param_type_name", None) == "argument" for p in cmd.params)
-        ctx = cmd.make_context(command, ["-"] * n_arguments, default_map=raw)
-        if "min_numeric_n" in ctx.params:  # table commands share the AnalysisConfig checks
-            try:
+        try:
+            ctx = cmd.make_context(command, ["-"] * n_arguments, default_map=raw)
+            if "min_numeric_n" in ctx.params:  # table commands share the AnalysisConfig checks
                 build_config(bundle(ctx.params))
-            except typer.BadParameter as exc:
-                issues = [ConfigIssue("", exc.format_message())]
+        except typer.BadParameter as exc:
+            issues = [ConfigIssue("", exc.format_message())]
     return issues

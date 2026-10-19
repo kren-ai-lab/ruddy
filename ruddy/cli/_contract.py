@@ -68,5 +68,8 @@ def write_sidecar(args: CliArgs, *, command: str, created_at: str) -> None:
         parameters={k: v for k, v in values.items() if k not in skip},
         inputs=[Path(p) for p in given],
         packages=_PACKAGES,
-        extensions={"executed_blocks": [name for name, _ in STATE.blocks]},
+        extensions={
+            "executed_blocks": [name for name, _ in STATE.blocks],
+            **({"generated_ids": True} if STATE.generated_ids else {}),
+        },
     )

@@ -35,7 +35,7 @@ REPRESENTATION_EXCLUSIONS_SCHEMA_BASE: dict[str, PolarsDataType] = {
 }
 
 REPRESENTATION_EXCLUSION_COLUMNS: tuple[str, ...] = (
-    "observation_id",
+    "id",
     "source_row_x",
     "source_row_y",
     "stage",
@@ -152,7 +152,7 @@ def _exclusions_table(
 ) -> pl.DataFrame:
     id_dt = id_dtype(ids)
     if len(excluded_indices) == 0:
-        schema = {"observation_id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE}
+        schema = {"id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE}
         return pl.DataFrame(schema={col: schema[col] for col in REPRESENTATION_EXCLUSION_COLUMNS})
 
     indices = [int(i) for i in excluded_indices]
@@ -162,7 +162,7 @@ def _exclusions_table(
     n = len(indices)
     rows = [
         {
-            "observation_id": obs_ids[j],
+            "id": obs_ids[j],
             "source_row_x": sx[j],
             "source_row_y": sy[j],
             "stage": stage,
@@ -172,7 +172,7 @@ def _exclusions_table(
     ]
     frame = pl.DataFrame(
         rows,
-        schema_overrides={"observation_id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE},
+        schema_overrides={"id": id_dt, **REPRESENTATION_EXCLUSIONS_SCHEMA_BASE},
     )
     return frame.select(list(REPRESENTATION_EXCLUSION_COLUMNS))
 
@@ -259,7 +259,7 @@ def _empty_cca_result(
     advisories: tuple[Advisory, ...] = (),
 ) -> CCAResult:
     empty_feature_df = pl.DataFrame(schema={"feature": pl.String})
-    empty_score_df = pl.DataFrame(schema={"observation_id": id_dt})
+    empty_score_df = pl.DataFrame(schema={"id": id_dt})
     return CCAResult(
         status=status,
         reason=reason,
@@ -356,8 +356,8 @@ def _cca_result(
     y_weights = _labelled("feature", y_list, pl.String, model.y_weights_)
     x_loadings = _labelled("feature", x_list, pl.String, model.x_loadings_)
     y_loadings = _labelled("feature", y_list, pl.String, model.y_loadings_)
-    x_scores = _labelled("observation_id", id_list, id_dt, xs)
-    y_scores = _labelled("observation_id", id_list, id_dt, ys)
+    x_scores = _labelled("id", id_list, id_dt, xs)
+    y_scores = _labelled("id", id_list, id_dt, ys)
     return CCAResult(
         ResultStatus.OK,
         None,

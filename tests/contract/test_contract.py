@@ -136,9 +136,21 @@ def test_other_commands_follow_the_contract(data: Path, tmp_path: Path) -> None:
 def test_validate_targets_another_command(tmp_path: Path) -> None:
     cfg = tmp_path / "cfg.yaml"
     cfg.write_text("n_components: 2\n")
-    assert main(["validate-config", str(cfg), "--command", "project pca"]) == 0
+    assert main(["validate-config", "project", "pca", str(cfg)]) == 0
+    assert main(["validate-config", "project pca", str(cfg)]) == 0
     assert main(["validate-config", str(cfg)]) == 2
-    assert main(["validate-config", str(cfg), "--command", "project nope"]) == 2
+    assert main(["validate-config", "project", "nope", str(cfg)]) == 2
+    assert main(["validate-config", "--command", "project pca", str(cfg)]) == 2
+
+
+def test_validate_never_raises(tmp_path: Path) -> None:
+    import ruddy
+
+    assert [i.path for i in ruddy.validate_config({"min_numeric_n": "x"})] == ["min_numeric_n"]
+    bad = tmp_path / "bin.yaml"
+    bad.write_bytes(b"\xff\xfe\x00bad")
+    assert [i.path for i in ruddy.validate_config(bad)] == [""]
+    assert main(["validate-config", str(bad)]) == 2
 
 
 def test_exit_codes_for_runtime_and_internal_errors(
@@ -170,3 +182,21 @@ def test_validate_config_public_api(tmp_path: Path) -> None:
     assert ruddy.validate_config(str(ok)) == []
     assert [i.path for i in ruddy.validate_config(tmp_path / "missing.yaml")] == [""]
     assert [i.path for i in ruddy.validate_config({}, "no such")] == [""]
+
+
+def test_generated_ids_are_recorded_and_id_comes_first(tmp_path: Path) -> None:
+    data = tmp_path / "noid.csv"
+    data.write_text("x,y,z\n" + "\n".join(f"{i},{(i * 7) % 11},{(i * 5) % 13}" for i in range(12)) + "\n")
+    out = tmp_path / "pca"
+    assert main(["-q", "project", "pca", str(data), "--output-dir", str(out)]) == 0
+    doc = json.loads((tmp_path / "pca.provenance.json").read_text())
+    jsonschema.validate(doc, _schema("provenance.schema.json"))
+    assert doc["extensions"]["generated_ids"] is True
+    assert (out / "pca_scores.csv").read_text().startswith("id,source_row_index,PC1")
+
+
+def test_no_generated_ids_flag_with_id_column(data: Path, tmp_path: Path) -> None:
+    out = tmp_path / "pca"
+    assert main(["-q", "project", "pca", str(data), "--id-column", "id", "--output-dir", str(out)]) == 0
+    doc = json.loads((tmp_path / "pca.provenance.json").read_text())
+    assert "generated_ids" not in doc["extensions"]

@@ -49,7 +49,7 @@ def _coordinate_table(
     id_dt = id_dtype(observation_ids)
     component_names = [f"component_{index + 1}" for index in range(coordinates.shape[1])]
     columns: dict[str, pl.Series] = {
-        "observation_id": pl.Series("observation_id", list(observation_ids), dtype=id_dt),
+        "id": pl.Series("id", list(observation_ids), dtype=id_dt),
         "source_row_index": pl.Series("source_row_index", source_row_indices, dtype=pl.Int64),
     }
     values = np.asarray(coordinates, dtype=np.float64)

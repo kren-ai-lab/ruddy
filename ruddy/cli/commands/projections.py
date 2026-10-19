@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ruddy.cli._console import record_features
+from ruddy.cli._console import record_features, warn_generated_ids
 from ruddy.core.io import (
     TABLE_EXTENSIONS,
     read_ids,
@@ -29,7 +29,9 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from ruddy.cli._options import CliArgs
 
 
-def _recorded(features: FeatureMatrix) -> FeatureMatrix:
+def _recorded(features: FeatureMatrix, *, generated: bool) -> FeatureMatrix:
+    if generated:
+        warn_generated_ids("--id-column or --ids-file")
     record_features(features)
     return features
 
@@ -45,6 +47,7 @@ def load_feature_matrix(
     source = Path(path)
     suffix = source.suffix.lower()
     ids = None if ids_file is None else read_ids(ids_file)
+    generated = ids is None and id_column is None
 
     if suffix in TABLE_EXTENSIONS:
         frame = read_table(source)
@@ -68,10 +71,11 @@ def load_feature_matrix(
                 frame.select(selected),
                 observation_ids=ids,
                 feature_names=selected,
-            )
+            ),
+            generated=generated,
         )
 
-    return _recorded(FeatureMatrix(read_matrix(source), observation_ids=ids))
+    return _recorded(FeatureMatrix(read_matrix(source), observation_ids=ids), generated=generated)
 
 
 def write_pca_result(result: PCAResult, output_dir: str | Path) -> Path:

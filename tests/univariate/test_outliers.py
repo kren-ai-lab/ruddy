@@ -52,7 +52,7 @@ def test_iqr_flags_known_extreme_with_auditable_fences() -> None:
     flags = result.flags.filter((pl.col("column") == "x") & (pl.col("method") == "iqr"))
     assert flags.height == 1
     flag = flags.row(0, named=True)
-    assert flag["observation_id"] == "r8"
+    assert flag["id"] == "r8"
     assert flag["source_row_index"] == 7
     assert flag["value"] == pytest.approx(100.0)
     assert flag["direction"] == "high"
@@ -133,7 +133,7 @@ def test_flags_observation_id_dtype_follows_dataset_ids() -> None:
     ds_str = _dataset()
     res_str = analyze_outliers(ds_str, methods=("iqr",), include_flags=True)
     assert res_str.flags.height > 0
-    assert res_str.flags["observation_id"].dtype == pl.String
+    assert res_str.flags["id"].dtype == pl.String
 
     # Generated integer IDs with flags
     frame_int = pd.DataFrame(
@@ -144,7 +144,7 @@ def test_flags_observation_id_dtype_follows_dataset_ids() -> None:
     ds_int = TabularDataset(frame_int)
     res_int = analyze_outliers(ds_int, methods=("iqr",), include_flags=True)
     assert res_int.flags.height > 0
-    assert res_int.flags["observation_id"].dtype == pl.Int64
+    assert res_int.flags["id"].dtype == pl.Int64
 
     # Dataset producing no flags (with string IDs)
     frame_no_flags = pd.DataFrame(
@@ -155,10 +155,10 @@ def test_flags_observation_id_dtype_follows_dataset_ids() -> None:
     ds_no_flags_str = TabularDataset(frame_no_flags, observation_ids=[f"id_{i}" for i in range(6)])
     res_no_flags_str = analyze_outliers(ds_no_flags_str, methods=("iqr",), include_flags=True)
     assert res_no_flags_str.flags.height == 0
-    assert res_no_flags_str.flags["observation_id"].dtype == pl.String
+    assert res_no_flags_str.flags["id"].dtype == pl.String
 
     # Dataset producing no flags (with integer IDs)
     ds_no_flags_int = TabularDataset(frame_no_flags)
     res_no_flags_int = analyze_outliers(ds_no_flags_int, methods=("iqr",), include_flags=True)
     assert res_no_flags_int.flags.height == 0
-    assert res_no_flags_int.flags["observation_id"].dtype == pl.Int64
+    assert res_no_flags_int.flags["id"].dtype == pl.Int64

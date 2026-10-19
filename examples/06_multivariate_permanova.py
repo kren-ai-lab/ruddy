@@ -105,7 +105,7 @@ def _(bar_metric, mv, pl, show):
         .filter((pl.col('method') == 'classical') & (pl.col('status') == 'ok'))
         .sort('squared_distance', descending=True)
         .head(25)
-        .with_columns(label=pl.col('observation_id'))
+        .with_columns(label=pl.col('id'))
         .sort('squared_distance')
     )
     bar_metric(dist, label='label', value='squared_distance', title='Largest classical Mahalanobis distances', ylabel='Squared distance')
@@ -138,7 +138,7 @@ def _(mo):
 @app.cell
 def _(display, frame, group_violin_box_scatter, perm, show):
     display(perm.summary)
-    d = perm.distances_to_centroid.join(frame.select(['id', 'group']), left_on='observation_id', right_on='id', how='left')
+    d = perm.distances_to_centroid.join(frame.select(['id', 'group']), on='id', how='left')
     group_violin_box_scatter(d, value='distance_to_centroid', group='level', title='PERMDISP: distance to group centroid')
     show()
     return

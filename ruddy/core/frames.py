@@ -61,7 +61,7 @@ def labeled_matrix_table(
     ids: np.ndarray | list[Any] | tuple[Any, ...],
     columns: list[str],
     matrix: np.ndarray,
-    id_name: str = "observation_id",
+    id_name: str = "id",
     dtype: PolarsDataType = pl.Float64,
 ) -> pl.DataFrame:
     """Create a Polars DataFrame with labelled rows and columns."""
