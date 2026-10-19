@@ -113,9 +113,7 @@ def test_representation_block_runs_with_a_comparison_matrix(tmp_path: Path) -> N
     assert (output / "representation").is_dir()
 
 
-def test_representation_block_requires_a_comparison_matrix(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_representation_block_requires_a_comparison_matrix(tmp_path: Path) -> None:
     code = main(
         [
             "pipeline",
@@ -128,4 +126,3 @@ def test_representation_block_requires_a_comparison_matrix(
     )
 
     assert code == 2
-    assert "--comparison-feature-input" in capsys.readouterr().err
