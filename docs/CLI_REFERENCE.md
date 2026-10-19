@@ -50,6 +50,8 @@ random_state: 7
 
 `ruddy validate-config pipeline.yaml [--json] [--command "project pca"]` checks such a file (against the pipeline's options unless `--command` names another command) without reading any data and reports every problem (`path: message` lines on stderr, or a JSON array of `{path, message}` on stdout with `--json`). It exits `0` when valid and `2` otherwise. Global flags go before the command (`ruddy -q validate-config ...`).
 
+In Python, `ruddy.validate_config(config, command="pipeline")` runs the same check on a mapping or a file path and returns a list of `ruddy.ConfigIssue(path, message)`; it never raises for config problems.
+
 #### Provenance sidecar
 
 With `--output-dir DIR`, every such command also writes `DIR.provenance.json` next to the directory: tool and version, effective parameters, a fingerprint of them, sha256 of the input files and of the output, the environment and the executed blocks. Nothing is written in stdout mode.

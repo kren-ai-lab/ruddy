@@ -152,3 +152,21 @@ def test_exit_codes_for_runtime_and_internal_errors(
     monkeypatch.setattr("ruddy.cli.inspect.run_profile", boom)
     assert main(["inspect", "profile", str(data)]) == 4
     assert "Traceback" in capsys.readouterr().err
+
+
+def test_validate_config_public_api(tmp_path: Path) -> None:
+    import types
+
+    import ruddy
+
+    assert "validate_config" in ruddy.__all__ and "ConfigIssue" in ruddy.__all__
+    assert ruddy.validate_config({"min_numeric_n": 5}) == []
+    assert ruddy.validate_config(types.MappingProxyType({"min_numeric_n": 5})) == []
+    assert {i.path for i in ruddy.validate_config({"nope": 1})} == {"nope"}
+    assert ruddy.validate_config({"n_components": 2}, "project pca") == []
+    ok = tmp_path / "ok.yaml"
+    ok.write_text("min_numeric_n: 5\n")
+    assert ruddy.validate_config(ok) == []
+    assert ruddy.validate_config(str(ok)) == []
+    assert [i.path for i in ruddy.validate_config(tmp_path / "missing.yaml")] == [""]
+    assert [i.path for i in ruddy.validate_config({}, "no such")] == [""]
