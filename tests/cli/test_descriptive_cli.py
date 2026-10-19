@@ -39,7 +39,7 @@ def test_profile_cli_writes_structured_outputs(tmp_path) -> None:
     )
     assert {path.name for path in output.iterdir()} == {
         "overview.json",
-        "provenance.json",
+        "profiling_provenance.json",
         "columns.csv",
         "missingness.csv",
         "pairwise_completeness.csv",

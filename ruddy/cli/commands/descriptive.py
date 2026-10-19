@@ -250,7 +250,7 @@ def write_profiling_result(result: ProfilingResult, output_dir: str | Path) -> P
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_json(result.overview, target / "overview.json")
-    write_json(result.provenance.to_dict(), target / "provenance.json")
+    write_json(result.provenance.to_dict(), target / "profiling_provenance.json")
     _write_tables(
         target,
         (
