@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -13,10 +14,11 @@ import ruddy.cli.model as model_group
 import ruddy.cli.pipeline as pipeline_command
 import ruddy.cli.project as project_group
 from ruddy.cli._config_file import ConfigIssue, check_config, read_config, report_issues
-from ruddy.cli._console import STATE, configure
+from ruddy.cli._console import STATE, configure, fail
+from ruddy.cli._contract import config_exclude
 from ruddy.cli._options import CONTEXT_SETTINGS, bundle, version_callback
 from ruddy.cli.commands.descriptive import build_config
-from ruddy.core.exceptions import RuddyError
+from ruddy.core.exceptions import ResultContractError, RuddyError
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from collections.abc import Sequence
@@ -32,8 +34,6 @@ app = typer.Typer(
     ),
 )
 
-pipeline_command_app = typer.Typer(add_completion=False)
-pipeline_command_app.command("pipeline", context_settings=CONTEXT_SETTINGS)(pipeline_command.pipeline)
 app.command("pipeline", context_settings=CONTEXT_SETTINGS)(pipeline_command.pipeline)
 app.add_typer(inspect_group.app, name="inspect")
 app.add_typer(analyze_group.app, name="analyze")
@@ -41,23 +41,42 @@ app.add_typer(model_group.app, name="model")
 app.add_typer(project_group.app, name="project")
 
 
-VALIDATE_CONFIG = typer.Argument(..., metavar="CONFIG", help="Pipeline config file (YAML or JSON).")
+VALIDATE_CONFIG = typer.Argument(..., metavar="CONFIG", help="Config file (YAML or JSON).")
 VALIDATE_JSON = typer.Option(False, "--json", help="Print the issues as a JSON array on stdout.")
+VALIDATE_COMMAND = typer.Option(
+    "pipeline", "--command", help='Command whose options the config targets, e.g. "project pca".'
+)
 
 
-@app.command("validate", context_settings=CONTEXT_SETTINGS)
-def validate(config: Path = VALIDATE_CONFIG, as_json: bool = VALIDATE_JSON) -> None:
-    """Validate a ``ruddy pipeline --config`` file without reading any data."""
-    command = typer.main.get_command(pipeline_command_app)
+def _find_command(name: str) -> Any:
+    command = typer.main.get_command(app)
+    for part in name.split():
+        command = getattr(command, "commands", {}).get(part)  # duck-typed: Typer vendors Click
+        if command is None:
+            msg = f"unknown command {name!r}"
+            raise typer.BadParameter(msg, param_hint="'--command'")
+    return command
+
+
+@app.command("validate-config", context_settings=CONTEXT_SETTINGS)
+def validate(
+    config: Path = VALIDATE_CONFIG,
+    as_json: bool = VALIDATE_JSON,
+    command_name: str = VALIDATE_COMMAND,
+) -> None:
+    """Validate a ``--config`` file for a command (default ``pipeline``) without reading any data."""
+    command = _find_command(command_name)
     raw, issues = read_config(config)
-    issues = issues or check_config(command, raw, exclude=pipeline_command.CONFIG_EXCLUDE)
+    issues = issues or check_config(command, raw, exclude=config_exclude(command))
     if not issues:
-        # Parse with the config as defaults, then run the same semantic checks the pipeline would.
-        ctx = command.make_context("pipeline", ["-"], default_map=raw)
-        try:
-            build_config(bundle(ctx.params))
-        except (RuddyError, TypeError, ValueError) as exc:
-            issues = [ConfigIssue("", str(exc))]
+        # Parse with the config as defaults, then run the same semantic checks the command would.
+        n_arguments = sum(getattr(p, "param_type_name", None) == "argument" for p in command.params)
+        ctx = command.make_context(command_name, ["-"] * n_arguments, default_map=raw)
+        if "min_numeric_n" in ctx.params:  # table commands share the AnalysisConfig checks
+            try:
+                build_config(bundle(ctx.params))
+            except typer.BadParameter as exc:
+                issues = [ConfigIssue("", exc.format_message())]
     raise typer.Exit(report_issues(issues, as_json=as_json))
 
 
@@ -105,8 +124,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         if STATE.debug:
             raise
-        typer.echo(f"ERROR: {exc}", err=True)
-        return 1
+        # An invalid result is a bug, not bad input, so it exits 4 like any unexpected error.
+        if isinstance(exc, RuddyError | OSError | ValueError) and not isinstance(exc, ResultContractError):
+            fail(exc)
+            return 3
+        traceback.print_exc()
+        return 4
 
     return 0
 

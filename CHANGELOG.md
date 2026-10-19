@@ -5,12 +5,13 @@ All notable changes to Ruddy are recorded here. Versions follow
 
 ## 0.2.0
 
-- `ruddy pipeline --config PATH` reads option values from a YAML/JSON file (defaults < file < command-line flags). Path options stay on the command line.
-- `ruddy validate CONFIG [--json]` checks a pipeline config without reading data.
-- `ruddy pipeline --output-dir DIR` also writes `DIR.provenance.json`, following the shared ecosystem CLI contract. `pyyaml` is now a runtime dependency.
+- `--config PATH` reads option values from a YAML/JSON file (defaults < file < command-line flags) in `pipeline` and every `inspect`, `analyze`, `model` and `project` subcommand. Path options stay on the command line.
+- `ruddy validate-config CONFIG [--json] [--command "project pca"]` checks a config without reading data (the pipeline's by default).
+- Every command that writes to `--output-dir` also writes `DIR.provenance.json`, following the shared ecosystem CLI contract. `pyyaml` is now a runtime dependency.
 
 ### Breaking changes
 
+- Exit codes follow the shared ecosystem CLI contract: data and runtime errors (`RuddyError`, `OSError`, `ValueError`) now exit `3` instead of `2`, and unexpected errors exit `4` with a traceback instead of `1`. Usage and config errors still exit `2`.
 - Per-block provenance files are named `<block>_provenance.json` after the block they describe: `profiling_provenance.json` (was `provenance.json`), `groups_provenance.json` (was `grouped_…`), `outliers_provenance.json` (was `outlier_…`), `intervals_provenance.json` (was `interval_…`), `permanova_provenance.json` (was `permutation_group_…`), `mixed_effects_provenance.json` (was `mixed_…`), and `tsne_provenance.json` / `umap_provenance.json` (was `projection_provenance.json`).
 
 ## 0.1.0

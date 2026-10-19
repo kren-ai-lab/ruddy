@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
+from ruddy.cli._contract import CONFIG
 from ruddy.cli._enums import (
     BootstrapMethod,
     CorrelationMethod,
@@ -79,6 +82,7 @@ app = typer.Typer(
 @app.command("profile", context_settings=CONTEXT_SETTINGS)
 def profile(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -100,6 +104,7 @@ def profile(
 @app.command("univariate", context_settings=CONTEXT_SETTINGS)
 def univariate(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -121,6 +126,7 @@ def univariate(
 @app.command("diagnostics", context_settings=CONTEXT_SETTINGS)
 def diagnostics(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -157,6 +163,7 @@ def diagnostics(
 @app.command("outliers", context_settings=CONTEXT_SETTINGS)
 def outliers(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,
@@ -182,6 +189,7 @@ def outliers(
 @app.command("multivariate", context_settings=CONTEXT_SETTINGS)
 def multivariate(
     input: str = FEATURES_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     ids_file: str | None = IDS_FILE,
     feature_column: list[str] = FEATURE_COLUMN,

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
+from ruddy.cli._contract import CONFIG
 from ruddy.cli._enums import (
     Scaling,
 )
@@ -45,6 +48,7 @@ def _dispatch(args: CliArgs, method: str) -> None:
 @app.command("pca", context_settings=CONTEXT_SETTINGS)
 def pca(
     input: str = FEATURES_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     ids_file: str | None = IDS_FILE,
     feature_column: list[str] = FEATURE_COLUMN,
@@ -60,6 +64,7 @@ def pca(
 @app.command("tsne", context_settings=CONTEXT_SETTINGS)
 def tsne(
     input: str = FEATURES_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     ids_file: str | None = IDS_FILE,
     feature_column: list[str] = FEATURE_COLUMN,
@@ -78,6 +83,7 @@ def tsne(
 @app.command("umap", context_settings=CONTEXT_SETTINGS)
 def umap(
     input: str = FEATURES_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     ids_file: str | None = IDS_FILE,
     feature_column: list[str] = FEATURE_COLUMN,
