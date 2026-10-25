@@ -120,9 +120,7 @@ def test_feature_alignment_never_uses_row_position(robust_tabular):
     assert result.pca is not None
     assert result.pca.scores is not None
     components = ["PC1", "PC2"]
-    scores_by_id = pl.DataFrame({"observation_id": ids}).join(
-        result.pca.scores, on="observation_id", how="left"
-    )
+    scores_by_id = pl.DataFrame({"id": ids}).join(result.pca.scores, on="id", how="left")
     # Project the original rows onto the returned axes to avoid PCA sign ambiguity.
     expected_scores = (x - x.mean(axis=0)) @ result.pca.loadings.select(components).to_numpy()
     np.testing.assert_allclose(

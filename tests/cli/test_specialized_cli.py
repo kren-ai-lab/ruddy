@@ -170,9 +170,9 @@ def test_compositional_cli_writes_artifacts(tmp_path):
     var_df = pl.read_csv(out / "variation_matrix.csv")
     assert var_df.columns == ["feature", "a", "b", "c"]
     dist_df = pl.read_csv(out / "aitchison_distances.csv")
-    assert dist_df.columns == ["observation_id", *[f"o{i}" for i in range(20)]]
+    assert dist_df.columns == ["id", *[f"o{i}" for i in range(20)]]
     trans_df = pl.read_csv(out / "compositional_transformed.csv")
-    assert trans_df.columns == ["observation_id", "clr_a", "clr_b", "clr_c"]
+    assert trans_df.columns == ["id", "clr_a", "clr_b", "clr_c"]
 
 
 def test_compositional_cli_stdout(tmp_path, capsys):

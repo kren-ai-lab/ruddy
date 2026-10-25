@@ -33,7 +33,7 @@ def test_non_finite_rows_are_explicitly_excluded():
     result = prepare_features(FeatureMatrix(x, observation_ids=["a", "b", "c", "d"]), scaling="none")
     assert list(result.observation_ids) == ["a", "d"]
     assert result.source_row_indices.tolist() == [0, 3]
-    assert result.exclusions["observation_id"].to_list() == ["b", "c"]
+    assert result.exclusions["id"].to_list() == ["b", "c"]
     assert set(result.exclusions["reason"].to_list()) == {"non_finite_feature_row"}
 
 
@@ -55,4 +55,4 @@ def test_sparse_non_finite_rows_are_excluded():
     x = sparse.csr_matrix([[0.0, 1.0], [2.0, np.inf], [3.0, 4.0]])
     result = prepare_features(FeatureMatrix(x, observation_ids=[10, 11, 12]))
     assert list(result.observation_ids) == [10, 12]
-    assert result.exclusions["observation_id"].to_list() == [11]
+    assert result.exclusions["id"].to_list() == [11]

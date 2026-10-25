@@ -73,7 +73,7 @@ the row are estimable; inspect the method-specific fields and diagnostics.
 ### Matrices and observation tables
 
 Covariance, correlation, variation and distance matrices include row labels in
-the first column: `feature` for feature matrices or `observation_id` for
+the first column: `feature` for feature matrices or `id` for
 observation matrices. Remaining column names are the string forms of the
 corresponding labels. Coordinate/score tables similarly include observation
 IDs before their component columns. Identifier columns preserve their dtype.
@@ -84,7 +84,7 @@ metadata by ID:
 ```python
 # Given a PCAResult named pca:
 scores = pca.scores
-coordinates = scores.drop("observation_id").to_numpy()
+coordinates = scores.drop("id").to_numpy()
 ```
 
 ## Where to find each output

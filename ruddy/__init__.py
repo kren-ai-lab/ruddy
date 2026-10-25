@@ -36,6 +36,7 @@ from ruddy.bivariate import (
     summarize_partial_correlations,
     summarize_response_catalog,
 )
+from ruddy.cli._config_file import ConfigIssue
 from ruddy.compositional import (
     CompositionalResult,
     aitchison_distance_matrix,
@@ -147,6 +148,7 @@ from ruddy.univariate import (
     summarize_outliers,
     summarize_univariate,
 )
+from ruddy.validation import validate_config
 
 __all__ = [
     "Advisory",
@@ -169,6 +171,7 @@ __all__ = [
     "ComparisonTest",
     "CompositionalResult",
     "ConfidenceIntervalResult",
+    "ConfigIssue",
     "ContingencyDiagnosticsResult",
     "CorrelationMethod",
     "CovarianceResult",
@@ -274,6 +277,7 @@ __all__ = [
     "summarize_partial_correlations",
     "summarize_response_catalog",
     "summarize_univariate",
+    "validate_config",
     "variation_matrix",
     "welch_mean_difference_confidence_interval",
 ]
