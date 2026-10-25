@@ -13,7 +13,7 @@ from ruddy.univariate.categorical import summarize_categorical_statistics
 from ruddy.univariate.numeric import summarize_numeric_statistics, validate_quantiles
 
 if TYPE_CHECKING:
-    import datetime
+    import datetime as dt
 
     from polars._typing import PolarsDataType
 
@@ -87,8 +87,8 @@ def summarize_datetime_statistics(
             status, reason = "degenerate", "constant"
             range_seconds = 0.0
         else:
-            minimum = cast("datetime.datetime", present.min())
-            maximum = cast("datetime.datetime", present.max())
+            minimum = cast("dt.datetime", present.min())
+            maximum = cast("dt.datetime", present.max())
             status, reason = "ok", None
             range_seconds = float((maximum - minimum).total_seconds())
 
