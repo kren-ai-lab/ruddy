@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import math
 from typing import Any
 
@@ -148,8 +148,8 @@ def test_datetime_summary_is_descriptive_only() -> None:
     row = _row(table, "when")
     assert row["n_total"] == 8
     assert row["n_missing"] == 1
-    assert row["min"] == datetime.datetime(2026, 1, 1)  # noqa: DTZ001
-    assert row["max"] == datetime.datetime(2026, 1, 8)  # noqa: DTZ001
+    assert row["min"] == dt.datetime(2026, 1, 1)  # noqa: DTZ001
+    assert row["max"] == dt.datetime(2026, 1, 8)  # noqa: DTZ001
     assert row["range_seconds"] == pytest.approx(7 * 24 * 3600)
     assert row["status"] == "ok"
 

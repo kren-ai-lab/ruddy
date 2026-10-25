@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import polars as pl
+import typer
 
 from ruddy.analysis import AnalysisConfig
 from ruddy.cli._console import record_dataset
 from ruddy.core import ColumnKind, ColumnRole, UnknownColumnError
+from ruddy.core.exceptions import RuddyError
 from ruddy.core.io import read_table, write_json, write_table
 from ruddy.data import TabularDataset
 from ruddy.profiling import ProfilingResult, profile_dataset
@@ -61,7 +63,14 @@ def _build_kind_overrides(args: CliArgs) -> dict[str, ColumnKind]:
 
 
 def build_config(args: CliArgs) -> AnalysisConfig:
-    """Translate CLI options into an AnalysisConfig."""
+    """Translate CLI options into an AnalysisConfig; invalid option values are usage errors (exit 2)."""
+    try:
+        return _analysis_config(args)
+    except (RuddyError, TypeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+
+def _analysis_config(args: CliArgs) -> AnalysisConfig:
     return AnalysisConfig(
         id_column=args.id_column,
         random_state=getattr(args, "random_state", 0),
@@ -250,7 +259,7 @@ def write_profiling_result(result: ProfilingResult, output_dir: str | Path) -> P
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     write_json(result.overview, target / "overview.json")
-    write_json(result.provenance.to_dict(), target / "provenance.json")
+    write_json(result.provenance.to_dict(), target / "profiling_provenance.json")
     _write_tables(
         target,
         (

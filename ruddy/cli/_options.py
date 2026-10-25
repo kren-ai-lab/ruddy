@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING
 import typer
 
 from ruddy._version import __version__
-from ruddy.cli._console import STATE, fail, record_blocks, record_output, render
+from ruddy.cli._console import STATE, record_blocks, record_output, render
+from ruddy.cli._contract import write_sidecar
 from ruddy.cli._enums import (
     Alignment,
     BootstrapMethod,
@@ -25,15 +26,12 @@ from ruddy.cli._enums import (
     SimilarityMethod,
     SSType,
 )
-from ruddy.core.exceptions import RuddyError
+from ruddy.cli._provenance import utc_now
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from collections.abc import Callable
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
-
-#: Exit code used for every user-facing (non-crash) CLI failure.
-USER_ERROR_EXIT_CODE = 2
 
 
 class CliArgs(SimpleNamespace):
@@ -65,22 +63,20 @@ def dispatch(
     command: str,
     legacy: str | None = None,
 ) -> None:
-    """Run a commands-layer handler, map user errors to a clean exit code.
+    """Run a commands-layer handler, then write the provenance sidecar.
 
     ``legacy`` is the flat pre-2.0 command name; ``build_config`` still keys a
     couple of defaults off it.
     """
+    created_at = utc_now()
     args.command = legacy or command.rsplit(" ", 1)[-1]
     record_output(getattr(args, "output_dir", None))
-    try:
-        code = handler(args)
-    except (RuddyError, TypeError, ValueError, OSError) as exc:
-        fail(exc)
-        raise typer.Exit(USER_ERROR_EXIT_CODE) from exc
+    code = handler(args)
     if code:
         raise typer.Exit(int(code))
     if not _blocks_recorded():
         record_blocks([(args.command, True)])
+    write_sidecar(args, command=command, created_at=created_at)
     render(command)
 
 

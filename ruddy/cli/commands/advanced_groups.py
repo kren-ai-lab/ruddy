@@ -31,7 +31,7 @@ def write_permanova_result(result: PermutationGroupResult, output_dir: str | Pat
     write_table(result.distances_to_centroid, target / "permdisp_distances.csv")
     write_table(result.exclusions, target / "permutation_group_exclusions.csv")
     write_json(result.alignment.to_dict(), target / "permutation_group_alignment.json")
-    write_json(result.provenance.to_dict(), target / "permutation_group_provenance.json")
+    write_json(result.provenance.to_dict(), target / "permanova_provenance.json")
     if result.advisories:
         write_json(
             {"advisories": [a.to_dict() for a in result.advisories]},
@@ -69,7 +69,7 @@ def write_mixed_effects_result(result: MixedEffectsResult, output_dir: str | Pat
     write_table(result.random_effects, target / "mixed_random_effects.csv")
     write_table(result.exclusions, target / "mixed_exclusions.csv")
     write_json(result.model_summary, target / "mixed_model_summary.json")
-    write_json(result.provenance.to_dict(), target / "mixed_provenance.json")
+    write_json(result.provenance.to_dict(), target / "mixed_effects_provenance.json")
     if result.advisories:
         write_json(
             {"advisories": [a.to_dict() for a in result.advisories]},

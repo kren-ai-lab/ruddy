@@ -43,7 +43,7 @@ def test_outliers_cli_writes_structured_outputs(tmp_path: Path) -> None:
     assert (output / "outlier_summaries.csv").is_file()
     assert (output / "numeric_quality.csv").is_file()
     assert (output / "outlier_flags.csv").is_file()
-    provenance = json.loads((output / "outlier_provenance.json").read_text())
+    provenance = json.loads((output / "outliers_provenance.json").read_text())
     assert provenance["analysis"] == "outliers"
     summaries = pl.read_csv(output / "outlier_summaries.csv")
     assert set(summaries["column"].to_list()) == {"x"}

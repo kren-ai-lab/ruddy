@@ -31,7 +31,7 @@ ANOMALY_SCORE_SCHEMA_BASE: dict[str, PolarsDataType] = {
 }
 
 ANOMALY_SCORE_COLUMNS: tuple[str, ...] = (
-    "observation_id",
+    "id",
     "source_row_index",
     "method",
     "anomaly_score",
@@ -67,7 +67,7 @@ def _build_anomaly_scores(
 ) -> pl.DataFrame:
     id_dt = id_dtype(ids)
     if not rows:
-        schema = {**ANOMALY_SCORE_SCHEMA_BASE, "observation_id": id_dt}
+        schema = {**ANOMALY_SCORE_SCHEMA_BASE, "id": id_dt}
         return pl.DataFrame(schema={col: schema[col] for col in ANOMALY_SCORE_COLUMNS})
     frame = pl.DataFrame(rows, schema_overrides=ANOMALY_SCORE_SCHEMA_BASE)
     return frame.select(list(ANOMALY_SCORE_COLUMNS))
@@ -103,7 +103,7 @@ def analyze_anomalies(
         ):
             rows.append(
                 {
-                    "observation_id": oid,
+                    "id": oid,
                     "source_row_index": int(idx),
                     "method": "isolation_forest",
                     "anomaly_score": float(score),
@@ -145,7 +145,7 @@ def analyze_anomalies(
             ):
                 rows.append(
                     {
-                        "observation_id": oid,
+                        "id": oid,
                         "source_row_index": int(idx),
                         "method": "lof",
                         "anomaly_score": float(score),

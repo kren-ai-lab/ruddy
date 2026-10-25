@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import traceback
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -11,8 +13,11 @@ import ruddy.cli.inspect as inspect_group
 import ruddy.cli.model as model_group
 import ruddy.cli.pipeline as pipeline_command
 import ruddy.cli.project as project_group
-from ruddy.cli._console import STATE, configure
+from ruddy.cli._config_file import report_issues
+from ruddy.cli._console import STATE, configure, fail
 from ruddy.cli._options import CONTEXT_SETTINGS, version_callback
+from ruddy.core.exceptions import ResultContractError, RuddyError
+from ruddy.validation import validate_config
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from collections.abc import Sequence
@@ -33,6 +38,33 @@ app.add_typer(inspect_group.app, name="inspect")
 app.add_typer(analyze_group.app, name="analyze")
 app.add_typer(model_group.app, name="model")
 app.add_typer(project_group.app, name="project")
+
+
+VALIDATE_ARGS = typer.Argument(
+    ..., metavar="[COMMAND...] CONFIG", help="Command path (default: pipeline), then the config file."
+)
+VALIDATE_JSON = typer.Option(False, "--json", help="Print the issues as a JSON array on stdout.")
+
+
+def _find_command(name: str) -> Any:
+    command = typer.main.get_command(app)
+    for part in name.split():
+        command = getattr(command, "commands", {}).get(part)  # duck-typed: Typer vendors Click
+        if command is None:
+            msg = f"unknown command {name!r}"
+            raise typer.BadParameter(msg, param_hint="'COMMAND'")
+    return command
+
+
+@app.command("validate-config", context_settings=CONTEXT_SETTINGS)
+def validate(args: list[str] = VALIDATE_ARGS, as_json: bool = VALIDATE_JSON) -> None:
+    """Validate a ``--config`` file for a command (default ``pipeline``) without reading any data."""
+    *words, config = args
+    command_name = " ".join(words) or "pipeline"
+    _find_command(command_name)  # an unknown command is a usage error, not a config issue
+    issues = validate_config(Path(config), command_name)
+    raise typer.Exit(report_issues(issues, as_json=as_json))
+
 
 QUIET_OPTION = typer.Option(
     False,
@@ -78,8 +110,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:
         if STATE.debug:
             raise
-        typer.echo(f"ERROR: {exc}", err=True)
-        return 1
+        # An invalid result is a bug, not bad input, so it exits 4 like any unexpected error.
+        if isinstance(exc, RuddyError | OSError | ValueError) and not isinstance(exc, ResultContractError):
+            fail(exc)
+            return 3
+        traceback.print_exc()
+        return 4
 
     return 0
 

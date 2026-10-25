@@ -62,7 +62,7 @@ def write_group_result(result: GroupAnalysisResult, output_dir: str | Path) -> P
     }
     for name, table in tables.items():
         write_table(table, target / f"{name}.csv")
-    write_json(result.provenance.to_dict(), target / "grouped_provenance.json")
+    write_json(result.provenance.to_dict(), target / "groups_provenance.json")
     return target
 
 

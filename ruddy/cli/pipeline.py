@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from ruddy.cli._contract import CONFIG
 from ruddy.cli._enums import (
     Alignment,
     AnalysisBlock,
@@ -157,6 +160,7 @@ from ruddy.cli.commands import run_analyze
 
 def pipeline(
     input: str = TABLE_ARGUMENT,
+    config: Path | None = CONFIG,
     id_column: str | None = ID_COLUMN,
     response: list[str] = RESPONSE,
     factor: list[str] = FACTOR,

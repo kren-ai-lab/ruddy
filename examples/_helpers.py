@@ -400,7 +400,7 @@ def score_plot(
     if isinstance(scores, pl.DataFrame) or isinstance(metadata, pl.DataFrame):
         sc = scores if isinstance(scores, pl.DataFrame) else pl.from_pandas(scores)
         md = metadata if isinstance(metadata, pl.DataFrame) else pl.from_pandas(metadata)
-        merged = sc.join(md.select(["id", group]), left_on="observation_id", right_on="id", how="left")
+        merged = sc.join(md.select(["id", group]), on="id", how="left")
         levels = merged.get_column(group).unique(maintain_order=True).to_list()
         fig, ax = plt.subplots(figsize=(7.6, 5.4))
         for level in levels:
@@ -411,7 +411,7 @@ def score_plot(
             if ellipses:
                 confidence_ellipse(ax, xv, yv)
     else:
-        merged = scores.merge(metadata[["id", group]], left_on="observation_id", right_on="id", how="left")
+        merged = scores.merge(metadata[["id", group]], on="id", how="left")
         fig, ax = plt.subplots(figsize=(7.6, 5.4))
         for level, subset in merged.groupby(group, sort=False, dropna=False):
             xv = subset[x].to_numpy(dtype=float)
@@ -443,7 +443,7 @@ def biplot(
         sc = scores if isinstance(scores, pl.DataFrame) else pl.from_pandas(scores)
         ld = loadings if isinstance(loadings, pl.DataFrame) else pl.from_pandas(loadings)
         md = metadata if isinstance(metadata, pl.DataFrame) else pl.from_pandas(metadata)
-        merged = sc.join(md.select(["id", group]), left_on="observation_id", right_on="id", how="left")
+        merged = sc.join(md.select(["id", group]), on="id", how="left")
         fig, ax = plt.subplots(figsize=(8.0, 6.0))
         for level in merged.get_column(group).unique(maintain_order=True).to_list():
             subset = merged.filter(pl.col(group) == level) if level is not None else merged.filter(pl.col(group).is_null())
@@ -460,7 +460,7 @@ def biplot(
             ax.arrow(0, 0, dx, dy, width=0.006, head_width=0.08, length_includes_head=True, alpha=0.8)
             ax.text(dx * 1.08, dy * 1.08, str(row["feature"]), fontsize=8)
     else:
-        merged = scores.merge(metadata[["id", group]], left_on="observation_id", right_on="id", how="left")
+        merged = scores.merge(metadata[["id", group]], on="id", how="left")
         fig, ax = plt.subplots(figsize=(8.0, 6.0))
         for level, subset in merged.groupby(group, sort=False):
             ax.scatter(subset[x], subset[y], label=str(level), alpha=0.48, s=22)
@@ -481,14 +481,14 @@ def biplot(
 
 def anomaly_agreement(scores: pd.DataFrame | pl.DataFrame, *, title: str = "Anomaly-method agreement"):
     if isinstance(scores, pl.DataFrame):
-        pivot = scores.pivot(index="observation_id", on="method", values="is_flagged").fill_null(False)
-        method_cols = [c for c in pivot.columns if c != "observation_id"]
+        pivot = scores.pivot(index="id", on="method", values="is_flagged").fill_null(False)
+        method_cols = [c for c in pivot.columns if c != "id"]
         cast_exprs = [pl.col(c).cast(pl.Int32) for c in method_cols]
         pivot = pivot.with_columns(cast_exprs)
         pivot = pivot.with_columns(pl.sum_horizontal(method_cols).alias("_sum")).sort("_sum", descending=True).head(40).drop("_sum")
         return matrix_heatmap(pivot, title=title, fmt=".0f", annotate=False)
     else:
-        pivot = scores.pivot(index="observation_id", columns="method", values="is_flagged").fillna(False).astype(int)
+        pivot = scores.pivot(index="id", columns="method", values="is_flagged").fillna(False).astype(int)
         order = pivot.sum(axis=1).sort_values(ascending=False).index
         top = pivot.loc[order[: min(40, len(order))]]
         return matrix_heatmap(

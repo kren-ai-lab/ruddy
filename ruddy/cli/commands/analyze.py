@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import typer
+
 from ruddy.analysis import analyze
 from ruddy.cli._console import record_blocks
 from ruddy.cli.commands.advanced_groups import (
@@ -122,7 +124,7 @@ def run_analyze(args: CliArgs) -> int:
     if AnalysisBlock.REPRESENTATION in config.enabled_blocks:
         if not args.comparison_feature_input:
             msg = "--comparison-feature-input is required when enabling representation."
-            raise ValueError(msg)
+            raise typer.BadParameter(msg)
         comparison_features = load_feature_matrix(
             args.comparison_feature_input,
             id_column=args.comparison_feature_id_column,

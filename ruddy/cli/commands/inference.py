@@ -63,7 +63,7 @@ def write_confidence_interval_result(result: ConfidenceIntervalResult, output_di
     write_table(result.mean_differences, target / "mean_difference_intervals.csv")
     write_table(result.effect_sizes, target / "effect_size_intervals.csv")
     write_table(result.odds_ratios, target / "odds_ratio_intervals.csv")
-    write_json(result.provenance.to_dict(), target / "interval_provenance.json")
+    write_json(result.provenance.to_dict(), target / "intervals_provenance.json")
     return target
 
 

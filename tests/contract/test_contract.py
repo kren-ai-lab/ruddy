@@ -1,0 +1,202 @@
+"""Shared ecosystem CLI contract: ``--config``, ``validate-config`` and the provenance sidecar."""
+
+import json
+from pathlib import Path
+
+import jsonschema
+import pytest
+import typer
+
+from ruddy.cli._config_file import check_config
+from ruddy.cli.main import main
+
+HERE = Path(__file__).parent
+
+
+def _schema(name: str) -> dict:
+    return json.loads((HERE / name).read_text())
+
+
+@pytest.fixture
+def data(tmp_path: Path) -> Path:
+    path = tmp_path / "data.csv"
+    rows = ["id,x,y"] + [f"r{i},{i},{(i * 7) % 11}" for i in range(12)]
+    path.write_text("\n".join(rows) + "\n")
+    return path
+
+
+def _summary(capsys: pytest.CaptureFixture[str]) -> dict:
+    return json.loads(capsys.readouterr().out)
+
+
+def test_config_precedence(data: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("random_state: 5\nid_column: id\n")
+    args = ["-q", "pipeline", str(data), "--output-dir", str(tmp_path / "o")]
+
+    def params(*extra: str) -> dict:
+        assert main([*args, *extra]) == 0
+        capsys.readouterr()
+        return json.loads((tmp_path / "o.provenance.json").read_text())["parameters"]
+
+    assert params()["random_state"] == 0
+    assert params("--config", str(cfg))["random_state"] == 5
+    assert params("--config", str(cfg), "--random-state", "9")["random_state"] == 9
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["nope: 1\n", "random_state: three\n", "output_dir: x\n", "config: x\n", "- a\n"],
+)
+def test_invalid_config_exits_2(data: Path, tmp_path: Path, text: str) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(text)
+    assert main(["pipeline", str(data), "--config", str(cfg)]) == 2
+
+
+def test_validate_json_conforms(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("random_state: three\nnope: 1\n")
+    assert main(["validate-config", str(cfg), "--json"]) == 2
+    issues = json.loads(capsys.readouterr().out)
+    jsonschema.validate(issues, _schema("validate-errors.schema.json"))
+    assert {i["path"] for i in issues} == {"random_state", "nope"}
+    cfg.write_text("random_state: 3\n")
+    assert main(["validate-config", str(cfg), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == []
+
+
+def test_validate_runs_semantic_checks(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("confidence_level: 1.5\n")
+    assert main(["validate-config", str(cfg), "--json"]) == 2
+    assert json.loads(capsys.readouterr().out)[0]["path"] == ""
+
+
+def test_provenance_sidecar(data: Path, tmp_path: Path) -> None:
+    out = tmp_path / "report"
+    assert main(["-q", "pipeline", str(data), "--id-column", "id", "--output-dir", str(out)]) == 0
+    doc = json.loads((tmp_path / "report.provenance.json").read_text())
+    jsonschema.validate(doc, _schema("provenance.schema.json"))
+    assert doc["tool"]["name"] == "ruddy"
+    assert [i["path"] for i in doc["inputs"]] == [str(data)]
+    assert doc["extensions"]["executed_blocks"]
+
+
+def test_no_sidecar_in_stdout_mode(data: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["-q", "pipeline", str(data), "--id-column", "id"]) == 0
+    capsys.readouterr()
+    assert not list(tmp_path.glob("*.provenance.json"))
+
+
+def test_check_config_flags_each_kind_of_problem() -> None:
+    app = typer.Typer()
+    size_option = typer.Option(8, min=1)
+    layer_option = typer.Option([], "--layer")
+
+    @app.command()
+    def run(size: int = size_option, layers: list[int] = layer_option) -> None: ...
+
+    cmd = typer.main.get_command(app)
+    found = {i.path for i in check_config(cmd, {"size": 0, "layers": 3, "nope": 1}, exclude=frozenset())}
+    assert found == {"size", "layers", "nope"}
+    assert check_config(cmd, {"size": "4", "layers": [1, 2]}, exclude=frozenset()) == []
+
+
+def test_other_commands_follow_the_contract(data: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("n_components: 2\n")
+    out = tmp_path / "pca"
+    assert (
+        main(
+            [
+                "-q",
+                "project",
+                "pca",
+                str(data),
+                "--id-column",
+                "id",
+                "--config",
+                str(cfg),
+                "--output-dir",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    doc = json.loads((tmp_path / "pca.provenance.json").read_text())
+    jsonschema.validate(doc, _schema("provenance.schema.json"))
+    assert doc["command"] == "project pca"
+    assert doc["parameters"]["n_components"] == 2
+    assert "output_dir" not in doc["parameters"]
+    cfg.write_text("ids_file: x\n")
+    assert main(["project", "pca", str(data), "--id-column", "id", "--config", str(cfg)]) == 2
+
+
+def test_validate_targets_another_command(tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("n_components: 2\n")
+    assert main(["validate-config", "project", "pca", str(cfg)]) == 0
+    assert main(["validate-config", "project pca", str(cfg)]) == 0
+    assert main(["validate-config", str(cfg)]) == 2
+    assert main(["validate-config", "project", "nope", str(cfg)]) == 2
+    assert main(["validate-config", "--command", "project pca", str(cfg)]) == 2
+
+
+def test_validate_never_raises(tmp_path: Path) -> None:
+    import ruddy
+
+    assert [i.path for i in ruddy.validate_config({"min_numeric_n": "x"})] == ["min_numeric_n"]
+    bad = tmp_path / "bin.yaml"
+    bad.write_bytes(b"\xff\xfe\x00bad")
+    assert [i.path for i in ruddy.validate_config(bad)] == [""]
+    assert main(["validate-config", str(bad)]) == 2
+
+
+def test_exit_codes_for_runtime_and_internal_errors(
+    data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["inspect", "profile", str(data.parent / "absent.csv")]) == 3
+
+    def boom(_args: object) -> int:
+        raise KeyError("bug")
+
+    monkeypatch.setattr("ruddy.cli.inspect.run_profile", boom)
+    assert main(["inspect", "profile", str(data)]) == 4
+    assert "Traceback" in capsys.readouterr().err
+
+
+def test_validate_config_public_api(tmp_path: Path) -> None:
+    import types
+
+    import ruddy
+
+    assert "validate_config" in ruddy.__all__ and "ConfigIssue" in ruddy.__all__
+    assert ruddy.validate_config({"min_numeric_n": 5}) == []
+    assert ruddy.validate_config(types.MappingProxyType({"min_numeric_n": 5})) == []
+    assert {i.path for i in ruddy.validate_config({"nope": 1})} == {"nope"}
+    assert ruddy.validate_config({"n_components": 2}, "project pca") == []
+    ok = tmp_path / "ok.yaml"
+    ok.write_text("min_numeric_n: 5\n")
+    assert ruddy.validate_config(ok) == []
+    assert ruddy.validate_config(str(ok)) == []
+    assert [i.path for i in ruddy.validate_config(tmp_path / "missing.yaml")] == [""]
+    assert [i.path for i in ruddy.validate_config({}, "no such")] == [""]
+
+
+def test_generated_ids_are_recorded_and_id_comes_first(tmp_path: Path) -> None:
+    data = tmp_path / "noid.csv"
+    data.write_text("x,y,z\n" + "\n".join(f"{i},{(i * 7) % 11},{(i * 5) % 13}" for i in range(12)) + "\n")
+    out = tmp_path / "pca"
+    assert main(["-q", "project", "pca", str(data), "--output-dir", str(out)]) == 0
+    doc = json.loads((tmp_path / "pca.provenance.json").read_text())
+    jsonschema.validate(doc, _schema("provenance.schema.json"))
+    assert doc["extensions"]["generated_ids"] is True
+    assert (out / "pca_scores.csv").read_text().startswith("id,source_row_index,PC1")
+
+
+def test_no_generated_ids_flag_with_id_column(data: Path, tmp_path: Path) -> None:
+    out = tmp_path / "pca"
+    assert main(["-q", "project", "pca", str(data), "--id-column", "id", "--output-dir", str(out)]) == 0
+    doc = json.loads((tmp_path / "pca.provenance.json").read_text())
+    assert "generated_ids" not in doc["extensions"]

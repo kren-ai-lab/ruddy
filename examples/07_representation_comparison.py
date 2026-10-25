@@ -116,9 +116,9 @@ def _(AB, frame, pl, scatter_by_group, show):
     xs = AB.cca.x_scores.rename({'CC1': 'X1', 'CC2': 'X2'})
     ys = AB.cca.y_scores.rename({'CC1': 'Y1', 'CC2': 'Y2'})
     joint = (
-        xs.select(['observation_id', 'X1'])
-        .join(ys.select(['observation_id', 'Y1']), on='observation_id')
-        .join(frame.select(['id', 'group']), left_on='observation_id', right_on='id', how='left')
+        xs.select(['id', 'X1'])
+        .join(ys.select(['id', 'Y1']), on='id')
+        .join(frame.select(['id', 'group']), on='id', how='left')
     )
     scatter_by_group(joint, x='X1', y='Y1', group='group', title='First canonical variates: X score vs Y score')
     show()
@@ -196,7 +196,7 @@ def _(mo):
 @app.cell
 def _(joint):
     import plotly.express as px
-    _fig = px.scatter(joint.to_pandas(), x='X1', y='Y1', color='group', hover_name='observation_id', title='Interactive CCA score alignment')
+    _fig = px.scatter(joint.to_pandas(), x='X1', y='Y1', color='group', hover_name='id', title='Interactive CCA score alignment')
     _fig
     return
 

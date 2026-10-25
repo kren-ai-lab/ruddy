@@ -43,10 +43,10 @@ def test_representation_related_spaces_have_high_cca_and_cka():
     assert r.cca.y_weights.columns == ["feature", "CC1", "CC2"]
     assert r.cca.x_loadings.columns == ["feature", "CC1", "CC2"]
     assert r.cca.y_loadings.columns == ["feature", "CC1", "CC2"]
-    assert r.cca.x_scores.columns == ["observation_id", "CC1", "CC2"]
-    assert r.cca.y_scores.columns == ["observation_id", "CC1", "CC2"]
-    assert r.cca.x_scores.schema["observation_id"] == pl.String
-    assert r.cca.y_scores.schema["observation_id"] == pl.String
+    assert r.cca.x_scores.columns == ["id", "CC1", "CC2"]
+    assert r.cca.y_scores.columns == ["id", "CC1", "CC2"]
+    assert r.cca.x_scores.schema["id"] == pl.String
+    assert r.cca.y_scores.schema["id"] == pl.String
     for col, dtype in CCA_CORRELATION_SCHEMA.items():
         assert r.cca.correlations.schema[col] == dtype
 
@@ -101,8 +101,8 @@ def test_nonfinite_joint_rows_are_reported():
     arr[2, 0] = np.nan
     y = FeatureMatrix(arr, observation_ids=y.observation_ids)
     r = analyze_representation_similarity(x, y, cca_components=1, mantel_permutations=0)
-    assert r.exclusions.height == 1 and r.exclusions.item(0, "observation_id") == "o2"
-    assert r.exclusions.schema["observation_id"] == pl.String
+    assert r.exclusions.height == 1 and r.exclusions.item(0, "id") == "o2"
+    assert r.exclusions.schema["id"] == pl.String
     assert r.exclusions.schema["source_row_x"] == pl.Int64
     assert r.exclusions.schema["source_row_y"] == pl.Int64
 
@@ -118,7 +118,7 @@ def test_cca_effective_rank_guard():
     assert r.cca.reason == "cca_components_exceed_effective_rank"
     assert r.cca.correlations.height == 0
     assert r.cca.x_weights.columns == ["feature"]
-    assert r.cca.x_scores.columns == ["observation_id"]
+    assert r.cca.x_scores.columns == ["id"]
 
 
 def test_cka_zero_variance_degenerate():

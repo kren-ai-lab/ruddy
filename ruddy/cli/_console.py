@@ -34,6 +34,7 @@ class _RunState:
     inputs: list[tuple[str, str]] = field(default_factory=list)
     blocks: list[tuple[str, str]] = field(default_factory=list)
     output: Path | None = None
+    generated_ids: bool = False
 
 
 STATE = _RunState()
@@ -50,10 +51,19 @@ def configure(*, quiet: bool, debug: bool) -> None:
     STATE.inputs.clear()
     STATE.blocks.clear()
     STATE.output = None
+    STATE.generated_ids = False
+
+
+def warn_generated_ids(option: str) -> None:
+    """Warn on stderr that positional ids were generated, and flag it for the provenance sidecar."""
+    STATE.generated_ids = True
+    console.print(f"[yellow]{WARN_MARK} no id column: using generated positional ids; set {option}[/yellow]")
 
 
 def record_dataset(dataset: TabularDataset) -> None:
     """Record tabular dataset shape for the end-of-command summary."""
+    if dataset.provenance["id_source"] == "generated":
+        warn_generated_ids("--id-column")
     STATE.inputs.append(
         (
             "dataset",
@@ -121,4 +131,5 @@ __all__ = [
     "record_features",
     "record_output",
     "render",
+    "warn_generated_ids",
 ]

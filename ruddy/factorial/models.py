@@ -142,8 +142,8 @@ def _empty_result(
     advisories: tuple[Advisory, ...],
     provenance: AnalysisProvenance,
 ) -> FactorialResult:
-    id_dtype = exclusions.schema.get("observation_id", pl.String)
-    obs_diag_schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "observation_id": id_dtype}
+    id_dtype = exclusions.schema.get("id", pl.String)
+    obs_diag_schema = {**OBSERVATION_DIAGNOSTIC_SCHEMA_BASE, "id": id_dtype}
     return FactorialResult(
         status=status,
         reason=reason,

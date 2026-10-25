@@ -6,15 +6,13 @@
 ![License](https://img.shields.io/github/license/kren-ai-lab/ruddy?style=flat-square)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22920317-blue?style=flat-square)](https://doi.org/10.5281/zenodo.22920317)
 
-Ruddy is a Python library for statistical exploratory data analysis. It works
-on tables and on numerical feature spaces such as embeddings or descriptor
-matrices, as long as each row belongs to an identifiable observation. Results
-come back as Polars tables that carry sample counts, diagnostics and the
-parameters used, so you can filter them, export them or plot them.
+Ruddy is a Python library for statistical exploratory data analysis.
+It works on tables and on numerical feature spaces such as embeddings or descriptor matrices, as long as each row belongs to an identifiable observation.
+Results come back as Polars tables that carry sample counts, diagnostics and the parameters used, so you can filter them, export them or plot them.
 
-Ruddy doesn't know about any particular domain and doesn't compute features. You
-bring the data or the representation, and Ruddy analyzes it. It also has no
-plotting code, but you can use your prefered library for visualizations.
+Ruddy doesn't know about any particular domain and doesn't compute features.
+You bring the data or the representation, and Ruddy analyzes it.
+It also has no plotting code, but you can use your prefered library for visualizations.
 See [example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/README.md) for more comprehensive examples.
 
 ## Installation
@@ -22,13 +20,15 @@ See [example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/
 Ruddy supports Python 3.11 to 3.14.
 
 ```bash
-python -m pip install ruddy
+pip install ruddy
+# or with uv:
+uv add ruddy
 ```
 
 For optional UMAP support:
 
 ```bash
-python -m pip install "ruddy[manifold]"
+pip install "ruddy[manifold]"
 ```
 
 For development setup with `uv`, see [DEVELOPMENT.md](https://github.com/kren-ai-lab/ruddy/blob/main/DEVELOPMENT.md).
@@ -139,6 +139,17 @@ ruddy analyze bivariate data.csv \
 
 The commands are grouped under `inspect`, `analyze`, `model` and `project`.
 `ruddy pipeline` runs several blocks in one go, but only the ones you select.
+It accepts `--config pipeline.yaml` (option names as keys; flags override the file), and `ruddy validate-config pipeline.yaml` checks such a file without reading data.
+
+Validate a config from Python:
+
+```python
+from ruddy import validate_config
+
+issues = validate_config("pipeline.yaml")  # or a dict; command="project pca" for another command
+for issue in issues:
+    print(issue.path, issue.message)
+```
 The [CLI reference](https://github.com/kren-ai-lab/ruddy/blob/main/docs/CLI_REFERENCE.md) documents every option and the
 files each command writes.
 
@@ -146,30 +157,24 @@ files each command writes.
 
 Ruddy tries hard not to make decisions for you:
 
-- Scaling and dimensionality reduction happen only when you ask for them.
-  Missing values aren't imputed, and a string that looks like a number stays a
-  string.
-- Each analysis reports which observations it used. Excluding a row never
-  deletes it from your data.
-- A diagnostic never swaps the test you asked for. If a normality check fails,
-  you still get the test you requested, with the diagnostic next to it.
+- Scaling and dimensionality reduction happen only when you ask for them.  Missing values aren't imputed, and a string that looks like a number stays a string.
+- Each analysis reports which observations it used. Excluding a row never deletes it from your data.
+- A diagnostic never swaps the test you asked for. If a normality check fails, you still get the test you requested, with the diagnostic next to it.
 - A rank-deficient problem is reported as such, not quietly regularized.
 - Outliers are flagged and left alone.
 - Data and annotations are matched by observation ID, never by row position.
-- Every result records its parameters, input sizes, random seed and the Ruddy
-  version that produced it.
+- Every result records its parameters, input sizes, random seed and the Ruddy version that produced it.
 
-Because of this, read `status` and `reason` next to every estimate. `ok` means
-the quantity was estimated. `degenerate` means the data can't support it, for
-example a constant column in a correlation. `skipped` means a requirement
-wasn't met. Missing values in result tables are Polars nulls, not NaN. See
-[results and provenance](https://github.com/kren-ai-lab/ruddy/blob/main/docs/RESULTS_AND_PROVENANCE.md) for how to read and
+Because of this, read `status` and `reason` next to every estimate. `ok` means the quantity was estimated. `degenerate` means the data can't support it, for example a constant column in a correlation. `skipped` means a requirement wasn't met. Missing values in result tables are Polars nulls, not NaN.
+See [results and provenance](https://github.com/kren-ai-lab/ruddy/blob/main/docs/RESULTS_AND_PROVENANCE.md) for how to read and
 export results.
 
 ## Documentation and examples
 
-The [documentation index](https://github.com/kren-ai-lab/ruddy/blob/main/docs/README.md) links all the guides. There are also
-[13 example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/README.md) written in marimo. To open one:
+The [documentation index](https://github.com/kren-ai-lab/ruddy/blob/main/docs/README.md) links all the guides.
+
+There are also [13 example notebooks](https://github.com/kren-ai-lab/ruddy/blob/main/examples/README.md) written in marimo.
+To open one:
 
 ```bash
 uv sync --all-extras --group examples

@@ -69,7 +69,7 @@ def _(mo):
 def _(finish, frame, pcs, pl, plt, show):
     _fig, axes = plt.subplots(1, 3, figsize=(15, 4.7))
     for _ax, (_name, _res) in zip(axes, pcs.items()):
-        m = _res.scores.join(frame.select(['id', 'group']), left_on='observation_id', right_on='id', how='left')
+        m = _res.scores.join(frame.select(['id', 'group']), on='id', how='left')
         for level in m.get_column('group').unique(maintain_order=True):
             _sub = m.filter(pl.col('group') == level)
             _ax.scatter(_sub.get_column('PC1').to_numpy(), _sub.get_column('PC2').to_numpy(), label=str(level), alpha=0.65, s=22)
@@ -212,13 +212,13 @@ def _(frame, pcs, pl):
     long = []
     for _name, _res in pcs.items():
         t = (
-            _res.scores.select(['observation_id', 'PC1', 'PC2'])
-            .join(frame.select(['id', 'group', 'activity']), left_on='observation_id', right_on='id', how='left')
+            _res.scores.select(['id', 'PC1', 'PC2'])
+            .join(frame.select(['id', 'group', 'activity']), on='id', how='left')
             .with_columns(space=pl.lit(_name))
         )
         long.append(t)
     long_df = pl.concat(long).to_pandas()
-    _fig = px.scatter(long_df, x='PC1', y='PC2', color='group', facet_col='space', hover_data=['observation_id', 'activity'], title='Interactive aligned-representation explorer')
+    _fig = px.scatter(long_df, x='PC1', y='PC2', color='group', facet_col='space', hover_data=['id', 'activity'], title='Interactive aligned-representation explorer')
     _fig
     return
 

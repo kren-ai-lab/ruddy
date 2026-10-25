@@ -19,7 +19,7 @@ def test_anomaly_methods_return_scores():
 
 def test_extreme_point_is_isolation_forest_flagged():
     r = analyze_anomalies(_data(), methods=("isolation_forest",), contamination=0.05, random_state=2)
-    row = r.scores.filter(pl.col("observation_id") == "o79").row(0, named=True)
+    row = r.scores.filter(pl.col("id") == "o79").row(0, named=True)
     assert bool(row["is_flagged"])
 
 
@@ -40,4 +40,4 @@ def test_nonfinite_row_is_excluded():
     x = f.to_array()
     x[0, 0] = np.nan
     r = analyze_anomalies(FeatureMatrix(x, observation_ids=f.observation_ids), methods=("isolation_forest",))
-    assert r.exclusions.height == 1 and r.exclusions["observation_id"][0] == "o0"
+    assert r.exclusions.height == 1 and r.exclusions["id"][0] == "o0"

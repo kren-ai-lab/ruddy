@@ -157,7 +157,7 @@ def test_complete_case_exclusions_are_observable(balanced_factorial_dataset):
     )
     result = analyze_factorial(dataset, formula="response ~ factor_a * factor_b + covariate")
     assert len(result.exclusions) == 3
-    assert set(result.exclusions.get_column("observation_id").to_list()) == {"obs_0", "obs_1", "obs_2"}
+    assert set(result.exclusions.get_column("id").to_list()) == {"obs_0", "obs_1", "obs_2"}
     assert result.model_summary["n_complete_case"] == dataset.frame.height - 3
 
 
@@ -240,7 +240,7 @@ def test_observation_influence_diagnostics_are_aligned(balanced_factorial_datase
     result = analyze_factorial(balanced_factorial_dataset, formula="response ~ factor_a + covariate")
     obs = result.observation_diagnostics
     assert len(obs) == balanced_factorial_dataset.frame.height
-    assert obs.get_column("observation_id").to_list() == list(balanced_factorial_dataset.observation_ids)
+    assert obs.get_column("id").to_list() == list(balanced_factorial_dataset.observation_ids)
     assert {"studentized_residual", "leverage", "cooks_distance"} <= set(obs.columns)
 
 
@@ -265,7 +265,7 @@ def test_polars_native_dataset_integer_factor_matches_pandas():
             "y": y,
         }
     )
-    # Add a null row to verify exclusions table and observation_id dtype preservation
+    # Add a null row to verify exclusions table and id dtype preservation
     df_polars = df_polars.with_columns(
         pl.when(pl.col("id") == 105).then(None).otherwise(pl.col("y")).alias("y")
     )
@@ -287,4 +287,4 @@ def test_polars_native_dataset_integer_factor_matches_pandas():
 
     pl_testing.assert_frame_equal(res_polars.effects, res_pandas.effects)
     assert len(res_polars.exclusions) == 1
-    assert res_polars.exclusions.schema["observation_id"] == df_polars.schema["id"]
+    assert res_polars.exclusions.schema["id"] == df_polars.schema["id"]

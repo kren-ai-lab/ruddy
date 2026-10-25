@@ -96,4 +96,4 @@ def test_factorial_cli_requires_one_response_without_formula(tmp_path: Path):
     source = tmp_path / "data.csv"
     _write_dataset(source)
     code = main(["model", "factorial", str(source), "--id-column", "id", "--factor", "a"])
-    assert code == 2, "CLI should reject a factorial model without one response."
+    assert code == 3, "CLI should reject a factorial model without one response."

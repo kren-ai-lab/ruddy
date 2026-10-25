@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import collections
-import datetime
+import datetime as dt
 import math
 from typing import TYPE_CHECKING, Any
 
@@ -63,7 +63,7 @@ def _category_label(value: Any) -> str:
         converted = float(value)
         if math.isfinite(converted):
             return repr(converted)
-    if isinstance(value, (datetime.datetime, datetime.date)):
+    if isinstance(value, (dt.datetime, dt.date)):
         return value.isoformat()
     return str(value)
 
