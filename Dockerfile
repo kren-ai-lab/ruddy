@@ -1,0 +1,18 @@
+# Runtime image of a released Ruddy version, installed from PyPI (no source copied), so any past
+# release can be rebuilt. Built and pushed by .github/workflows/publish-container.yml.
+#   docker build --build-arg RUDDY_VERSION=0.2.0 -t ruddy:0.2.0 .
+FROM python:3.14-slim
+
+ARG RUDDY_VERSION
+LABEL org.opencontainers.image.source="https://github.com/kren-ai-lab/ruddy" \
+      org.opencontainers.image.description="Ruddy: statistical EDA for tabular datasets and feature representations" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${RUDDY_VERSION}"
+
+# procps: Nextflow reads task metrics with `ps` inside the container.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends procps \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN test -n "${RUDDY_VERSION}" \
+    && pip install --no-cache-dir "ruddy==${RUDDY_VERSION}"
