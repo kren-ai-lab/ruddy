@@ -16,6 +16,5 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends procps \
     && rm -rf /var/lib/apt/lists/*
 
-# typer<0.28: ruddy 0.2.0 allows typer 0.28+, which breaks `--config`; drop once 0.2.0 is rebuilt.
 RUN test -n "${RUDDY_VERSION}" \
-    && pip install --no-cache-dir "ruddy${EXTRAS}==${RUDDY_VERSION}" "typer>=0.27,<0.28"
+    && pip install --no-cache-dir "ruddy${EXTRAS}==${RUDDY_VERSION}"
