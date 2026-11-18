@@ -3,6 +3,10 @@
 All notable changes to Ruddy are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 0.2.1
+
+- Supports typer 0.28 and later: `--config` and `validate-config` coerced values with an option method that typer 0.28 removed, so they rejected every valid value.
+
 ## 0.2.0
 
 - `--config PATH` reads option values from a YAML/JSON file (defaults < file < command-line flags) in `pipeline` and every `inspect`, `analyze`, `model` and `project` subcommand. Path options stay on the command line.
