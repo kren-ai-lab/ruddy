@@ -1,0 +1,76 @@
+name: publish-container
+
+# Builds ghcr.io/kren-ai-lab/ruddy:<version> from the PyPI release (see Dockerfile).
+# - After publish-pypi succeeds on a v* tag: pushes <version> and latest.
+# - Manually (workflow_dispatch): pushes <version> only, to backfill past releases.
+
+on:
+  workflow_run:
+    workflows: [publish-pypi]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Released version on PyPI (e.g. 0.2.0)"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/kren-ai-lab/ruddy
+      VERSION: ${{ inputs.version || github.event.workflow_run.head_branch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve tags
+        run: |
+          v="${VERSION#v}"
+          tags="$IMAGE:$v"
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then tags="$tags,$IMAGE:latest"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "TAGS=$tags" >> "$GITHUB_ENV"
+
+      # PyPI's index can lag a little behind the upload that just finished.
+      - name: Wait for the release on PyPI
+        run: |
+          for i in $(seq 1 20); do
+            pip download --no-deps --quiet --dest /tmp/dl "ruddy==$VERSION" && exit 0
+            sleep 15
+          done
+          echo "ruddy==$VERSION not found on PyPI" >&2; exit 1
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          build-args: RUDDY_VERSION=${{ env.VERSION }}
+          tags: ruddy:test
+          load: true
+
+      - name: Smoke test
+        run: docker run --rm ruddy:test ruddy --version | grep -Fx "ruddy $VERSION"
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          build-args: RUDDY_VERSION=${{ env.VERSION }}
+          tags: ${{ env.TAGS }}
+          push: true
