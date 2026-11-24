@@ -1,7 +1,4 @@
-# Runtime image of a released Ruddy version, installed from PyPI (no source copied), so any past
-# release can be rebuilt. Built and pushed by .github/workflows/publish-container.yml.
-#   docker build --build-arg RUDDY_VERSION=0.2.0 -t ruddy:0.2.0 .
-#   docker build --build-arg RUDDY_VERSION=0.2.0 --build-arg EXTRAS=[manifold] -t ruddy:0.2.0-full .
+# Runtime image of a released Ruddy version, installed from PyPI.
 FROM python:3.14-slim
 
 ARG RUDDY_VERSION
