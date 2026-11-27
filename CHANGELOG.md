@@ -3,6 +3,10 @@
 All notable changes to Ruddy are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- `project pca|tsne|umap` (and `prepare_features`) always exclude features with no finite value instead of excluding every row, and `--non-finite exclude_features` (`non_finite=` in Python) excludes features with any non-finite value rather than rows. Excluded features are recorded in `preprocessing.excluded_features`.
+
 ## 0.2.1
 
 - Supports typer 0.28 and later: `--config` and `validate-config` coerced values with an option method that typer 0.28 removed, so they rejected every valid value.

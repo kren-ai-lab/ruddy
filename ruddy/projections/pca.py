@@ -10,7 +10,7 @@ import polars as pl
 from scipy import sparse
 from sklearn.decomposition import PCA
 
-from ruddy.core.enums import ResultStatus, ScalingMethod
+from ruddy.core.enums import NonFinitePolicy, ResultStatus, ScalingMethod
 from ruddy.data import FeatureMatrix
 from ruddy.projections.preprocessing import prepare_features
 from ruddy.results import AnalysisProvenance
@@ -96,13 +96,14 @@ def analyze_pca(
     *,
     n_components: int = 2,
     scaling: ScalingMethod | str = ScalingMethod.NONE,
+    non_finite: NonFinitePolicy | str = NonFinitePolicy.EXCLUDE_ROWS,
     random_state: int = 0,
 ) -> PCAResult:
     """Run PCA with explicit scaling, row exclusion, and component provenance."""
     if n_components < 1:
         msg = "n_components must be at least 1."
         raise ValueError(msg)
-    prepared = prepare_features(features, scaling=scaling, minimum_observations=2)
+    prepared = prepare_features(features, scaling=scaling, minimum_observations=2, non_finite=non_finite)
     scale = scaling if isinstance(scaling, ScalingMethod) else ScalingMethod(scaling)
     provenance = AnalysisProvenance(
         analysis="pca",
@@ -110,7 +111,7 @@ def analyze_pca(
             "n_components_requested": int(n_components),
             "scaling": scale.value,
             "solver": "auto",
-            "row_exclusion_policy": "exclude_rows_with_any_non_finite_feature",
+            "non_finite": prepared.metadata["non_finite_policy"],
             "inferential_allowed": True,
         },
         input_summary={

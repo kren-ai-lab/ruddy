@@ -56,3 +56,18 @@ def test_sparse_non_finite_rows_are_excluded():
     result = prepare_features(FeatureMatrix(x, observation_ids=[10, 11, 12]))
     assert list(result.observation_ids) == [10, 12]
     assert result.exclusions["id"].to_list() == [11]
+
+
+def test_all_missing_features_are_always_excluded_and_policy_can_drop_features():
+    x = np.array([[1.0, np.nan, np.nan], [2.0, 5.0, np.nan], [3.0, 6.0, np.nan]])
+    fm = FeatureMatrix(x, feature_names=["a", "b", "c"])
+    rows = prepare_features(fm)
+    assert rows.feature_names == ("a", "b")
+    assert rows.n_observations == 2
+    assert rows.metadata["excluded_features"] == [{"feature": "c", "reason": "all_missing"}]
+    cols = prepare_features(fm, non_finite="exclude_features")
+    assert cols.feature_names == ("a",)
+    assert cols.n_observations == 3
+    assert {f["reason"] for f in cols.metadata["excluded_features"]} == {"all_missing", "non_finite"}
+    with pytest.raises(ValueError, match="no features left"):
+        prepare_features(FeatureMatrix(x[:, 2:]))

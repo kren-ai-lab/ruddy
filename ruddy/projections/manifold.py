@@ -11,7 +11,7 @@ import numpy as np
 import polars as pl
 from sklearn.manifold import TSNE
 
-from ruddy.core.enums import ProjectionMethod, ResultStatus, ScalingMethod
+from ruddy.core.enums import NonFinitePolicy, ProjectionMethod, ResultStatus, ScalingMethod
 from ruddy.core.exceptions import OptionalDependencyError
 from ruddy.core.frames import id_dtype
 from ruddy.projections.preprocessing import prepare_features
@@ -63,6 +63,7 @@ def analyze_tsne(
     *,
     n_components: int = 2,
     scaling: ScalingMethod | str = ScalingMethod.NONE,
+    non_finite: NonFinitePolicy | str = NonFinitePolicy.EXCLUDE_ROWS,
     metric: str = "euclidean",
     perplexity: float = 30.0,
     random_state: int = 0,
@@ -78,7 +79,7 @@ def analyze_tsne(
     if max_iter < 250:
         msg = "max_iter must be at least 250."
         raise ValueError(msg)
-    prepared = prepare_features(features, scaling=scaling, minimum_observations=3)
+    prepared = prepare_features(features, scaling=scaling, minimum_observations=3, non_finite=non_finite)
     if perplexity >= prepared.n_observations:
         msg = "t-SNE perplexity must be smaller than the number of finite input observations."
         raise ValueError(msg)
@@ -142,6 +143,7 @@ def analyze_umap(
     *,
     n_components: int = 2,
     scaling: ScalingMethod | str = ScalingMethod.NONE,
+    non_finite: NonFinitePolicy | str = NonFinitePolicy.EXCLUDE_ROWS,
     metric: str = "euclidean",
     n_neighbors: int = 15,
     min_dist: float = 0.1,
@@ -165,7 +167,7 @@ def analyze_umap(
     if not 0.0 <= min_dist <= 1.0:
         msg = "UMAP min_dist must be between 0 and 1."
         raise ValueError(msg)
-    prepared = prepare_features(features, scaling=scaling, minimum_observations=4)
+    prepared = prepare_features(features, scaling=scaling, minimum_observations=4, non_finite=non_finite)
     if n_neighbors >= prepared.n_observations:
         msg = "UMAP n_neighbors must be smaller than the number of finite input observations."
         raise ValueError(msg)

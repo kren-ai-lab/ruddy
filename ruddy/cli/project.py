@@ -8,6 +8,7 @@ import typer
 
 from ruddy.cli._contract import CONFIG
 from ruddy.cli._enums import (
+    NonFinite,
     Scaling,
 )
 from ruddy.cli._options import (
@@ -21,6 +22,7 @@ from ruddy.cli._options import (
     MIN_DIST,
     N_COMPONENTS,
     N_NEIGHBORS,
+    NON_FINITE,
     OUTPUT_DIR,
     PERPLEXITY,
     RANDOM_STATE,
@@ -54,6 +56,7 @@ def pca(
     feature_column: list[str] = FEATURE_COLUMN,
     n_components: int = N_COMPONENTS,
     scaling: Scaling = SCALING,
+    non_finite: NonFinite = NON_FINITE,
     random_state: int = RANDOM_STATE,
     output_dir: str | None = OUTPUT_DIR,
 ) -> None:
@@ -70,6 +73,7 @@ def tsne(
     feature_column: list[str] = FEATURE_COLUMN,
     n_components: int = N_COMPONENTS,
     scaling: Scaling = SCALING,
+    non_finite: NonFinite = NON_FINITE,
     metric: str = METRIC,
     perplexity: float = PERPLEXITY,
     max_iter: int = MAX_ITER,
@@ -89,6 +93,7 @@ def umap(
     feature_column: list[str] = FEATURE_COLUMN,
     n_components: int = N_COMPONENTS,
     scaling: Scaling = SCALING,
+    non_finite: NonFinite = NON_FINITE,
     metric: str = METRIC,
     n_neighbors: int = N_NEIGHBORS,
     min_dist: float = MIN_DIST,

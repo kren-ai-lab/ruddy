@@ -496,9 +496,14 @@ Missing and non-finite observations are not classified as outliers.
 
 `prepare_features()` is the common feature-space preprocessing layer.
 
-### 14.1 Finite-row requirement
+### 14.1 Non-finite values
 
-Rows containing any non-finite feature value are excluded from the prepared matrix and recorded in an exclusions table with observation ID and source row index.
+Features with no finite value at all are always excluded. Remaining non-finite values are handled by `non_finite` (CLI `--non-finite`):
+
+- `exclude_rows` (default): rows containing any non-finite value are excluded and recorded in an exclusions table with observation ID and source row index;
+- `exclude_features`: features (columns) containing any non-finite value are excluded.
+
+Excluded features are recorded in the preprocessing metadata (`excluded_features`, with reason `all_missing` or `non_finite`). It is an error if fewer than the minimum number of rows or no features remain.
 
 ### 14.2 Scaling methods
 
