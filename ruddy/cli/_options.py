@@ -20,6 +20,7 @@ from ruddy.cli._enums import (
     Alignment,
     BootstrapMethod,
     CompositionalTransform,
+    NonFinite,
     PAdjust,
     RobustCovariance,
     Scaling,
@@ -171,6 +172,7 @@ FEATURE_ID_COLUMN = typer.Option(None, "--feature-id-column")
 FEATURE_IDS_FILE = typer.Option(None, "--feature-ids-file")
 FEATURE_ALIGNMENT = typer.Option(Alignment.strict, "--feature-alignment")
 SCALING = typer.Option(Scaling.none, "--scaling")
+NON_FINITE = typer.Option(NonFinite.exclude_rows, "--non-finite")
 
 # --------------------------------------------------------------------------
 # Outliers

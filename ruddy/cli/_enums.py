@@ -37,6 +37,11 @@ class Scaling(StrEnum):
     minmax = "minmax"
 
 
+class NonFinite(StrEnum):
+    exclude_rows = "exclude_rows"
+    exclude_features = "exclude_features"
+
+
 class Alignment(StrEnum):
     strict = "strict"
     partial = "partial"
