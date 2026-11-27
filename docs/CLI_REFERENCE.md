@@ -154,6 +154,8 @@ ruddy project pca embeddings.csv \
   --output-dir results/pca
 ```
 
+`project pca|tsne|umap` exclude features with no finite value; `--non-finite exclude_rows` (default) drops rows with any other non-finite value, `--non-finite exclude_features` drops those features instead. Excluded features are listed under `preprocessing.excluded_features` in the provenance JSON.
+
 ```bash
 ruddy model permanova metadata.csv \
   --id-column id \

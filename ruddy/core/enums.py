@@ -85,6 +85,13 @@ class ScalingMethod(StrEnum):
     MINMAX = "minmax"
 
 
+class NonFinitePolicy(StrEnum):
+    """How projections treat non-finite values left after dropping all-missing features."""
+
+    EXCLUDE_ROWS = "exclude_rows"
+    EXCLUDE_FEATURES = "exclude_features"
+
+
 class ProjectionMethod(StrEnum):
     """Supported nonlinear exploratory projection methods."""
 

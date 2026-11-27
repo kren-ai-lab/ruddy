@@ -131,6 +131,7 @@ def run_project(args: CliArgs) -> int:
     common = {
         "n_components": args.n_components,
         "scaling": args.scaling,
+        "non_finite": args.non_finite,
         "random_state": args.random_state,
     }
     if args.method == "pca":

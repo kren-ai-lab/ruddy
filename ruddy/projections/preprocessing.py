@@ -10,7 +10,7 @@ import polars as pl
 from scipy import sparse
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
-from ruddy.core.enums import ScalingMethod
+from ruddy.core.enums import NonFinitePolicy, ScalingMethod
 from ruddy.core.frames import id_dtype
 
 if TYPE_CHECKING:
@@ -95,6 +95,13 @@ def _normalize_scaling(value: ScalingMethod | str) -> ScalingMethod:
     return value if isinstance(value, ScalingMethod) else ScalingMethod(value)
 
 
+def _non_finite_counts(matrix: Any) -> np.ndarray:
+    if sparse.issparse(matrix):
+        coo = sparse.coo_matrix(matrix)
+        return np.bincount(coo.col[~np.isfinite(coo.data)], minlength=coo.shape[1])
+    return (~np.isfinite(np.asarray(matrix, dtype=np.float64))).sum(axis=0)
+
+
 def _finite_row_mask(matrix: Any) -> np.ndarray:
     if sparse.issparse(matrix):
         csr = sparse.csr_matrix(matrix)
@@ -156,12 +163,31 @@ def prepare_features(
     *,
     scaling: ScalingMethod | str = ScalingMethod.NONE,
     minimum_observations: int = 2,
+    non_finite: NonFinitePolicy | str = NonFinitePolicy.EXCLUDE_ROWS,
 ) -> PreparedFeatures:
-    """Exclude non-finite rows and apply only explicitly requested scaling."""
+    """Exclude all-missing features, handle other non-finite values, and apply requested scaling.
+
+    ``non_finite`` decides what happens to remaining non-finite values: exclude the rows
+    that hold them (default) or the features (columns) that hold them.
+    """
     if minimum_observations < 2:
         raise ValueError("minimum_observations must be at least 2.")
     method = _normalize_scaling(scaling)
+    policy = NonFinitePolicy(non_finite)
     matrix = features.to_sparse() if features.is_sparse else features.to_array()
+    counts = _non_finite_counts(matrix)
+    all_missing = counts == matrix.shape[0]
+    drop = counts > 0 if policy is NonFinitePolicy.EXCLUDE_FEATURES else all_missing
+    feature_names = features.feature_names
+    excluded_features = [
+        {"feature": feature_names[i], "reason": "all_missing" if all_missing[i] else "non_finite"}
+        for i in np.flatnonzero(drop)
+    ]
+    if drop.all():
+        raise ValueError("Feature projection has no features left after excluding non-finite features.")
+    if drop.any():
+        matrix = matrix[:, ~drop]  # pyrefly: ignore[bad-index]
+        feature_names = tuple(n for n, d in zip(feature_names, drop, strict=True) if not d)
     valid_mask = _finite_row_mask(matrix)
     source_rows = np.flatnonzero(valid_mask).astype(np.int64)
     excluded_rows = np.flatnonzero(~valid_mask).astype(np.int64)
@@ -178,7 +204,7 @@ def prepare_features(
     return PreparedFeatures(
         matrix=scaled,
         observation_ids=tuple(ids[i] for i in source_rows),
-        feature_names=features.feature_names,
+        feature_names=feature_names,
         source_row_indices=source_rows,
         exclusions=exclusions,
         metadata={
@@ -187,7 +213,9 @@ def prepare_features(
             "n_input_observations": int(valid_mask.sum()),
             "n_excluded_observations": int((~valid_mask).sum()),
             "n_features": features.n_features,
+            "n_excluded_features": len(excluded_features),
+            "excluded_features": excluded_features,
+            "non_finite_policy": policy.value,
             "source_storage": "sparse" if features.is_sparse else "dense",
-            "row_exclusion_policy": "exclude_rows_with_any_non_finite_feature",
         },
     )
